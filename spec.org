@@ -1,0 +1,54 @@
+* /Hush/
+  /Hush/ is a /Unix/ shell language inspired by the /[[http://www.lua.org/][Lua/ programming language]]. Currently in
+  development.
+
+  This is the technical specification for /Hush/, defining the complete syntax and semantics of the language.
+** Foreword
+   /Hush/ is motivated by some shortcomings in traditional shell languages, mainly the lack
+   of appropriate primitive data structures, such as generic arrays and maps. Such
+   shortcomings result in hacky workarounds for simple tasks, and render complicated tasks
+   being rather tricky to implement.
+
+   /Hush/ borrows a great part of it's design from /Lua/, a simple but elegant scripting
+   language. /Lua/ has proved to be a very expressive programming language, regardless of
+   it's succinct syntax and semantics, particularly it's very simple type system.
+** Syntax
+   As /Hush/ is heavily inspired by /Lua/, it borrows most of the syntax from it, with only
+   minor tweaks to support the additional command invocation syntax.
+** Type system
+   As in /Lua/, /Hush/ proposes a handfull of built-in types, and no user-defined types. This
+   makes the type system extremely simple, without compromising expressiveness. The types
+   proposed by /Hush/ are:
+   - nil :: the unit type, usually for representing missing values. It's only value is ~nil~.
+   - bool :: the boolean type, composed of the values ~true~ and ~false~.
+   - char :: a C-like unsigned char type, 0-255.
+   - int  :: a 64 bit integer type.
+   - float :: a 64 bit floating point type.
+   - array :: a heterogeneous array, 0-indexed unlike in /Lua/.
+   - dict :: a heterogeneous hash map.
+   - function :: a callable function.
+   A string for instance is nothing but an ~array~ of ~char~.
+** Expressions
+   In traditional shells, expressions produce two results that can be manipulated by the
+   language: the standard output (/stdin/stderr/), and a status code. The output can be
+   captured by the ~$()~ operator, and the status code is immediately available through the
+   ~$?~ variable. Function and command arguments are always strings, and the status code is
+   always an integer.
+
+   /Hush/ proposes more generic semantics, which are tipically adopted by general purpose
+   programming languages. Functions should be able to accept parameters of arbitrary
+   types, and also be able to return a value of an arbitrary type. On the other hand,
+   commands are limited by the operating system to accept strings and return a status
+   code. Therefore, when invoking external commands, /Hush/ converts the given arguments to
+   strings, and provides the status code as the return value.
+
+   The expression composed by a function or command call results in the returned value,
+   rendering a variable like ~$?~ unnecessary. As for the ~$()~ operator, /Hush/ adopts more
+   flexible semantics. Instead of resulting in the expression's /stdout/, the result is a
+   ~dict~ containing three fields: a handle for /stdout/, a handle for /stderr/, and the
+   status code. This enables acessing both /stdout/ and /stderr/ separately, as well as the
+   status code, all with value semantics. If one cares only about the /stdout/ for instance,
+   direct access can be used, without requiring any intermediate variables:
+   #+begin_src bash
+     $(date --iso-8061).stdout
+   #+end_src
