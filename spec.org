@@ -43,12 +43,56 @@
    strings, and provides the status code as the return value.
 
    The expression composed by a function or command call results in the returned value,
-   rendering a variable like ~$?~ unnecessary. As for the ~$()~ operator, /Hush/ adopts more
-   flexible semantics. Instead of resulting in the expression's /stdout/, the result is a
-   ~dict~ containing three fields: a handle for /stdout/, a handle for /stderr/, and the
-   status code. This enables acessing both /stdout/ and /stderr/ separately, as well as the
-   status code, all with value semantics. If one cares only about the /stdout/ for instance,
-   direct access can be used, without requiring any intermediate variables:
+   rendering a variable like ~$?~ unnecessary. As for the capture operator (~${}~ in /Hush/),
+   more flexible semantics are adopted. Instead of resulting in the expression's /stdout/,
+   the result is a ~dict~ containing three fields: a handle for /stdout/, a handle for /stderr/,
+   and the status code. This enables acessing both /stdout/ and /stderr/ separately, as well
+   as the status code, all with value semantics. If one cares only about the /stdout/ for
+   instance, direct access can be used, without requiring any intermediate variables:
    #+begin_src bash
-     $(date --iso-8061).stdout
+     ${date --iso-8061}.stdout
    #+end_src
+** Commands
+   In /Hush/, command blocks are enclosed in ~{}~. Individual commands must end with a
+   semicolon, except for the last command in the block. This can be annoying for simple
+   commands, but it allows one to split a command across multiple lines interspersed
+   with comments, which is currently impossible in /Bash/, for instance.
+   #+begin_src bash
+     {
+       docker create
+              --name $container
+              -i -a STDIN -a STDOUT -a STDERR # attach all stdio
+              -v $(pwd):/my/project:ro # mount the source code as a read-only volume
+              my-image:latest;
+
+
+       rsync -av --delete --delete-excluded
+              # version control directories:
+              --exclude='.git/'
+              --exclude='.svn/'
+              # build directories:
+              --exclude='.stack-work/'
+              --exclude='.ccls-cache/'
+              --exclude='target/'
+              --exclude='bin/'
+              --exclude='obj/'
+              # don't backup series or torrents:
+              --exclude='series/'
+              --exclude='torrents/'
+              ~/ /mnt/backup 2>&1
+         | tee $(date '+%Y-%m-%dT%H.%M.%S-rsync.log');
+
+
+       list-musics
+         | xargs --null -- mediainfo --Output='Audio;%Duration%\n' # get duration in miliseconds
+         | awk NF # remove empty lines
+         | paste -s -d + # join lines with +
+         | bc # eval the resulting expression
+     }
+   #+end_src
+
+   As noted previously, command invocation expressions result in the status code of the
+   last command in the block. If such status indicates a failure (non-zero), and is not
+   immediately assigned to a variable or captured with ~${}~, /Hush/ will automatically panic,
+   halting the script execution. This behavior is similar to /Bash/'s ~set -e~.
+
