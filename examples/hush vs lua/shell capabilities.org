@@ -1,0 +1,114 @@
+* Interaction with commands
+  Lua provides APIs for simple interactions with external programs. The two main functions
+  for invoking commands are ~os.execute~, which executes its argument as a shell command,
+  and ~io.popen~, which does the same, but pipes the input *or* the output.
+
+  A minor issue present in both functions is that they receive a single string as
+  input. Therefore, one must build such string programatically in order to include values
+  from variables, and take care to prevent unintentional word splitting or globbing from
+  the shell. Further on, to read the output when using ~io.popen~, one must do it verbosely
+  using the ~read~ and ~close~ methods.
+
+  Lua:
+  #+begin_src lua
+    function restartContainerIfRunning(container_name)
+      local docker_inspect = io.popen('docker inspect "' .. container_name .. '"')
+
+      local output = docker_inspect:read('*a')
+
+      if docker_inspect:close() == false then
+        -- docker inspect failed, return error
+      end
+
+      local container_info = json.parse(output)[0]
+
+      if container_info.State.Running then
+        return os.execute('docker restart ' .. container_name)
+      end
+    end
+  #+end_src
+
+  Hush:
+  #+begin_src lua
+    function restartContainerIfRunning(container_name)
+      docker_inspect = ${ docker inspect $container_name }
+
+      if docker_inspect.status != 0 then
+        -- docker inspect failed, return error
+      end
+
+      container_info = json.parse(docker_inspect.stdout)[0]
+
+      if container_info.State.Running then
+        return { docker restart $container_name }
+      end
+    end
+  #+end_src
+
+  But it gets worse: ~io.popen~ provides a monodirectional pipe, which means
+  you can't send input and capture the output at the same time.
+
+  Hush:
+  #+begin_src lua
+    function list_music_files()
+      return {
+        find '/media/musics'
+             -iname '*.mp3';
+
+        cat /org/musics_to_be_downloaded.org
+          | awk -F'TODO' '{print $NF}' # Get everything after the last TODO
+      }
+    end
+
+    -- The following statement calls a Hush function, pipes its output to a command block, and
+    -- captures the resulting output. Such task in almost impossible in Lua, because in the
+    -- current io.popen API reading and writing are mutually exclusive, and there is no simple
+    -- way of capturing the output of isolated Lua functions.
+
+    my_musics = (list_music_files() | ${ sort | uniq }).stdout
+  #+end_src
+
+  Workarounds for such limitations are possible in Lua, but are much more complex than
+  they could be. For instance, one can implement a more flexible version of ~io.popen~ as
+  follows:
+  #+begin_src lua
+    require("posix")
+
+    --
+    -- popen3() implementation, from https://stackoverflow.com/a/16515126
+    --
+    function popen3(path, ...)
+      local r1, w1 = posix.pipe()
+      local r2, w2 = posix.pipe()
+      local r3, w3 = posix.pipe()
+
+      assert((w1 ~= nil or r2 ~= nil or r3 ~= nil), "pipe() failed")
+
+      local pid, err = posix.fork()
+      assert(pid ~= nil, "fork() failed")
+      if pid == 0 then
+        posix.close(w1)
+        posix.close(r2)
+        posix.dup2(r1, posix.fileno(io.stdin))
+        posix.dup2(w2, posix.fileno(io.stdout))
+        posix.dup2(w3, posix.fileno(io.stderr))
+        posix.close(r1)
+        posix.close(w2)
+        posix.close(w3)
+
+        local ret, err = posix.execp(path, unpack({...}))
+        assert(ret ~= nil, "execp() failed")
+
+        posix._exit(1)
+      else
+        posix.close(r1)
+        posix.close(w2)
+        posix.close(w3)
+
+        return pid, w1, r2, r3
+      end
+    end
+  #+end_src
+
+  To allow piping into or capturing the output of shell functions, further calls to ~dup2~
+  would be necessary to temporarily pipe the shell's IO streams.
