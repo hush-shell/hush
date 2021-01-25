@@ -31,7 +31,7 @@
 ** Basic constructs
 *** Functions
     In /Hush/, functions:
-    - Can have an arbitrary number of parameters, but returns only one value, in contrary to
+    - Can have an arbitrary number of parameters, but returns only one value, in contrast to
       /Lua/.
     - Are values, being first class citizens like every other type in the language.
     - As they are values, they have no name. A function declared with a name is actually a
