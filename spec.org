@@ -182,53 +182,49 @@
 
    Hush:
    #+begin_src lua
-     MyCounter = [ -- MyCounter is a dict that represents a Class.
-       new: function(initial_value)
-         return [
-           value: initial_value,      -- Field
-           -- These methods could be implemented here as well.
-           -- Remeber, functions are nothing but values.
-           increment: self.increment, -- Method
-           get: self.get,             -- Method
-         ]
-       end,
+     function MyCounter(initial_value) -- MyCounter is a function that represents a Class.
+       increment = function()
+         self._value += 1
+       end
 
-       increment: function()
-         self.value += 1
-       end,
+       get = function()
+         return self._value
+       end
 
-       get: function()
-         return self.value
-       end,
-     ]
+       return [
+         _value: initial_value, -- Public field.
+         -- These methods could be implemented here as well.
+         -- Remeber, functions are nothing but values.
+         increment: increment, -- Method
+         get: get,             -- Method
+       ]
+     end
 
 
-     counter = MyCounter.new(0)
+     counter = MyCounter(0)
      counter.increment()
      counter.increment()
      counter.get() -- Returns 2
 
 
-     StepCounter = [
-       new: function(initial_value, step)
-         counter = MyCounter.new(initial_value) -- Inheritance
-         counter.step = step -- Additional field
-         counter.print = self.print -- Additional method
-         counter.increment = self.increment -- Method overriding
-         return counter
-       end,
+     function StepCounter(initial_value, step)
+       -- This function captures the `step` variable, which acts as a private field.
+       increment = function()
+         self._value += step
+       end
 
-       increment: function()
-         self.value += self.step
-       end,
-
-       print: function()
+       print = function()
          print(self.get())
-       end,
-     ]
+       end
+
+       counter = MyCounter(initial_value) -- Inheritance
+       counter.print = print -- Additional method
+       counter.increment = increment -- Method overriding
+       return counter
+     end
 
 
-     counter = StepCounter.new(0, 2)
+     counter = StepCounter(0, 2)
      counter.increment()
      counter.increment()
      counter.print() -- Prints 4
