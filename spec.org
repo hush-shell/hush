@@ -12,15 +12,12 @@
    /Hush/ borrows a great part of it's design from /Lua/, a simple but elegant scripting
    language. /Lua/ has proved to be a very expressive programming language, regardless of
    it's succinct syntax and semantics, particularly it's very simple type system.
-** Syntax
-   As /Hush/ is heavily inspired by /Lua/, it borrows most of the syntax from it, with only
-   minor tweaks to support the additional command invocation syntax.
 ** Type system
    As in /Lua/, /Hush/ proposes a handfull of built-in types, and no user-defined types. This
    makes the type system extremely simple, without compromising expressiveness. The types
    proposed by /Hush/ are:
-   - nil :: the unit type, usually for representing missing values. It's only value is ~nil~.
-   - bool :: the boolean type, composed of the values ~true~ and ~false~.
+   - nil :: the unit type, usually for representing missing values.
+   - bool :: the boolean type.
    - char :: a C-like unsigned char type, 0-255.
    - int  :: a 64 bit integer type.
    - float :: a 64 bit floating point type.
@@ -28,6 +25,42 @@
    - dict :: a heterogeneous hash map.
    - function :: a callable function.
    A string for instance is nothing but an ~array~ of ~char~.
+** Syntax
+   As /Hush/ is heavily inspired by /Lua/, it borrows most of the syntax from it, with only
+   minor tweaks to support the additional command invocation syntax.
+*** Literals
+    Each type in the language has corresponding syntax for literals. Although strings are
+    arrays of =char=, they also have special syntax for literals.
+    - nil :: It's only value is ~nil~.
+    - bool :: ~true~ and ~false~.
+    - char :: a single char enclosed in single quotes.
+    - int  :: 64 bit decimal integer literal, optionally prefixed by a minus sign.
+    - float :: 64 bit floating point literal: a decimal followed by a period character,
+      followed by another decimal literal, with an optional exponent.
+    - array :: values enclosed in =[]=.
+    - dict :: identifier-expression pairs enclosed in =#[]=, separated by a colon and
+      delimited by commas.
+    - function :: =function (<args>) <body> end=
+
+    Example:
+    #+begin_src lua
+      let my_dict = #[ -- dict
+        field0: nil,
+        field1: true,
+        field2: 42, -- integer
+        field3: -12, -- integer
+        field4: 3.14, -- float
+        field5: 12E+99, -- float
+        field6: [ -- array
+          "a string",
+          'c', -- a char
+          '\n' -- another char
+        ],
+        field7: function (arg1, arg2)
+          return arg1 + arg2
+        end
+      ]
+    #+end_src
 ** Constructs
 *** Variables
     /Hush/ adopts static scope, and variables must be declared with a `let` statement.
@@ -92,7 +125,7 @@
 
 
       -- A member function.
-      my_obj = [
+      my_obj = #[
         value: 5,
 
         method: function()
@@ -177,6 +210,93 @@
     last command in the block. If such status indicates a failure (non-zero), and is not
     immediately assigned to a variable or captured with ~${}~, /Hush/ will automatically panic,
     halting the script execution. This behavior is similar to /Bash/'s ~set -e~.
+**** Asynchronous commands
+     Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
+     keyword and the =&= operator, also providing the =wait= builtin for joining such
+     coprocesses. In such shells, the /pid/ of a asynchronous command is immediately
+     available through the =$!= variable.
+
+     Bash:
+     #+begin_src bash
+       # Array variable to capture the pids of all spawned tasks
+       declare -A pids
+
+       one long running command &
+       pids+=($!)
+
+       another long running command &
+       pids+=($!)
+
+       yet another long running command &
+       pids+=($!)
+
+       # Give jobs some time to complete
+       sleep 2000
+
+       status=0
+
+       for pid in $pids; do
+         if ps -p $pid > /dev/null; then
+           # Job is stil running, abort...
+           kill $pid
+           status=1
+         else
+           # Job finished, check if succeeded:
+           if ! wait $pid; then
+             status=$?
+           fi
+         fi
+       done
+
+       exit $status
+     #+end_src
+
+     /Hush/ proposes a different approach, allowing one to launch a command block
+     asynchronously, and have immediate access to the operations regarding such job. When
+     a command block is delimited with the =&{}= operator, the block is executed
+     asynchronously, and the resulting value of the expression is a =dict= with a set of
+     values and functions to operate on the job:
+     - ~pid~: the job's =pid=. You are unlikely to need this field in practice.
+     - ~running()~: returns a =bool= indicating whether the job is still running.
+     - ~abort()~: aborts the job, killing any child processes.
+     - ~join()~: like /Bash/'s =wait=, blocks until the job is finished, and returns the job's
+       status code.
+
+     Hush:
+     #+begin_src lua
+       -- Array variable to capture the pids of all spawned tasks
+       let jobs = []
+
+       let job = &{ one long running command }
+       jobs.push(job)
+
+       job = &{ another long running command }
+       jobs.push(job)
+
+       job = &{ yet another long running command }
+       jobs.push(job)
+
+       -- Give jobs some time to complete
+       sleep(2000)
+
+       let status = 0
+
+       for job in iter(jobs) do
+         if job.running() then
+           -- Job is stil running, abort...
+           job.abort()
+           status = 1
+         else
+           -- Job finished, check if succeeded:
+           let job_status = job.join()
+           if job_status != 0 then
+             status = job_status
+           end
+         end
+       end
+
+       exit(status)
+     #+end_src
 ** Object model
    /Hush/ mainly focuses on functional programming, but also supports some sort of object
    oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sofisticated dynamics
@@ -197,7 +317,7 @@
          return self._value
        end
 
-       return [
+       return #[
          _value: initial_value, -- Public field.
          -- These methods could be implemented here as well.
          -- Remeber, functions are nothing but values.
