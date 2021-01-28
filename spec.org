@@ -28,7 +28,13 @@
    - dict :: a heterogeneous hash map.
    - function :: a callable function.
    A string for instance is nothing but an ~array~ of ~char~.
-** Basic constructs
+** Constructs
+*** Variables
+    /Hush/ adopts static scope, and variables must be declared with a `let` statement.
+    #+begin_src lua
+      let x -- Introduces the variable in the local scope
+      let y = 5 -- Shortcut for assignment
+    #+end_src
 *** Functions
     In /Hush/, functions:
     - Can have an arbitrary number of parameters, but returns only one value, in contrast to
@@ -183,11 +189,11 @@
    Hush:
    #+begin_src lua
      function MyCounter(initial_value) -- MyCounter is a function that represents a Class.
-       increment = function()
+       let increment = function()
          self._value += 1
        end
 
-       get = function()
+       let get = function()
          return self._value
        end
 
@@ -201,7 +207,7 @@
      end
 
 
-     counter = MyCounter(0)
+     let counter = MyCounter(0)
      counter.increment()
      counter.increment()
      counter.get() -- Returns 2
@@ -209,22 +215,22 @@
 
      function StepCounter(initial_value, step)
        -- This function captures the `step` variable, which acts as a private field.
-       increment = function()
+       let increment = function()
          self._value += step
        end
 
-       print = function()
+       let print = function()
          print(self.get())
        end
 
-       counter = MyCounter(initial_value) -- Inheritance
+       let counter = MyCounter(initial_value) -- Inheritance
        counter.print = print -- Additional method
        counter.increment = increment -- Method overriding
        return counter
      end
 
 
-     counter = StepCounter(0, 2)
+     let counter = StepCounter(0, 2)
      counter.increment()
      counter.increment()
      counter.print() -- Prints 4
