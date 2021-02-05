@@ -2,7 +2,8 @@
   /Hush/ is a /Unix/ shell language inspired by the /[[http://www.lua.org/][Lua/ programming language]]. Currently in
   development.
 
-  This is the technical specification for /Hush/, defining the complete syntax and semantics of the language.
+  This is the technical specification for /Hush/, defining the complete syntax and semantics
+  of the language.
 ** Foreword
    /Hush/ is motivated by some shortcomings in traditional shell languages, mainly the lack
    of appropriate primitive data structures, such as generic arrays and maps. Such
@@ -34,8 +35,7 @@
     which are not valid identifiers.
 *** Keywords
     The following are keywords in /Hush/:
-    : let, if, then, else, end, for, in, do, while, function, return, not, and, or, true,
-    : false, nil, break
+    : let, if, then, else, end, for, in, do, while, function, return, not, and, or, true, false, nil, break
 *** Literals
     Each type in the language has corresponding syntax for literals. Although strings are
     arrays of =char=, they also have special syntax for literals.
@@ -93,7 +93,7 @@
         -- body
       end
     #+end_src
-    The =if=-=else= form is a valid expression, and results in the value of the respective
+    The =if-else= form is a valid expression, and results in the value of the respective
     body. If the body ends with a statement that produces no value, then =nil= is produced.
 
     The =while= loop allows looping over a boolean expression:
