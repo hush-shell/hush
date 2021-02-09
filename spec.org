@@ -126,87 +126,15 @@
     #+end_src
 
     Both loop constructs support the =break= keyword, which implements short exiting.
-*** Functions
-    In /Hush/, functions:
-    - Can have an arbitrary number of parameters, but returns only one value, in contrast to
-      /Lua/.
-    - Are values, being first class citizens like every other type in the language.
-    - As they are values, they have no name. A function declared with a name is actually a
-      variable declaration, referring to such function value. Therefore, such variable can
-      be reassigned to a different value.
-    - Can be called using the ~()~ operator, which encompasses up to two comma-separated
-      lists of arguments, divided by a semicolon. The first list, if any, denotes required
-      arguments. The second list, if any, denotes optional arguments. If a function is
-      called with missing required arguments, then a /panic/ occurs. Optional arguments
-      default to ~nil~.
-    - Can also capture variables, i.e. they can be closures.
-    - Can be recursive. As functions are values, recursive functions are actually closures
-      on themselves.
-    - Have access to a special variable, ~self~, which is a reference to the function's
-      parent, if any. If a function is called directly as ~my_function()~, then ~self~ is
-      ~nil~. Otherwise, if it's called as a member of a ~dict~, as in ~my_obj.my_function()~,
-      then ~self~ refers to the same value as ~my_obj~.
-
-    Summarizing, here are some examples of functions in /Hush/:
-    #+begin_src lua
-      -- Simple function definition.
-      function sum(a, b, c)
-        return a + b + c
-      end
-
-
-      -- Reassigns the sum variable, which was referring to the previous function.
-      sum = function (a, b, c; d) -- Here, `d` is an optional argument.
-        if d != nil then
-          return a + b + c + d
-        else
-          return a + b + c
-        end
-      end
-
-
-      function sum(a)
-        return function(b) -- Closure!
-          return a + b  -- Here, `a` is captured from the outer scope.
-        end
-      end
-
-
-      -- Simple recursive function.
-      function factorial(n)
-        if n < 2 then
-          return 1
-        else
-          return n * factorial(n - 1)
-        end
-      end
-
-
-      -- A member function.
-      my_obj = #[
-        value: 5,
-
-        method: function()
-          if self != nil then
-            return self.value
-          else
-            return 0
-          end
-        end,
-      ]
-
-      my_obj.method() -- Returns 5
-
-      fun = my_obj.method
-
-      fun() -- Returns 0
-    #+end_src
+*** Operators
+    Equality and relational operators can be applied to values of arbitrary types. On
+    the other hand, logical op. , All operators result in a boolean value.
 *** Expressions
-    In traditional shells, expressions produce two results that can be manipulated by the
-    language: the standard output (/stdin/stderr/), and a status code. The output can be
-    captured by the ~$()~ operator, and the status code is immediately available through the
-    ~$?~ variable. Function and command arguments are always strings, and the status code is
-    always an integer.
+    In traditional shells, functions and commands produce two results that can be
+    manipulated by the language: the standard output (/stdin/stderr/), and a status
+    code. The output can be captured by the ~$()~ operator, and the status code is
+    immediately available through the ~$?~ variable. Arguments are always strings, and the
+    status code is always an integer.
 
     /Hush/ proposes more generic semantics, which are tipically adopted by general purpose
     programming languages. Functions should be able to accept parameters of arbitrary
@@ -214,147 +142,222 @@
     commands are limited by the operating system to accept strings and return a status
     code. Therefore, when invoking external commands, /Hush/ converts the given arguments to
     strings, and provides the status code as the return value.
+**** Functions
+     In /Hush/, functions:
+     - Can have an arbitrary number of parameters, but returns only one value, in contrast to
+       /Lua/.
+     - Are values, being first class citizens like every other type in the language.
+     - As they are values, they have no name. A function declared with a name is actually a
+       variable declaration, referring to such function value. Therefore, such variable can
+       be reassigned to a different value.
+     - Can be called using the ~()~ operator, which encompasses up to two comma-separated
+       lists of arguments, divided by a semicolon. The first list, if any, denotes required
+       arguments. The second list, if any, denotes optional arguments. If a function is
+       called with missing required arguments, then a /panic/ occurs. Optional arguments
+       default to ~nil~.
+     - Can also capture variables, i.e. they can be closures.
+     - Can be recursive. As functions are values, recursive functions are actually closures
+       on themselves.
+     - Have access to a special variable, ~self~, which is a reference to the function's
+       parent, if any. If a function is called directly as ~my_function()~, then ~self~ is
+       ~nil~. Otherwise, if it's called as a member of a ~dict~, as in ~my_obj.my_function()~,
+       then ~self~ refers to the same value as ~my_obj~.
 
-    The expression composed by a function or command call results in the returned value,
-    rendering a variable like ~$?~ unnecessary. As for the capture operator (~${}~ in /Hush/),
-    more flexible semantics are adopted. Instead of resulting in the expression's /stdout/,
-    the result is a ~dict~ containing three fields: a handle for /stdout/, a handle for /stderr/,
-    and the status code. This enables acessing both /stdout/ and /stderr/ separately, as well
-    as the status code, all with value semantics. If one cares only about the /stdout/ for
-    instance, direct access can be used, without requiring any intermediate variables:
-    #+begin_src bash
-      ${date --iso-8061}.stdout
-    #+end_src
-*** Commands
-    In /Hush/, command blocks are enclosed in ~{}~. Individual commands must end with a
-    semicolon, except for the last command in the block. This can be annoying for simple
-    commands, but it allows one to split a command across multiple lines interspersed
-    with comments, which is currently impossible in /Bash/, for instance.
-    #+begin_src bash
-      {
-        docker create
-               --name $container
-               -i -a STDIN -a STDOUT -a STDERR # attach all stdio
-               -v $(pwd):/my/project:ro # mount the source code as a read-only volume
-               my-image:latest;
-
-
-        rsync -av --delete --delete-excluded
-               # version control directories:
-               --exclude='.git/'
-               --exclude='.svn/'
-               # build directories:
-               --exclude='.stack-work/'
-               --exclude='.ccls-cache/'
-               --exclude='target/'
-               --exclude='bin/'
-               --exclude='obj/'
-               # don't backup series or torrents:
-               --exclude='series/'
-               --exclude='torrents/'
-               ~/ /mnt/backup 2>&1
-          | tee $(date '+%Y-%m-%dT%H.%M.%S-rsync.log');
-
-
-        list-musics
-          | xargs --null -- mediainfo --Output='Audio;%Duration%\n' # get duration in miliseconds
-          | awk NF # remove empty lines
-          | paste -s -d + # join lines with +
-          | bc # eval the resulting expression
-      }
-    #+end_src
-
-    As noted previously, command invocation expressions result in the status code of the
-    last command in the block. If such status indicates a failure (non-zero), and is not
-    immediately assigned to a variable or captured with ~${}~, /Hush/ will automatically panic,
-    halting the script execution. This behavior is similar to /Bash/'s ~set -e~.
-**** Asynchronous commands
-     Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
-     keyword and the =&= operator, also providing the =wait= builtin for joining such
-     coprocesses. In such shells, the /pid/ of a asynchronous command is immediately
-     available through the =$!= variable.
-
-     Bash:
-     #+begin_src bash
-       # Array variable to capture the pids of all spawned tasks
-       declare -A pids
-
-       one long running command &
-       pids+=($!)
-
-       another long running command &
-       pids+=($!)
-
-       yet another long running command &
-       pids+=($!)
-
-       # Give jobs some time to complete
-       sleep 2000
-
-       status=0
-
-       for pid in $pids; do
-         if ps -p $pid > /dev/null; then
-           # Job is stil running, abort...
-           kill $pid
-           status=1
-         else
-           # Job finished, check if succeeded:
-           if ! wait $pid; then
-             status=$?
-           fi
-         fi
-       done
-
-       exit $status
-     #+end_src
-
-     /Hush/ proposes a different approach, allowing one to launch a command block
-     asynchronously, and have immediate access to the operations regarding such job. When
-     a command block is delimited with the =&{}= operator, the block is executed
-     asynchronously, and the resulting value of the expression is a =dict= with a set of
-     values and functions to operate on the job:
-     - ~pid~: the job's =pid=. You are unlikely to need this field in practice.
-     - ~running()~: returns a =bool= indicating whether the job is still running.
-     - ~abort()~: aborts the job, killing any child processes.
-     - ~join()~: like /Bash/'s =wait=, blocks until the job is finished, and returns the job's
-       status code.
-
-     Hush:
+     Summarizing, here are some examples of functions in /Hush/:
      #+begin_src lua
-       -- Array variable to capture the pids of all spawned tasks
-       let jobs = []
+       -- Simple function definition.
+       function sum(a, b, c)
+         return a + b + c
+       end
 
-       let job = &{ one long running command }
-       jobs.push(job)
 
-       job = &{ another long running command }
-       jobs.push(job)
-
-       job = &{ yet another long running command }
-       jobs.push(job)
-
-       -- Give jobs some time to complete
-       sleep(2000)
-
-       let status = 0
-
-       for job in iter(jobs) do
-         if job.running() then
-           -- Job is stil running, abort...
-           job.abort()
-           status = 1
+       -- Reassigns the sum variable, which was referring to the previous function.
+       sum = function (a, b, c; d) -- Here, `d` is an optional argument.
+         if d != nil then
+           return a + b + c + d
          else
-           -- Job finished, check if succeeded:
-           let job_status = job.join()
-           if job_status != 0 then
-             status = job_status
-           end
+           return a + b + c
          end
        end
 
-       exit(status)
+
+       function sum(a)
+         return function(b) -- Closure!
+           return a + b  -- Here, `a` is captured from the outer scope.
+         end
+       end
+
+
+       -- Simple recursive function.
+       function factorial(n)
+         if n < 2 then
+           return 1
+         else
+           return n * factorial(n - 1)
+         end
+       end
+
+
+       -- A member function.
+       my_obj = #[
+         value: 5,
+
+         method: function()
+           if self != nil then
+             return self.value
+           else
+             return 0
+           end
+         end,
+       ]
+
+       my_obj.method() -- Returns 5
+
+       fun = my_obj.method
+
+       fun() -- Returns 0
      #+end_src
+**** Commands
+     In /Hush/, command blocks are enclosed in ~{}~. Individual commands must end with a
+     semicolon, except for the last command in the block. This can be annoying for simple
+     commands, but it allows one to split a command across multiple lines interspersed
+     with comments, which is currently impossible in /Bash/, for instance. Variables can be
+     accessed by prefixing their identifier with =$=.
+     #+begin_src bash
+       {
+         docker create
+                --name $container
+                -i -a STDIN -a STDOUT -a STDERR # attach all stdio
+                -v $pwd:/my/project:ro # mount the source code as a read-only volume
+                my-image:latest;
+
+
+         rsync -av --delete --delete-excluded
+                # version control directories:
+                --exclude='.git/'
+                --exclude='.svn/'
+                # build directories:
+                --exclude='.stack-work/'
+                --exclude='.ccls-cache/'
+                --exclude='target/'
+                --exclude='bin/'
+                --exclude='obj/'
+                # don't backup series or torrents:
+                --exclude='series/'
+                --exclude='torrents/'
+                ~/ /mnt/backup 2>&1
+           | tee rsync.log;
+
+
+         list-musics
+           | xargs --null -- mediainfo --Output='Audio;%Duration%\n' # get duration in miliseconds
+           | awk NF # remove empty lines
+           | paste -s -d + # join lines with +
+           | bc # eval the resulting expression
+       }
+     #+end_src
+
+     Command blocks result in the status code of the last command. If such status
+     indicates a failure (non-zero), and is not immediately assigned to a variable or
+     captured with ~${}~, /Hush/ will automatically panic, halting the script execution. This
+     behavior is similar to /Bash/'s ~set -e~.
+***** Capturing output
+      The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
+      traditional shells. Instead of resulting in the command's /stdout/, the result is a
+      ~dict~ containing three fields: a handle for /stdout/, a handle for /stderr/, and the
+      status code. This enables acessing both /stdout/ and /stderr/ separately, as well as the
+      status code, all with value semantics. If one cares only about the /stdout/ for
+      instance, direct access can be used, without requiring any intermediate variables:
+      #+begin_src bash
+        ${date --iso-8061}.stdout
+      #+end_src
+***** Asynchronous commands
+      Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
+      keyword and the =&= operator, also providing the =wait= builtin for joining such
+      coprocesses. In such shells, the /pid/ of a asynchronous command is immediately
+      available through the =$!= variable.
+
+      Bash:
+      #+begin_src bash
+        # Array variable to capture the pids of all spawned tasks
+        declare -A pids
+
+        one long running command &
+        pids+=($!)
+
+        another long running command &
+        pids+=($!)
+
+        yet another long running command &
+        pids+=($!)
+
+        # Give jobs some time to complete
+        sleep 2000
+
+        status=0
+
+        for pid in $pids; do
+          if ps -p $pid > /dev/null; then
+            # Job is stil running, abort...
+            kill $pid
+            status=1
+          else
+            # Job finished, check if succeeded:
+            if ! wait $pid; then
+              status=$?
+            fi
+          fi
+        done
+
+        exit $status
+      #+end_src
+
+      /Hush/ proposes a different approach, allowing one to launch a command block
+      asynchronously, and have immediate access to the operations regarding such job. When
+      a command block is delimited with the =&{}= operator, the block is executed
+      asynchronously, and the resulting value of the expression is a =dict= with a set of
+      values and functions to operate on the job:
+      - ~pid~: the job's =pid=. You are unlikely to need this field in practice.
+      - ~running()~: returns a =bool= indicating whether the job is still running.
+      - ~abort()~: aborts the job, killing any child processes.
+      - ~join()~: like /Bash/'s =wait=, blocks until the job is finished, and returns the job's
+        status code.
+
+      Hush:
+      #+begin_src lua
+        -- Array variable to capture the pids of all spawned tasks
+        let jobs = []
+
+        let job = &{ one long running command }
+        jobs.push(job)
+
+        job = &{ another long running command }
+        jobs.push(job)
+
+        job = &{ yet another long running command }
+        jobs.push(job)
+
+        -- Give jobs some time to complete
+        sleep(2000)
+
+        let status = 0
+
+        for job in iter(jobs) do
+          if job.running() then
+            -- Job is stil running, abort...
+            job.abort()
+            status = 1
+          else
+            -- Job finished, check if succeeded:
+            let job_status = job.join()
+            if job_status != 0 then
+              status = job_status
+            end
+          end
+        end
+
+        exit(status)
+      #+end_src
 ** Object model
    /Hush/ mainly focuses on functional programming, but also supports some sort of object
    oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sofisticated dynamics
