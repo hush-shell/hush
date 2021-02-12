@@ -22,10 +22,13 @@
    - char :: a C-like unsigned char type, 0-255.
    - int  :: a 64 bit integer type.
    - float :: a 64 bit floating point type.
+   - string :: a char-array like string.
    - array :: a heterogeneous array, 0-indexed unlike in /Lua/.
    - dict :: a heterogeneous hash map.
    - function :: a callable function.
-   A string for instance is nothing but an ~array~ of ~char~.
+
+   All types except the ~array~ and ~dict~ are immutable. This means that, for instance, when
+   one increments a integer, a new value is created with the result.
 ** Syntax
    As /Hush/ is heavily inspired by /Lua/, it borrows most of the syntax from it, with only
    minor tweaks to support the additional command invocation syntax.
@@ -37,45 +40,52 @@
     The following are keywords in /Hush/:
     : let, if, then, else, end, for, in, do, while, function, return, not, and, or, true, false, nil, break
 *** Literals
-    Each type in the language has corresponding syntax for literals. Although strings are
-    arrays of =char=, they also have special syntax for literals.
+    Each type in the language has corresponding syntax for literals.
     - nil :: It's only value is ~nil~.
     - bool :: ~true~ and ~false~.
     - char :: a single char enclosed in single quotes.
     - int  :: 64 bit decimal integer literal, optionally prefixed by a minus sign.
     - float :: 64 bit floating point literal: a decimal followed by a period character,
       followed by another decimal literal, with an optional exponent.
-    - array :: values enclosed in =[]=.
-    - dict :: identifier-expression pairs enclosed in =#[]=, separated by a colon and
+    - string :: string literal enclosed in double quotes.
+    - array :: values enclosed in =[]=, separated by commas.
+    - dict :: identifier-expression pairs enclosed in =@[]=, separated by a colon and
       delimited by commas.
     - function :: =function (<args>) <body> end=
 
     Example:
     #+begin_src lua
-      let my_dict = #[ -- dict
+      let my_dict = @[ # dict
         field0: nil,
         field1: true,
-        field2: 42, -- integer
-        field3: -12, -- integer
-        field4: 3.14, -- float
-        field5: 12E+99, -- float
-        field6: [ -- array
-          "a string",
-          'c', -- a char
-          '\n' -- another char
+        field2: 42, # integer
+        field3: -12, # integer
+        field4: 3.14, # float
+        field5: 12E+99, # float
+        field6: [ # array
+          "a simple string",
+          "a string with \n escaped \" charaters",
+          'c', # a char
+          '\n' # another char
         ],
         field7: function (arg1, arg2)
           return arg1 + arg2
         end
       ]
     #+end_src
+*** Comments
+    Comments can be placed in any point of a line, starting with =#= and spanning until the
+    end of the line.
 ** Constructs
 *** Variables
     /Hush/ adopts static scope, and variables must be declared with a `let` statement.
     #+begin_src lua
-      let x -- Introduces the variable in the local scope
-      let y = 5 -- Shortcut for assignment
+      let x # Introduces the variable in the local scope
+      let y = 5 # Shortcut for assignment
     #+end_src
+
+    All variables are references, and therefore can refer to the same ~dict~ or ~array~ for
+    instance.
 *** Conditionals and loops
     In /Hush/ conditional statements don't coerce types to =bool=. This means that one cannot
     have =nil= or an empty array as conditions, like in /Lua/. All conditionals operate with a
@@ -84,13 +94,13 @@
     The =if= statement can have two forms:
     #+begin_src lua
       if expression then
-        -- body
+        # body
       end
 
       if expression then
-        -- body
+        # body
       else
-        -- body
+        # body
       end
     #+end_src
     The =if-else= form is a valid expression, and results in the value of the respective
@@ -99,14 +109,14 @@
     The =while= loop allows looping over a boolean expression:
     #+begin_src lua
       while expression do
-        -- body
+        # body
       end
     #+end_src
 
     The =for= loop allows looping over an interator function:
     #+begin_src lua
       for variable in expression do
-        -- body
+        # body
       end
     #+end_src
     Here, =expression= must result in a function that can be called once for every
@@ -116,113 +126,109 @@
 
     Under the hood, the =for= loop translates to something like:
     #+begin_src lua
-      let iter = expression
-      let arr = iter()
+      let _iter = expression
+      let arr = _iter()
       while arr[0] do
         let variable = arr[1]
-        -- body
-        arr = iter()
+        # body
+        arr = _iter()
       end
     #+end_src
 
     Both loop constructs support the =break= keyword, which implements short exiting.
-*** Operators
-    Equality and relational operators can be applied to values of arbitrary types. On
-    the other hand, logical op. , All operators result in a boolean value.
+*** Functions
+    In traditional shells, function arguments are always strings, and the return value is
+    always an integer (status code). /Hush/ proposes more generic semantics, which are
+    tipically adopted by general purpose programming languages. Functions should be able
+    to accept parameters of arbitrary types, and also be able to return a value of an
+    arbitrary type. On the other hand, commands are limited by the operating system to
+    accept strings and return a status code. Therefore, when invoking external commands,
+    /Hush/ converts the given arguments to strings, and provides the status code as the
+    return value.
+
+    In /Hush/, functions:
+    - Can have an arbitrary number of parameters, defined by up to two comma-separated
+      lists of parameters, delimited by a semicolon. The first list, if any, denotes
+      required parameters. The second list, if any, denotes optional parameters. If a
+      function is called with missing required arguments, then a /panic/ occurs. Optional
+      arguments default to ~nil~.
+    - Return only one value, in contrast to /Lua/.
+    - Are values, being first class citizens like every other type in the language.
+    - As they are values, they have no name. A function declared with a name is actually a
+      variable declaration, referring to such function value. Therefore, such variable can
+      be reassigned to a different value.
+    - Can also capture variables, i.e. they can be closures.
+    - Can be recursive. As functions are values, recursive functions are actually closures
+      on themselves.
+    - Have access to a special variable, ~self~, which is a reference to the function's
+      parent, if any. If a function is called directly as ~my_function()~, then ~self~ is
+      ~nil~. Otherwise, if it's called as a member of a ~dict~, as in ~my_obj.my_function()~,
+      then ~self~ refers to the same value as ~my_obj~.
+
+    Summarizing, here are some examples of functions in /Hush/:
+    #+begin_src lua
+      # Simple function definition.
+      function sum(a, b, c)
+        return a + b + c
+      end
+
+
+      # Reassigns the sum variable, which was referring to the previous function.
+      sum = function (a, b, c; d) # Here, `d` is an optional argument.
+        if d != nil then
+          return a + b + c + d
+        else
+          return a + b + c
+        end
+      end
+
+
+      function sum(a)
+        return function(b) # Closure!
+          return a + b  # Here, `a` is captured from the outer scope.
+        end
+      end
+
+
+      # Simple recursive function.
+      function factorial(n)
+        if n < 2 then
+          return 1
+        else
+          return n * factorial(n - 1)
+        end
+      end
+
+
+      # A member function.
+      my_obj = @[
+        value: 5,
+
+        method: function()
+          if self != nil then
+            return self.value
+          else
+            return 0
+          end
+        end,
+      ]
+
+      my_obj.method() # Returns 5
+
+      fun = my_obj.method
+
+      fun() # Returns 0
+    #+end_src
 *** Expressions
-    In traditional shells, functions and commands produce two results that can be
-    manipulated by the language: the standard output (/stdin/stderr/), and a status
-    code. The output can be captured by the ~$()~ operator, and the status code is
-    immediately available through the ~$?~ variable. Arguments are always strings, and the
-    status code is always an integer.
-
-    /Hush/ proposes more generic semantics, which are tipically adopted by general purpose
-    programming languages. Functions should be able to accept parameters of arbitrary
-    types, and also be able to return a value of an arbitrary type. On the other hand,
-    commands are limited by the operating system to accept strings and return a status
-    code. Therefore, when invoking external commands, /Hush/ converts the given arguments to
-    strings, and provides the status code as the return value.
-**** Functions
-     In /Hush/, functions:
-     - Can have an arbitrary number of parameters, but returns only one value, in contrast to
-       /Lua/.
-     - Are values, being first class citizens like every other type in the language.
-     - As they are values, they have no name. A function declared with a name is actually a
-       variable declaration, referring to such function value. Therefore, such variable can
-       be reassigned to a different value.
-     - Can be called using the ~()~ operator, which encompasses up to two comma-separated
-       lists of arguments, divided by a semicolon. The first list, if any, denotes required
-       arguments. The second list, if any, denotes optional arguments. If a function is
-       called with missing required arguments, then a /panic/ occurs. Optional arguments
-       default to ~nil~.
-     - Can also capture variables, i.e. they can be closures.
-     - Can be recursive. As functions are values, recursive functions are actually closures
-       on themselves.
-     - Have access to a special variable, ~self~, which is a reference to the function's
-       parent, if any. If a function is called directly as ~my_function()~, then ~self~ is
-       ~nil~. Otherwise, if it's called as a member of a ~dict~, as in ~my_obj.my_function()~,
-       then ~self~ refers to the same value as ~my_obj~.
-
-     Summarizing, here are some examples of functions in /Hush/:
-     #+begin_src lua
-       -- Simple function definition.
-       function sum(a, b, c)
-         return a + b + c
-       end
-
-
-       -- Reassigns the sum variable, which was referring to the previous function.
-       sum = function (a, b, c; d) -- Here, `d` is an optional argument.
-         if d != nil then
-           return a + b + c + d
-         else
-           return a + b + c
-         end
-       end
-
-
-       function sum(a)
-         return function(b) -- Closure!
-           return a + b  -- Here, `a` is captured from the outer scope.
-         end
-       end
-
-
-       -- Simple recursive function.
-       function factorial(n)
-         if n < 2 then
-           return 1
-         else
-           return n * factorial(n - 1)
-         end
-       end
-
-
-       -- A member function.
-       my_obj = #[
-         value: 5,
-
-         method: function()
-           if self != nil then
-             return self.value
-           else
-             return 0
-           end
-         end,
-       ]
-
-       my_obj.method() -- Returns 5
-
-       fun = my_obj.method
-
-       fun() -- Returns 0
-     #+end_src
+    In traditional shells, expressions produce two results that can be manipulated by the
+    language: the standard output (/stdin/stderr/), and a status code. The output can be
+    captured by the ~$()~ operator, and the status code is immediately available through the
+    ~$?~ variable.
 **** Commands
      In /Hush/, command blocks are enclosed in ~{}~. Individual commands must end with a
      semicolon, except for the last command in the block. This can be annoying for simple
      commands, but it allows one to split a command across multiple lines interspersed
-     with comments, which is currently impossible in /Bash/, for instance. Variables can be
-     accessed by prefixing their identifier with =$=.
+     with comments, which is currently impossible in /Bash/, for instance.
      #+begin_src bash
        {
          docker create
@@ -261,16 +267,68 @@
      indicates a failure (non-zero), and is not immediately assigned to a variable or
      captured with ~${}~, /Hush/ will automatically panic, halting the script execution. This
      behavior is similar to /Bash/'s ~set -e~.
+
+     Variables can be accessed by prefixing their identifier with =$=, and are expanded with
+     the following rules:
+     1. =nil=, =bool=, =char=, =int=, =float=, =string=: converted to string using =tostring()=, passed
+        as a *single* argument, regardless of containing spaces, asterisks, and whatnot.
+     2. =array=: each element will be converted to a single argument, using the first and
+        third rules. This way, arrays can be used to programmatically build lists of
+        command arguments.
+     3. =dict=, =function=: won't be converted, causing a panic instead.
+
+     Single quotes delimit literals *without* interpolation, while double quotes allow
+     interpolation. Inside double quotes, variables can be accessed with =$= or =${}=, to
+     allow consecutive word characters. As an example, all of the following produce a
+     single argument to =echo=:
+     #+begin_src bash
+       let file = "/etc/myconfig"
+
+       {
+         echo $file; # /etc/myconfig
+
+         echo '$file'; # $file
+         echo '/usr'$file'uration'; # /usr/etc/myconfiguration
+
+         echo "$file"; # /etc/myconfig
+         echo "${file}"; # /etc/myconfig
+         echo "/usr${file}uration"; # /usr/etc/myconfiguration
+       }
+     #+end_src
+
+     In /Hush/, there is no such thing as implicitly expanding or globbing the contents of a
+     variable.
+***** Redirection
+      WIP.
 ***** Capturing output
       The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
       traditional shells. Instead of resulting in the command's /stdout/, the result is a
-      ~dict~ containing three fields: a handle for /stdout/, a handle for /stderr/, and the
+      ~dict~ containing three fields: a =string= for /stdout/, a =string= for /stderr/, and the
       status code. This enables acessing both /stdout/ and /stderr/ separately, as well as the
       status code, all with value semantics. If one cares only about the /stdout/ for
       instance, direct access can be used, without requiring any intermediate variables:
       #+begin_src bash
         ${date --iso-8061}.stdout
       #+end_src
+
+      To pass the output as arguments to other commands, one needs intermediate variables,
+      as opposed to traditional shells.
+
+      /Bash/:
+      #+begin_src bash
+        tee $(date --iso-8601)
+      #+end_src
+
+      /Hush/:
+      #+begin_src bash
+        let date = ${date --iso-8601}
+        { tee $date }
+      #+end_src
+***** Piping
+      Commands can be chained into pipelines using the =|= operator, which connects the left
+      hand side's =stdout= to the right hand side's =stdin=. While the =|= operator is left
+      associative, all commands in a pipeline are executed concurrently. /Hush/ awaits all
+      processes to finish, producing the status code of the last command in the pipeline.
 ***** Asynchronous commands
       Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
       keyword and the =&= operator, also providing the =wait= builtin for joining such
@@ -325,7 +383,7 @@
 
       Hush:
       #+begin_src lua
-        -- Array variable to capture the pids of all spawned tasks
+        # Array variable to capture the pids of all spawned tasks
         let jobs = []
 
         let job = &{ one long running command }
@@ -337,18 +395,18 @@
         job = &{ yet another long running command }
         jobs.push(job)
 
-        -- Give jobs some time to complete
+        # Give jobs some time to complete
         sleep(2000)
 
         let status = 0
 
         for job in iter(jobs) do
           if job.running() then
-            -- Job is stil running, abort...
+            # Job is stil running, abort...
             job.abort()
             status = 1
           else
-            -- Job finished, check if succeeded:
+            # Job finished, check if succeeded:
             let job_status = job.join()
             if job_status != 0 then
               status = job_status
@@ -358,6 +416,23 @@
 
         exit(status)
       #+end_src
+**** Function calls
+     Functions in /Hush/ can be called using the ~()~ operator. Like in the function
+     declaration, the function call operator receives required and optional arguments,
+     using the exact same syntax.
+***** Redirection, capturing, piping and asynchronous execution
+      In /Hush/, there is currently no way of capturing, piping or redirecting the output of
+      shell functions. This is due to the fact that pipes in particular have concurrent
+      semantics, i.e., each component (command or function) in the pipeline runs
+      concurrently. This would be problematic for /Hush/ functions because they can reference
+      outter variables through parameters and closures, and consequently mutate their
+      values. Therefore, two functions in a pipeline could access the same variable
+      concurrently, potentially causing a data race.
+
+      There are plans to include such features in the future, by the means of cloning all
+      parameters and closures to piped and asynchronous functions, therefore inhibiting
+      data races. But this has to be more carefully designed before we can settle for
+      anything.
 ** Object model
    /Hush/ mainly focuses on functional programming, but also supports some sort of object
    oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sofisticated dynamics
@@ -369,7 +444,7 @@
 
    Hush:
    #+begin_src lua
-     function MyCounter(initial_value) -- MyCounter is a function that represents a Class.
+     function MyCounter(initial_value) # MyCounter is a function that represents a Class.
        let increment = function()
          self._value += 1
        end
@@ -378,12 +453,12 @@
          return self._value
        end
 
-       return #[
-         _value: initial_value, -- Public field.
-         -- These methods could be implemented here as well.
-         -- Remeber, functions are nothing but values.
-         increment: increment, -- Method
-         get: get,             -- Method
+       return @[
+         _value: initial_value, # Public field.
+         # These methods could be implemented here as well.
+         # Remeber, functions are nothing but values.
+         increment: increment, # Method
+         get: get,             # Method
        ]
      end
 
@@ -391,11 +466,11 @@
      let counter = MyCounter(0)
      counter.increment()
      counter.increment()
-     counter.get() -- Returns 2
+     counter.get() # Returns 2
 
 
      function StepCounter(initial_value, step)
-       -- This function captures the `step` variable, which acts as a private field.
+       # This function captures the `step` variable, which acts as a private field.
        let increment = function()
          self._value += step
        end
@@ -404,9 +479,9 @@
          print(self.get())
        end
 
-       let counter = MyCounter(initial_value) -- Inheritance
-       counter.print = print -- Additional method
-       counter.increment = increment -- Method overriding
+       let counter = MyCounter(initial_value) # Inheritance
+       counter.print = print # Additional method
+       counter.increment = increment # Method overriding
        return counter
      end
 
@@ -414,5 +489,5 @@
      let counter = StepCounter(0, 2)
      counter.increment()
      counter.increment()
-     counter.print() -- Prints 4
+     counter.print() # Prints 4
    #+end_src
