@@ -353,7 +353,7 @@
 
       /Hush/:
       #+begin_src bash
-        let date = ${date --iso-8601}
+        let date = ${date --iso-8601}.stdout
         { tee $date }
       #+end_src
 ***** Piping
