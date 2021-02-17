@@ -251,7 +251,7 @@
                 # don't backup series or torrents:
                 --exclude='series/'
                 --exclude='torrents/'
-                ~/ /mnt/backup 2>&1
+                ~/ /mnt/backup 2>1
            | tee rsync.log;
 
 
@@ -299,7 +299,39 @@
      In /Hush/, there is no such thing as implicitly expanding or globbing the contents of a
      variable.
 ***** Redirection
-      WIP.
+      Traditional shells implement multiple operators for redirecting file descriptors. In
+      /Bash/, for instance, there are [[https://www.gnu.org/software/bash/manual/html_node/Redirections.html][at least 10 such operators]], which implement quite
+      specific behavior. To keep things simple, /Hush/ proposes only four redirection
+      operators:
+      - ~command < filename~: opens /stdin/ as a reference to the given file name.
+      - ~command << string~: opens /stdin/ as a pipe containing the given string.
+      - ~command fd> fd2~ or ~command fd> filename~: opens =fd= as a reference to the same file
+        of =fd2=, or as a reference to the given file name. =fd= defaults to =1= (/stdout/) when
+        omitted. The target file is created if it doesn't exists, or truncated otherwise.
+      - ~command fd>> file~: opens =fd= as a reference to the given file name. =fd1= defaults to
+        =1= (/stdout/) when omitted. The target file is created if it doesn't exists, or
+        appended-to otherwise.
+
+      Literal file descriptors are denoted by a single number, according to the following table:
+      | File   | Number |
+      |--------+--------|
+      | /stdin/  |      0 |
+      | /stdout/ |      1 |
+      | /stderr/ |      2 |
+      If one desires to redirect to a file named "2", quotes must be used:
+      #+begin_src bash
+        { command > "2" }
+      #+end_src
+
+      File names may be supplied through variables, but not file descriptors:
+      #+begin_src bash
+        let var = 2
+        { command > $var } # Redirects to a file named "2"
+      #+end_src
+
+      In contrary to traditional shells, redirection operators must be placed after all of
+      the supplied arguments for a command. This aims to assure that no redirection can go
+      unnoticed when there are many arguments.
 ***** Capturing output
       The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
       traditional shells. Instead of resulting in the command's /stdout/, the result is a
