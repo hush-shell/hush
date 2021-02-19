@@ -376,7 +376,39 @@
 
       Contrary to traditional shells, redirection operators must be placed after all of
       the supplied arguments for a command. This aims to assure that no redirection can go
-      unnoticed when there are many arguments.
+      unnoticed when there are many arguments. The redirection operator has higher
+      precedence than the [[#Piping][pipe]] operator.
+***** Piping
+      Commands can be chained into pipelines using the =|= operator, which connects the left
+      hand side's =stdout= to the right hand side's =stdin= using a unix [[https://pubs.opengroup.org/onlinepubs/009604499/functions/pipe.html][pipe]]. While the =|=
+      operator is left associative, all commands in a pipeline are executed concurrently.
+      /Hush/ awaits all processes to finish, producing the status code of the last command
+      in the pipeline.
+
+      Here are some insightful examples of such behavior:
+      - The following pipeline:
+        #+begin_src bash
+          { ps aux | cat | cat | cat | grep 'cat' }
+        #+end_src
+        May output something like:
+        #+begin_example
+          91632  0.0  0.0   5492   676 pts/3    S+   19:03   0:00 cat
+          91633  0.0  0.0   5492   680 pts/3    S+   19:03   0:00 cat
+          91634  0.0  0.0   5492   684 pts/3    S+   19:03   0:00 cat
+          91635  0.0  0.0   6396  2316 pts/3    S+   19:03   0:00 grep cat
+        #+end_example
+        Which indicates that all =cat= programs were already running when =ps= fetched the
+        process list.
+      - The following command outputs an infinite stream of zeroes:
+        #+begin_src bash
+          { cat /dev/zero | tr '\0' '0' }
+        #+end_src
+        But when piped to the =head= command, all involved programs terminate:
+        #+begin_src bash
+          { cat /dev/zero | tr '\0' '0' | head -c 20 }
+        #+end_src
+        Because when =head= closes it's side of the pipe, attempts to write from the other
+        programs result in =SIGPIPE=.
 ***** Capturing output
       The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
       traditional shells. Instead of resulting in the command's /stdout/, the result is a
@@ -401,11 +433,6 @@
         let date = ${date --iso-8601}.stdout
         { tee $date }
       #+end_src
-***** Piping
-      Commands can be chained into pipelines using the =|= operator, which connects the left
-      hand side's =stdout= to the right hand side's =stdin=. While the =|= operator is left
-      associative, all commands in a pipeline are executed concurrently. /Hush/ awaits all
-      processes to finish, producing the status code of the last command in the pipeline.
 ***** Asynchronous commands
       Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
       keyword and the =&= operator, also providing the =wait= builtin for joining such
