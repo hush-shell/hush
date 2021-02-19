@@ -303,10 +303,10 @@
      variable.
 ***** Argument expansion
       /Hush/ performs tree types of expansion for unquoted literal arguments.
-      1. Tilde expansion:
+      1. *Tilde expansion*:
 
          Any argument starting with =~/= will have such prefix expanded to =$HOME/=.
-      2. Brace expansion:
+      2. *Brace expansion*:
 
          Arguments containing unescaped brace-enclosed lists will be expanded to an array
          of strings, regardless of existing file paths. The brace syntax allows two forms:
@@ -316,9 +316,9 @@
            be generated for each element of the sequence.
 
          Examples:
-         - =dir/file{,.jpg,'.png'}= -> [ =dir/file=, =dir/file.jpg=, =dir/file.png= ]
-         - =dir/file-{3..1}.txt= -> [ =dir/file3.txt=, =dir/file2.txt=, =dir/file1.txt= ]
-      3. Filename expansion:
+         - =dir/file{,.jpg,'.png'}= -> =[ "dir/file", "dir/file.jpg", "dir/file.png" ]=
+         - =dir/file-{3..1}.txt= -> =[ "dir/file3.txt", "dir/file2.txt", "dir/file1.txt" ]=
+      3. *Filename expansion*:
 
          Arguments containing any of the following patterns, when unescaped, will be
          expanded to an alphabetically sorted array of existing file paths, matched by the
@@ -327,20 +327,22 @@
          - =?= -> =[^/]=
          - =[= ... =]= -> =[= ... =]=
 
-         Example: =some/*/path*/with/patterns/[1-9].???= will match paths with the
-         =some/[^/]*/path[^/]*/with/patterns/[1-9].[^/][^/][^/]= regex.
+         Example: =some/*/path*/with/patterns/[1-9].???= will match paths with the following
+         regex:
+         : some/[^/]*/path[^/]*/with/patterns/[1-9].[^/][^/][^/]
 
          Hidden files (whose name starts with a dot) *are matched by default*, as opposed to
          /Bash/. Relative paths are expanded with a =./= prefix, in order to prevent flag
          injection vulnerabilities. ¹
 
-         The resulting array is converted to arguments according to the rules described in
-         [[#Commands][Commands]].
+      When the expansion results in an array, such array is converted to arguments
+      according to the rules described in [[#Commands][Commands]].
 
       While brace and filename expansion may not be used simultaneously in the same
       argument, tilde expansion can be used with both.
 
-      1: As in =chown my-user =*=, where there is a file named =--reference=/home/other-user/=.
+      1: As in =chown my-user *=, where there is a file named =--reference=/home/other-user/=.
+
 ***** Redirection
       Traditional shells implement multiple operators for redirecting file descriptors. In
       /Bash/, for instance, there are [[https://www.gnu.org/software/bash/manual/html_node/Redirections.html][at least 10 such operators]], which implement quite
