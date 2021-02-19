@@ -229,6 +229,7 @@
      semicolon, except for the last command in the block. This can be annoying for simple
      commands, but it allows one to split a command across multiple lines interspersed
      with comments, which is currently impossible in /Bash/, for instance.
+
      #+begin_src bash
        {
          docker create
@@ -268,13 +269,15 @@
      captured with ~${}~, /Hush/ will automatically panic, halting the script execution. This
      behavior is similar to /Bash/'s ~set -e~.
 
-     Variables can be accessed by prefixing their identifier with =$=, and are expanded with
-     the following rules:
+     Command arguments are separated by spaces. Backslash-escaped spaces are not
+     considered separators, but argument text. Variables can be accessed by prefixing
+     their identifier with =$=, or surrounding with =${}=, and are expanded with the following
+     rules:
      1. =nil=, =bool=, =char=, =int=, =float=, =string=: converted to string using =tostring()=, passed
         as a *single* argument, regardless of containing spaces, asterisks, and whatnot.
      2. =array=: each element will be converted to a single argument, using the first and
-        third rules. This way, arrays can be used to programmatically build lists of
-        command arguments.
+        third rules. If the array is empty, no argument is produced. This way, arrays can
+        be used to programmatically build lists of command arguments.
      3. =dict=, =function=: won't be converted, causing a panic instead.
 
      Single quotes delimit literals *without* interpolation, while double quotes allow
@@ -303,12 +306,12 @@
       /Bash/, for instance, there are [[https://www.gnu.org/software/bash/manual/html_node/Redirections.html][at least 10 such operators]], which implement quite
       specific behavior. To keep things simple, /Hush/ proposes only four redirection
       operators:
-      - ~command < filename~: opens /stdin/ as a reference to the given file name.
+      - ~command < filename~: opens /stdin/ as a reference to the given filename.
       - ~command << string~: opens /stdin/ as a pipe containing the given string.
       - ~command fd> fd2~ or ~command fd> filename~: opens =fd= as a reference to the same file
-        of =fd2=, or as a reference to the given file name. =fd= defaults to =1= (/stdout/) when
+        of =fd2=, or as a reference to the given filename. =fd= defaults to =1= (/stdout/) when
         omitted. The target file is created if it doesn't exists, or truncated otherwise.
-      - ~command fd>> file~: opens =fd= as a reference to the given file name. =fd1= defaults to
+      - ~command fd>> file~: opens =fd= as a reference to the given filename. =fd1= defaults to
         =1= (/stdout/) when omitted. The target file is created if it doesn't exists, or
         appended-to otherwise.
 
@@ -323,13 +326,13 @@
         { command > "2" }
       #+end_src
 
-      File names may be supplied through variables, but not file descriptors:
+      Filenames may be supplied through variables, but not file descriptors:
       #+begin_src bash
         let var = 2
         { command > $var } # Redirects to a file named "2"
       #+end_src
 
-      In contrary to traditional shells, redirection operators must be placed after all of
+      Contrary to traditional shells, redirection operators must be placed after all of
       the supplied arguments for a command. This aims to assure that no redirection can go
       unnoticed when there are many arguments.
 ***** Capturing output
