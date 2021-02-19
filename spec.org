@@ -341,7 +341,7 @@
       While brace and filename expansion may not be used simultaneously in the same
       argument, tilde expansion can be used with both.
 
-      1: As in =chown my-user *=, where there is a file named =--reference=/home/other-user/=.
+      1: As in =chown my-user *=, when there is a file named =--reference=/home/other-user/=.
 
 ***** Redirection
       Traditional shells implement multiple operators for redirecting file descriptors. In
