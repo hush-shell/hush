@@ -89,7 +89,7 @@
 *** Conditionals and loops
     In /Hush/ conditional statements don't coerce types to =bool=. This means that one cannot
     have =nil= or an empty array as conditions, like in /Lua/. All conditionals operate with a
-    =bool=. If one supplies a condition that is not a boolean, a panic occurs.
+    =bool=. If one supplies a condition that is not a boolean, a [[#Panics][panic]] occurs.
 
     The =if= statement can have two forms:
     #+begin_src lua
@@ -150,7 +150,7 @@
     - Can have an arbitrary number of parameters, defined by up to two comma-separated
       lists of parameters, delimited by a semicolon. The first list, if any, denotes
       required parameters. The second list, if any, denotes optional parameters. If a
-      function is called with missing required arguments, then a /panic/ occurs. Optional
+      function is called with missing required arguments, then a [[#Panics][panic]] occurs. Optional
       arguments default to ~nil~.
     - Return only one value, in contrast to /Lua/.
     - Are values, being first class citizens like every other type in the language.
@@ -266,7 +266,7 @@
 
      Command blocks result in the status code of the last command. If such status
      indicates a failure (non-zero), and is not immediately assigned to a variable or
-     captured with ~${}~, /Hush/ will automatically panic, halting the script execution. This
+     captured with ~${}~, /Hush/ will automatically [[#Panics][panic]], halting the script execution. This
      behavior is similar to /Bash/'s ~set -e~.
 
      Command arguments are separated by spaces. Backslash-escaped spaces are not
@@ -278,7 +278,7 @@
      2. =array=: each element will be converted to a single argument, using the first and
         third rules. If the array is empty, no argument is produced. This way, arrays can
         be used to programmatically build lists of command arguments.
-     3. =dict=, =function=: won't be converted, causing a panic instead.
+     3. =dict=, =function=: won't be converted, causing a [[#Panics][panic]] instead.
 
      Single quotes delimit literals *without* interpolation, while double quotes allow
      interpolation. Inside double quotes, variables can be accessed with =$= or =${}=, to
@@ -595,3 +595,8 @@
      counter.increment()
      counter.print() # Prints 4
    #+end_src
+** Errors
+*** Panics
+    Panics are *irrecoverable* errors, due to invalid program logic. When a panic occurs,
+    /Hush/ halts the current script execution, and prints an error description message along
+    with a stack trace to /stderr/.
