@@ -263,45 +263,51 @@
            | bc # eval the resulting expression
        }
      #+end_src
+***** Command lookup
+      If the command name contains a path separator (=/=), /Hush/ will attempt to execute the
+      respective file, if any. Otherwise, /Hush/ will look up the command in the following
+      order:
+      1. Aliases: command aliases defined by the user.
+      2. Built-in commands: commands which are not external programs, but are implemented by
+         /Hush/, like =cd= and =echo=.
+      3. Executables in =$PATH=, respecting the list order
 
-     Command blocks result in the status code of the last command. If such status
-     indicates a failure (non-zero), and is not immediately assigned to a variable or
-     captured with ~${}~, /Hush/ will automatically [[#Panics][panic]], halting the script execution. This
-     behavior is similar to /Bash/'s ~set -e~.
+      If there is no such command, /Hush/ returns a =127= status, and outputs an error
+      description to /stderr/.
+***** Arguments
+      Command arguments are separated by spaces. Backslash-escaped spaces are not
+      considered separators, but argument text. Variables can be accessed by prefixing
+      their identifier with =$=, or surrounding with =${}=, and are expanded with the following
+      rules:
+      1. =nil=, =bool=, =char=, =int=, =float=, =string=: converted to string using =tostring()=, passed
+         as a *single* argument, regardless of containing spaces, asterisks, and whatnot.
+      2. =array=: each element will be converted to a single argument, using the first and
+         third rules. If the array is empty, no argument is produced. This way, arrays can
+         be used to programmatically build lists of command arguments.
+      3. =dict=, =function=: won't be converted, causing a [[#Panics][panic]] instead.
 
-     Command arguments are separated by spaces. Backslash-escaped spaces are not
-     considered separators, but argument text. Variables can be accessed by prefixing
-     their identifier with =$=, or surrounding with =${}=, and are expanded with the following
-     rules:
-     1. =nil=, =bool=, =char=, =int=, =float=, =string=: converted to string using =tostring()=, passed
-        as a *single* argument, regardless of containing spaces, asterisks, and whatnot.
-     2. =array=: each element will be converted to a single argument, using the first and
-        third rules. If the array is empty, no argument is produced. This way, arrays can
-        be used to programmatically build lists of command arguments.
-     3. =dict=, =function=: won't be converted, causing a [[#Panics][panic]] instead.
+      Single quotes delimit literals *without* interpolation, while double quotes allow
+      interpolation. Inside double quotes, variables can be accessed with =$= or =${}=, to
+      allow consecutive word characters. As an example, all of the following produce a
+      single argument to =echo=:
+      #+begin_src bash
+        let file = "/etc/myconfig"
 
-     Single quotes delimit literals *without* interpolation, while double quotes allow
-     interpolation. Inside double quotes, variables can be accessed with =$= or =${}=, to
-     allow consecutive word characters. As an example, all of the following produce a
-     single argument to =echo=:
-     #+begin_src bash
-       let file = "/etc/myconfig"
+        {
+          echo $file; # /etc/myconfig
 
-       {
-         echo $file; # /etc/myconfig
+          echo '$file'; # $file
+          echo '/usr'$file'uration'; # /usr/etc/myconfiguration
 
-         echo '$file'; # $file
-         echo '/usr'$file'uration'; # /usr/etc/myconfiguration
+          echo "$file"; # /etc/myconfig
+          echo "${file}"; # /etc/myconfig
+          echo "/usr${file}uration"; # /usr/etc/myconfiguration
+        }
+      #+end_src
 
-         echo "$file"; # /etc/myconfig
-         echo "${file}"; # /etc/myconfig
-         echo "/usr${file}uration"; # /usr/etc/myconfiguration
-       }
-     #+end_src
+      In /Hush/, there is no such thing as implicitly expanding or globbing the contents of a
+      variable.
 
-     In /Hush/, there is no such thing as implicitly expanding or globbing the contents of a
-     variable.
-***** Argument expansion
       /Hush/ performs tree types of expansion for unquoted literal arguments.
       1. *Tilde expansion*:
 
@@ -409,6 +415,11 @@
         #+end_src
         Because when =head= closes it's side of the pipe, attempts to write from the other
         programs result in =SIGPIPE=.
+***** Errors
+      Command blocks result in the status code of the last command. If such status
+      indicates a failure (non-zero), and is not immediately assigned to a variable or
+      captured with ~${}~, /Hush/ will automatically [[#Panics][panic]], halting the script execution. This
+      behavior is similar to /Bash/'s ~set -e~.
 ***** Capturing output
       The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
       traditional shells. Instead of resulting in the command's /stdout/, the result is a
