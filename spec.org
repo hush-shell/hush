@@ -14,7 +14,7 @@
    language. /Lua/ has proved to be a very expressive programming language, regardless of
    it's succinct syntax and semantics, particularly it's very simple type system.
 ** Type system
-   As in /Lua/, /Hush/ proposes a handfull of built-in types, and no user-defined types. This
+   As in /Lua/, /Hush/ proposes a handful of built-in types, and no user-defined types. This
    makes the type system extremely simple, without compromising expressiveness. The types
    proposed by /Hush/ are:
    - nil :: the unit type, usually for representing missing values.
@@ -446,7 +446,7 @@
       #+end_src
 ***** Asynchronous commands
       Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
-      keyword and the =&= operator, also providing the =wait= builtin for joining such
+      keyword and the =&= operator, also providing the =wait= built-in for joining such
       coprocesses. In such shells, the /pid/ of a asynchronous command is immediately
       available through the =$!= variable.
 
@@ -548,6 +548,52 @@
       parameters and closures to piped and asynchronous functions, therefore inhibiting
       data races. But this has to be more carefully designed before we can settle for
       anything.
+** Built-ins
+   /Hush/ provides built-in functions for common tasks, and built-in commands for tasks that
+   cannot be performed by external commands.
+*** Functions
+    /Hush/ provides a top-level =dict= named =std=, which contains all built-in functions:
+    - =cd(dir)=: if =dir= is a =string=, attempts to change the shell's current working
+      directory, returning an error on failure. [[#Panics][Panics]] otherwise.
+    - =exit(status)=: if =status= is an =int=, exits the shell, returning the given status to
+      the operating system. [[#Panics][Panics]] otherwise.
+    - ~glob(value)~: If =value= is a string, performs path expansion, producing a possibly
+      empty array of strings. [[#Panics][Panics]] otherwise.
+    - ~iter(value)~: if =value= is a =string=, =array= or =dict=, returns a function that iterates
+      through it's elements. [[#Panics][Panics]] otherwise. See the [[#Conditionals-and-loops][Conditionals and loops]] section
+      for more details on iterator functions.
+    - ~length(value)~: if =value= is a =string=, =array= or =dict=, returns the number of
+      elements. [[#Panics][Panics]] otherwise.
+    - ~print(; value)~: if =value= is not =nil=, converts it to string using =tostring=, then
+      writes to =stdout=, followed by a line break. Prints an empty string otherwise.
+    - ~tostring(value)~: converts =value= to string, using the following rules:
+      + =nil=, =bool=, =char=, =int=, =float=, =string=: traditional representation, without quotes.
+      + =function=: returns "<function>".
+      + =array=, =dict=: recursively dump the inner values, delimited with the respective
+        literal syntax.
+
+      Attempts to change the values of the =std= =dict= result in undefined behavior.
+*** Commands
+    /Hush/ provides only a handful built-in commands, which provide functionality that is
+    impossible to be implemented by external programs:
+    - =alias=: Creates an alias, to take part in [[#Command-lookup][command lookup]]. The first argument is the
+      alias name, and the following arguments are the aliased command and arguments. The
+      alias name cannot contain a path separator (=/=). Example:
+      #+begin_src bash
+        { alias ll ls --color=auto -lh --time-style long-iso --group-directories-first }
+      #+end_src
+    - =cd=: The first and only argument is the directory to be accessed. If the directory
+      does not exists, or cannot be accessed, =cd= prints an error description to /stderr/,
+      and returns =1=. Example:
+      #+begin_src bash
+        { cd /home/my-username/ }
+      #+end_src
+
+      Note that both the =alias= and =cd= built-ins perform side-effects in the shell's
+      execution context, and therefore cannot be used in concurrent constructs, such as
+      [[#Piping][piping]] and [[#Asynchronous-commands][asynchronous commands]]. They also can't take part in [[#Redirection][redirection]] and
+      [[#Capturing-output][capturing]]. Attempts to use built-in commands with any of these constructs will
+      result in a [[#Panics][panic]].
 ** Object model
    /Hush/ mainly focuses on functional programming, but also supports some sort of object
    oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sofisticated dynamics
