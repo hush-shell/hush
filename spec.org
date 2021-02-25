@@ -285,6 +285,7 @@
          third rules. If the array is empty, no argument is produced. This way, arrays can
          be used to programmatically build lists of command arguments.
       3. =dict=, =function=: won't be converted, causing a [[#Panics][panic]] instead.
+      Attempting to access an undeclared variable results in a [[#Panics][panic]].
 
       Single quotes delimit literals *without* interpolation, while double quotes allow
       interpolation. Inside double quotes, variables can be accessed with =$= or =${}=, to
