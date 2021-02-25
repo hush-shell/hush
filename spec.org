@@ -571,6 +571,11 @@
       + =function=: returns "<function>".
       + =array=, =dict=: recursively dump the inner values, delimited with the respective
         literal syntax.
+    - =type(value)=: returns a string describing the type of =value=.
+      #+begin_src bash
+        let val = "this is a string"
+        type(val) == "string" # true
+      #+end_src
 
       Attempts to change the values of the =std= =dict= result in undefined behavior.
 *** Commands
