@@ -397,7 +397,7 @@
 
          Examples:
          - =dir/file{,.jpg,'.png'}= -> =[ "dir/file", "dir/file.jpg", "dir/file.png" ]=
-         - =dir/file-{3..1}.txt= -> =[ "dir/file3.txt", "dir/file2.txt", "dir/file1.txt" ]=
+         - =dir/file-{3..1}.txt= -> =[ "dir/file-3.txt", "dir/file-2.txt", "dir/file-1.txt" ]=
       3. *Filename expansion*:
 
          Arguments containing any of the following patterns, when unescaped, will be
