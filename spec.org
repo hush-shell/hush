@@ -675,58 +675,70 @@
    cannot be performed by external commands.
 *** Functions
     /Hush/ provides a top-level =dict= named =std=, which contains all built-in functions:
-    - =cd(dir)=: if =dir= is a =string=, attempts to change the shell's current working
-      directory, returning an error on failure. [[#Panics][Panics]] otherwise.
-    - =error(description; context)=: returns a value of type =error=, containing the given
-      description, a backtrace, and the optional context. If =description= is not a =string=,
-      or =context= is not =nil= or a =dict=, then a [[#Panics][panic]] occurs.
-    - =exit(status)=: if =status= is an =int=, exits the shell, returning the given status to
-      the operating system. [[#Panics][Panics]] otherwise.
-    - ~glob(value)~: If =value= is a string, performs path expansion, producing a possibly
-      empty array of strings. [[#Panics][Panics]] otherwise.
-    - ~iter(value)~: if =value= is a =string=, =array= or =dict=, returns a function that iterates
-      through it's elements. [[#Panics][Panics]] otherwise. See the [[#Conditionals-and-loops][Conditionals and loops]] section
-      for more details on iterator functions.
-    - ~length(value)~: if =value= is a =string=, =array= or =dict=, returns the number of
-      elements. [[#Panics][Panics]] otherwise.
-    - ~print(; value)~: if =value= is not =nil=, converts it to string using =tostring=, then
-      writes to =stdout=, followed by a line break. Prints an empty string otherwise.
-    - =sleep(miliseconds)=: if =miliseconds= is an =int=, sleeps for the given duration. [[#Panics][Panics]]
+    - =cd(dir)= ::
+      If =dir= is a =string=, attempts to change the shell's current working directory,
+      returning an error on failure. [[#Panics][Panics]] otherwise. This functionality is also avaiable
+      through the =cd= [[#Commands-1][command]].
+    - =error(description; context)= ::
+      Returns a value of type =error=, containing the given description, a backtrace, and
+      the optional context. If =description= is not a =string=, or =context= is not =nil= or a
+      =dict=, then a [[#Panics][panic]] occurs.
+    - =exit(status)= ::
+      If =status= is an =int=, exits the shell, returning the given status to the operating
+      system. [[#Panics][Panics]] otherwise.
+    - ~glob(value)~ ::
+      If =value= is a string, performs path expansion, producing a possibly empty array of
+      strings. [[#Panics][Panics]] otherwise.
+    - ~iter(value)~ ::
+      If =value= is a =string=, =array= or =dict=, returns a function that iterates through it's
+      elements. [[#Panics][Panics]] otherwise. See the [[#Conditionals-and-loops][Conditionals and loops]] section for more details
+      on iterator functions.
+    - ~length(value)~ ::
+      If =value= is a =string=, =array= or =dict=, returns the number of elements. [[#Panics][Panics]]
       otherwise.
-    - ~tostring(value)~: converts =value= to string, using the following rules:
+    - ~print(; value)~ ::
+      If =value= is not =nil=, converts it to string using =tostring=, then writes to =stdout=,
+      followed by a line break. Prints an empty string otherwise.
+    - =sleep(miliseconds)= ::
+      If =miliseconds= is an =int=, sleeps for the given duration. [[#Panics][Panics]] otherwise.
+    - ~tostring(value)~ ::
+      Converts =value= to string, using the following rules:
       + =nil=, =bool=, =char=, =int=, =float=, =string=: traditional representation, without quotes.
       + =function=: returns "<function>".
       + =array=, =dict=: recursively dump the inner values, delimited with the respective
         literal syntax.
       + =error=: formats the error description message, along with the context if any.
-    - =type(value)=: returns a string describing the type of =value=.
+    - =type(value)= ::
+      Returns a string describing the type of =value=.
       #+begin_src bash
         let val = "this is a string"
         type(val) == "string" # true
       #+end_src
 
-      Attempts to change the values of the =std= =dict= result in undefined behavior.
+    Attempts to change the values of the =std= =dict= result in undefined behavior.
 *** Commands
     /Hush/ provides only a handful built-in commands, which provide functionality that is
     impossible to be implemented by external programs:
-    - =alias=: Creates an alias, to take part in [[#Command-lookup][command lookup]]. The first argument is the
-      alias name, and the following arguments are the aliased command and arguments. The
-      alias name cannot contain a path separator (=/=). Example:
+    - =alias= ::
+      Creates an alias, to take part in [[#Command-lookup][command lookup]]. The first argument is the alias
+      name, and the following arguments are the aliased command and arguments. The alias
+      name cannot contain a path separator (=/=). Example:
       #+begin_src bash
         { alias ll ls --color=auto -lh --time-style long-iso --group-directories-first }
       #+end_src
-    - =cd=: The first and only argument is the directory to be accessed. If the directory
-      does not exists, or cannot be accessed, =cd= prints an error description to /stderr/,
-      and returns =1=. Example:
+    - =cd= ::
+      The first and only argument is the directory to be accessed. If the directory does
+      not exists, or cannot be accessed, =cd= prints an error description to /stderr/, and
+      returns =1=. Example:
       #+begin_src bash
         { cd /home/my-username/ }
       #+end_src
 
-      Note that both the =alias= and =cd= built-ins perform side-effects in the shell's
-      execution context, and therefore cannot be used in concurrent constructs, such as
-      [[#Piping][piping]] and [[#Asynchronous-commands][asynchronous commands]]. They also can't take part in [[#Redirection][redirection]] and
-      [[#Capturing-output][capturing]]. Attempts to use built-in commands with any of these constructs will
-      result in a [[#Panics][panic]].
+    Note that both the =alias= and =cd= built-ins perform side-effects in the shell's
+    execution context, and therefore cannot be used in concurrent constructs, such as
+    [[#Piping][piping]] and [[#Asynchronous-commands][asynchronous commands]]. They also can't take part in [[#Redirection][redirection]] and
+    [[#Capturing-output][capturing]]. Attempts to use built-in commands with any of these constructs will result
+    in a [[#Panics][panic]].
 ** Object model
    /Hush/ mainly focuses on functional programming, but also supports some sort of object
    oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sofisticated dynamics
