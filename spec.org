@@ -514,7 +514,7 @@
         jobs.push(job)
 
         # Give jobs some time to complete
-        sleep(2000)
+        std.sleep(2000)
 
         let status = 0
 
@@ -569,6 +569,8 @@
       elements. [[#Panics][Panics]] otherwise.
     - ~print(; value)~: if =value= is not =nil=, converts it to string using =tostring=, then
       writes to =stdout=, followed by a line break. Prints an empty string otherwise.
+    - =sleep(miliseconds)=: if =miliseconds= is an =int=, sleeps for the given duration. [[#Panics][Panics]]
+      otherwise.
     - ~tostring(value)~: converts =value= to string, using the following rules:
       + =nil=, =bool=, =char=, =int=, =float=, =string=: traditional representation, without quotes.
       + =function=: returns "<function>".
