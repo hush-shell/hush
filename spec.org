@@ -314,15 +314,15 @@
 
         # (A): Permission denied.
         result = results[0]
-        type(result) == "error"
+        std.type(result) == "error"
         result.status == 1 # Cat returns 1 when permission denied.
 
         # (B): Array containing results of each command in the pipeline.
         result = results[1]
-        type(result) == "array"
+        std.type(result) == "array"
         result[0] == 0 # Success.
         result[1] == 0 # Success.
-        type(result[2]) == "error" # Permission denied.
+        std.type(result[2]) == "error" # Permission denied.
         result[3] == 0 # Success.
 
         # (C): Success.
@@ -331,9 +331,9 @@
 
         # (D): array containing results of each command in the pipeline.
         result = result[3]
-        type(result) == "array"
+        std.type(result) == "array"
         result[0] == 0 # Success.
-        type(result[1]) == "error" # Permission denied.
+        std.type(result[1]) == "error" # Permission denied.
         result[2] == 0 # Success.
 
         # (E): Due to the previous failured not guarded by the ? operator, the last command in the
@@ -425,7 +425,7 @@
       While brace and filename expansion may not be used simultaneously in the same
       argument, tilde expansion can be used with both.
 
-      1: As in =chown my-user *=, when there is a file named =--reference=/home/other-user/=.
+      [1]: As in =chown my-user *=, when there is a file named =--reference=/home/other-user/=.
 
 ***** Redirection
       Traditional shells implement multiple operators for redirecting file descriptors. In
@@ -597,7 +597,7 @@
 
         let status = 0
 
-        for job in iter(jobs) do
+        for job in std.iter(jobs) do
           if job.running() then
             # Job is stil running, abort...
             job.abort()
@@ -605,9 +605,9 @@
           else
             # Job finished, check if succeeded:
             let job_result = job.join()
-            if type(job_result) == "error" then
-              print("Failed to execute job:")
-              print(job_result)
+            if std.type(job_result) == "error" then
+              std.print("Failed to execute job:")
+              std.print(job_result)
             end
           end
         end
@@ -642,9 +642,9 @@
     #+begin_src bash
       let result = std.cd("/non-existing/directory")
 
-      if type(result) == "error" then
-         print("Failed to change directory:")
-         print(result)
+      if std.type(result) == "error" then
+         std.print("Failed to change directory:")
+         std.print(result)
       end
     #+end_src
 
@@ -712,7 +712,7 @@
       Returns a string describing the type of =value=.
       #+begin_src bash
         let val = "this is a string"
-        type(val) == "string" # true
+        std.type(val) == "string" # true
       #+end_src
 
     Attempts to change the values of the =std= =dict= result in undefined behavior.
@@ -782,7 +782,7 @@
        end
 
        let print = function()
-         print(self.get())
+         std.print(self.get())
        end
 
        let counter = MyCounter(initial_value) # Inheritance
