@@ -63,7 +63,7 @@
       : end
 
     Example:
-    #+begin_src lua
+    #+begin_src bash
       let my_dict = @[ # dict
         field0: nil,
         field1: true,
@@ -88,7 +88,7 @@
 ** Constructs
 *** Variables
     /Hush/ adopts static scope, and variables must be declared with a `let` statement.
-    #+begin_src lua
+    #+begin_src bash
       let x # Introduces the variable in the local scope
       let y = 5 # Shortcut for assignment
     #+end_src
@@ -101,7 +101,7 @@
     =bool=. If one supplies a condition that is not a boolean, a [[#Panics][panic]] occurs.
 
     The =if= statement can have two forms:
-    #+begin_src lua
+    #+begin_src bash
       if expression then
         # body
       end
@@ -116,14 +116,14 @@
     body. If the body ends with a statement that produces no value, then =nil= is produced.
 
     The =while= loop allows looping over a boolean expression:
-    #+begin_src lua
+    #+begin_src bash
       while expression do
         # body
       end
     #+end_src
 
     The =for= loop allows looping over an interator function:
-    #+begin_src lua
+    #+begin_src bash
       for variable in expression do
         # body
       end
@@ -134,7 +134,7 @@
     variable, and the loop body is executed. When =false=, the iteration is finished.
 
     Under the hood, the =for= loop translates to something like:
-    #+begin_src lua
+    #+begin_src bash
       let _iter = expression
       let arr = _iter()
       while arr[0] do
@@ -175,7 +175,7 @@
       then ~self~ refers to the same value as ~my_obj~.
 
     Summarizing, here are some examples of functions in /Hush/:
-    #+begin_src lua
+    #+begin_src bash
       # Simple function definition.
       function sum(a, b, c)
         return a + b + c
@@ -579,7 +579,7 @@
         command block result.
 
       Hush:
-      #+begin_src lua
+      #+begin_src bash
         # Array variable to capture the pids of all spawned tasks
         let jobs = []
 
@@ -737,7 +737,7 @@
    by a constructor function.
 
    Hush:
-   #+begin_src lua
+   #+begin_src bash
      function MyCounter(initial_value) # MyCounter is a function that represents a Class.
        let increment = function()
          self._value += 1
