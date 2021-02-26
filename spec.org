@@ -535,7 +535,7 @@
       Bash:
       #+begin_src bash
         # Array variable to capture the pids of all spawned tasks
-        declare -A pids
+        declare -a pids
 
         one long running command &
         pids+=($!)
@@ -551,7 +551,7 @@
 
         status=0
 
-        for pid in $pids; do
+        for pid in ${pids[@]}; do
           if ps -p $pid > /dev/null; then
             # Job is stil running, abort...
             kill $pid
