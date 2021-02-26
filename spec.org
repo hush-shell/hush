@@ -30,7 +30,7 @@
    - =function=: a callable function.
    - =error=: a special error type, to ease distinction of errors from other values. This
      type can only be instantianted by the built-in =error= function. For more details, see
-     the [[*Errors][errors]] section.
+     the [[#Errors][errors]] section.
 
    All types except the ~array~ and ~dict~ are immutable. This means that, for instance, when
    one increments a integer, a new value is created with the result.
