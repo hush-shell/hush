@@ -29,7 +29,8 @@
    - dict :: a heterogeneous hash map.
    - function :: a callable function.
    - error :: a special error type, to ease distinction of errors from other values. This
-     type can only be instantianted by the built-in =error= function.
+     type can only be instantianted by the built-in =error= function. For more details, see
+     the [[*Errors][errors]] section.
 
    All types except the ~array~ and ~dict~ are immutable. This means that, for instance, when
    one increments a integer, a new value is created with the result.
@@ -311,7 +312,7 @@
         # (A): Permission denied.
         result = results[0]
         type(result) == "error"
-        result.status == 1
+        result.status == 1 # Cat returns 1 when permission denied.
 
         # (B): Array containing results of each command in the pipeline.
         result = results[1]
@@ -625,6 +626,47 @@
       parameters and closures to piped and asynchronous functions, therefore inhibiting
       data races. But this has to be more carefully designed before we can settle for
       anything.
+** Errors
+   /Hush/ provides two mechanisms for errors. The =error= type allows one to construct and
+   manipulate *recoverable* errors, which can be detected and handled. Panics, on the other
+   hand, are *irrecoverable* errors, which result in abortion of the current script
+   execution.
+*** Recoverable errors
+    /Hush/ provides the =error= built-in function to construct values of the =error= type. This
+    mechanism should be used for reporting and handling errors. Command blocks and
+    built-in functions will report errors by returning values of such type, instead of the
+    expected return value.
+    #+begin_src bash
+      let result = std.cd("/non-existing/directory")
+
+      if type(result) == "error" then
+         print("Failed to change directory:")
+         print(result)
+      end
+    #+end_src
+
+    The =error= built-in will produce an =error= providing:
+    - A message, supplied by the caller.
+    - An optional context, supplied by the caller. Useful for attaching related data.
+    - An automatically generated backtrace.
+
+    Examples of recoverable errors:
+    - =file not found=
+    - =permission error=
+    - =invalid format=
+    - =command not found=
+    - =command returned non-zero exit status=
+*** Panics
+    Panics are *irrecoverable* errors, due to invalid program logic. When a panic occurs,
+    /Hush/ halts the current script execution, and prints an error description message along
+    with a stack trace to /stderr/.
+
+    Examples of errors that cause a panic:
+    - =syntax error=
+    - =integer division by zero=
+    - =index out of bounds=
+    - =attempt to call a value that is not a function=
+    - =missing mandatory arguments=
 ** Built-ins
    /Hush/ provides built-in functions for common tasks, and built-in commands for tasks that
    cannot be performed by external commands.
@@ -740,40 +782,3 @@
      counter.increment()
      counter.print() # Prints 4
    #+end_src
-** Errors
-   /Hush/ provides two mechanisms for errors. The =error= type allows one to construct and
-   manipulate *recoverable* errors, which can be detected and handled. Panics, on the other
-   hand, are *irrecoverable* errors, which result in abortion of the current script
-   execution.
-*** Recoverable errors
-    /Hush/ provides the =error= built-in function to construct values of the =error= type. This
-    mechanism should be used for reporting and handling errors:
-    #+begin_src bash
-      let result = std.cd("/non-existing/directory")
-
-      if type(result) == "error" then
-         print("Failed to change directory:")
-         print(result)
-      end
-    #+end_src
-
-    Command blocks and built-in functions will report errors by returning values of the
-    =error= type, instead of the expected return value.
-
-    Examples of recoverable errors:
-    - =file not found=
-    - =permission error=
-    - =invalid format=
-    - =command not found=
-    - =command returned non-zero exit status=
-*** Panics
-    Panics are *irrecoverable* errors, due to invalid program logic. When a panic occurs,
-    /Hush/ halts the current script execution, and prints an error description message along
-    with a stack trace to /stderr/.
-
-    Examples of errors that cause a panic:
-    - =syntax error=
-    - =integer division by zero=
-    - =index out of bounds=
-    - =attempt to call a nil value=
-    - =missing mandatory arguments=
