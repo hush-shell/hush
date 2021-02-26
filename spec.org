@@ -28,6 +28,8 @@
    - array :: a heterogeneous array, 0-indexed unlike in /Lua/.
    - dict :: a heterogeneous hash map.
    - function :: a callable function.
+   - error :: a special error type, to ease distinction of errors from other values. This
+     type can only be instantianted by the built-in =error= function.
 
    All types except the ~array~ and ~dict~ are immutable. This means that, for instance, when
    one increments a integer, a new value is created with the result.
@@ -42,7 +44,8 @@
     The following are keywords in /Hush/:
     : let, if, then, else, end, for, in, do, while, function, return, not, and, or, true, false, nil, break
 *** Literals
-    Each type in the language has corresponding syntax for literals.
+    Each type in the language, except for the =error= type, has corresponding syntax for
+    literals:
     - nil :: It's only value is ~nil~.
     - bool :: ~true~ and ~false~.
     - char :: a single char enclosed in single quotes.
@@ -265,6 +268,74 @@
            | bc # eval the resulting expression
        }
      #+end_src
+***** Results and Errors
+      The result of a command invocation and execution is the status code if =0=, or an
+      =error= otherwise. The resulting =error= will contain the =status= field in it's
+      context. In pipelines, the result is an array of the results of each individual
+      command.
+
+      The result of a command block is an array of results, or a single result if there is
+      a single command/pipeline.
+
+      By default, if a command or a pipeline produces an =error=, /Hush/ will interrupt the
+      execution of the current command block. This behavior is similar to /Bash/'s ~set -e~.
+      To prevent this, one can use the =?= operator after a command/pipeline, and /Hush/ will
+      proceed even if the result is an =error=.
+
+      Example:
+      #+begin_src bash
+        let results = {
+          # (A)
+          cat /etc/shadow ?; # Should error with permission denied, but won't abort the command block.
+
+          # (B) The following pipeline will contain an error, but the command block won't be aborted.
+          echo Hello world!
+            | cat
+            | cat /dev/shadow # Should error with permission denied.
+            | cat ?;
+
+          # (C)
+          echo Hello world!; # Should succeed, resulting in 0.
+
+          # (D) Should error, aborting the command block.
+          echo Hello world!
+            | cat /dev/shadow # Should error with permission denied.
+            | cat;
+
+          # (E)
+          echo Foo Bar; # Won't be executed, because an error has caused the abortion of the command block.
+        }
+
+        let result
+
+        # (A): Permission denied.
+        result = results[0]
+        type(result) == "error"
+        result.status == 1
+
+        # (B): Array containing results of each command in the pipeline.
+        result = results[1]
+        type(result) == "array"
+        result[0] == 0 # Success.
+        result[1] == 0 # Success.
+        type(result[2]) == "error" # Permission denied.
+        result[3] == 0 # Success.
+
+        # (C): Success.
+        result = result[2]
+        result == 0
+
+        # (D): array containing results of each command in the pipeline.
+        result = result[3]
+        type(result) == "array"
+        result[0] == 0 # Success.
+        type(result[1]) == "error" # Permission denied.
+        result[2] == 0 # Success.
+
+        # (E): Due to the previous failured not guarded by the ? operator, the last command in the
+        # block didn't get to execute.
+        std.length(results) == 4
+      #+end_src
 ***** Command lookup
       If the command name contains a path separator (=/=), /Hush/ will attempt to execute the
       respective file, if any. Otherwise, /Hush/ will look up the command in the following
@@ -274,8 +345,8 @@
          /Hush/, like =cd= and =echo=.
       3. Executables in =$PATH=, respecting the list order
 
-      If there is no such command, /Hush/ returns a =127= status, and outputs an error
-      description to /stderr/.
+      If there is no such command, or the command cannot be executed, it results in an
+      =error=, and /Hush/ outputs the error description to /stderr/.
 ***** Arguments
       Command arguments are separated by spaces. Backslash-escaped spaces are not
       considered separators, but argument text. Variables can be accessed by prefixing
@@ -286,7 +357,7 @@
       2. =array=: each element will be converted to a *single* argument, using the first and
          third rules. If the array is empty, no argument is produced. This way, arrays can
          be used to programmatically build lists of command arguments.
-      3. =dict=, =function=: won't be converted, causing a [[#Panics][panic]] instead.
+      3. =dict=, =function=, =error=: won't be converted, causing a [[#Panics][panic]] instead.
       Attempting to access an undeclared variable results in a [[#Panics][panic]].
 
       Single quotes delimit literals *without* interpolation, while double quotes allow
@@ -387,12 +458,15 @@
       the supplied arguments for a command. This aims to assure that no redirection can go
       unnoticed when there are many arguments. The redirection operator has higher
       precedence than the [[#Piping][pipe]] operator.
+
+      If any of the I/O operations regarding redirections fails, the target command is not
+      executed, and an =error= is produced.
 ***** Piping
       Commands can be chained into pipelines using the =|= operator, which connects the left
       hand side's =stdout= to the right hand side's =stdin= using a unix [[https://pubs.opengroup.org/onlinepubs/009604499/functions/pipe.html][pipe]]. While the =|=
       operator is left associative, all commands in a pipeline are executed concurrently.
-      /Hush/ awaits all processes to finish, producing the status code of the last command
-      in the pipeline.
+      /Hush/ awaits all processes to finish, producing an array with the result of all
+      commands in the pipeline.
 
       Here are some insightful examples of such behavior:
       - The following pipeline:
@@ -418,17 +492,15 @@
         #+end_src
         Because when =head= closes it's side of the pipe, attempts to write from the other
         programs result in =SIGPIPE=.
-***** Errors
-      Command blocks result in the status code of the last command. If such status
-      indicates a failure (non-zero), and is not immediately assigned to a variable or
-      captured with ~${}~, /Hush/ will automatically [[#Panics][panic]], halting the script execution. This
-      behavior is similar to /Bash/'s ~set -e~.
+
+      If any of the I/O operations regarding the pipes fails, none of the target command
+      are executed, and an =error= is produced instead.
 ***** Capturing output
       The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
       traditional shells. Instead of resulting in the command's /stdout/, the result is a
       ~dict~ containing three fields: a =string= for /stdout/, a =string= for /stderr/, and the
-      status code. This enables acessing both /stdout/ and /stderr/ separately, as well as the
-      status code, all with value semantics. If one cares only about the /stdout/ for
+      result status. This enables acessing both /stdout/ and /stderr/ separately, as well as
+      the result status, all with value semantics. If one cares only about the /stdout/ for
       instance, direct access can be used, without requiring any intermediate variables:
       #+begin_src bash
         ${date --iso-8061}.stdout
@@ -447,6 +519,9 @@
         let date = ${date --iso-8601}.stdout
         { tee $date }
       #+end_src
+
+      If any of the I/O operations regarding capturing fails, the target command is not
+      executed, and an =error= is produced.
 ***** Asynchronous commands
       Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
       keyword and the =&= operator, also providing the =wait= built-in for joining such
@@ -496,8 +571,8 @@
       - ~pid~: the job's =pid=. You are unlikely to need this field in practice.
       - ~running()~: returns a =bool= indicating whether the job is still running.
       - ~abort()~: aborts the job, killing any child processes.
-      - ~join()~: like /Bash/'s =wait=, blocks until the job is finished, and returns the job's
-        status code.
+      - ~join()~: like /Bash/'s =wait=, blocks until the job is finished, and returns the
+        command block result.
 
       Hush:
       #+begin_src lua
@@ -525,14 +600,13 @@
             status = 1
           else
             # Job finished, check if succeeded:
-            let job_status = job.join()
-            if job_status != 0 then
-              status = job_status
+            let job_result = job.join()
+            if type(job_result) == "error" then
+              print("Failed to execute job:")
+			        print(job_result)
             end
           end
         end
-
-        exit(status)
       #+end_src
 **** Function calls
      Functions in /Hush/ can be called using the ~()~ operator. Like in the function
@@ -558,6 +632,9 @@
     /Hush/ provides a top-level =dict= named =std=, which contains all built-in functions:
     - =cd(dir)=: if =dir= is a =string=, attempts to change the shell's current working
       directory, returning an error on failure. [[#Panics][Panics]] otherwise.
+    - =error(description; context)=: returns a value of type =error=, containing the given
+      description, a backtrace, and the optional context. If =description= is not a =string=,
+      or =context= is not =nil= or a =dict=, then a [[#Panics][panic]] occurs.
     - =exit(status)=: if =status= is an =int=, exits the shell, returning the given status to
       the operating system. [[#Panics][Panics]] otherwise.
     - ~glob(value)~: If =value= is a string, performs path expansion, producing a possibly
@@ -576,6 +653,7 @@
       + =function=: returns "<function>".
       + =array=, =dict=: recursively dump the inner values, delimited with the respective
         literal syntax.
+      + =error=: formats the error description message, along with the context if any.
     - =type(value)=: returns a string describing the type of =value=.
       #+begin_src bash
         let val = "this is a string"
@@ -663,7 +741,39 @@
      counter.print() # Prints 4
    #+end_src
 ** Errors
+   /Hush/ provides two mechanisms for errors. The =error= type allows one to construct and
+   manipulate *recoverable* errors, which can be detected and handled. Panics, on the other
+   hand, are *irrecoverable* errors, which result in abortion of the current script
+   execution.
+*** Recoverable errors
+    /Hush/ provides the =error= built-in function to construct values of the =error= type. This
+    mechanism should be used for reporting and handling errors:
+    #+begin_src bash
+      let result = std.cd("/non-existing/directory")
+
+      if type(result) == "error" then
+         print("Failed to change directory:")
+         print(result)
+      end
+    #+end_src
+
+    Command blocks and built-in functions will report errors by returning values of the
+    =error= type, instead of the expected return value.
+
+    Examples of recoverable errors:
+    - =file not found=
+    - =permission error=
+    - =invalid format=
+    - =command not found=
+    - =command returned non-zero exit status=
 *** Panics
     Panics are *irrecoverable* errors, due to invalid program logic. When a panic occurs,
     /Hush/ halts the current script execution, and prints an error description message along
     with a stack trace to /stderr/.
+
+    Examples of errors that cause a panic:
+    - =syntax error=
+    - =integer division by zero=
+    - =index out of bounds=
+    - =attempt to call a nil value=
+    - =missing mandatory arguments=
