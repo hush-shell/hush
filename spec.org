@@ -341,8 +341,8 @@
          : some/[^/]*/path[^/]*/with/patterns/[1-9].[^/][^/][^/]
 
          Hidden files (whose name starts with a dot) *are matched by default*, as opposed to
-         /Bash/. Relative paths are expanded with a =./= prefix, in order to prevent flag
-         injection vulnerabilities. ¹
+         /Bash/. Directory references (=.=, =..=) are not matched. Relative paths are expanded
+         with a =./= prefix, in order to prevent flag injection vulnerabilities. ¹
 
       When the expansion results in an array, such array is converted to arguments
       according to the rules described in [[#Commands][Commands]].
