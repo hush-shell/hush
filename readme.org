@@ -3,3 +3,5 @@
 * Hush
   /Hush/ is a /Unix/ shell scripting language inspired by the /[[http://www.lua.org/][Lua/ programming
   language]]. Currently in development.
+
+  Check the [[./spec][language specification]] for more details.
