@@ -43,7 +43,7 @@
     which are not valid identifiers.
 *** Keywords
     The following are keywords in /Hush/:
-    : let, if, then, else, end, for, in, do, while, function, return, not, and, or, true, false, nil, break
+    : let, if, then, else, end, for, in, do, while, function, return, not, and, or, true, false, nil, break, self
 *** Literals
     Each type in the language, except for the =error= type, has corresponding syntax for
     literals:
