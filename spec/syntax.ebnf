@@ -1,0 +1,100 @@
+(* Commands *)
+argument = character_except_non_escaped_whitespace { character_except_non_escaped_whitespace }
+         | "'" raw_string "'"
+         | "\"" raw_string "\""
+
+file_descriptor = positive_int
+
+redirection = '<'  argument
+            | '<<' argument
+            | [file_descriptor] '>'  file_descriptor
+            | [file_descriptor] '>'  argument
+            | [file_descriptor] '>>' argument
+
+simple_command = argument redirection
+               | argument simple_command
+               | argument
+
+command = simple_command
+        | command '|' command
+
+command_block = '{'  command { ['?'] ';' command } ['?'] [';'] '}'
+              | '${' command { ['?'] ';' command } ['?'] [';'] '}'
+              | '&{' command { ['?'] ';' command } ['?'] [';'] '}'
+
+(* Identifiers *)
+ident = ( alpha | '_' ) { alphanum | '_' }
+
+parameters = '(' [param_list] ')'
+param_list = ident { ',' ident } [ ';' ident { ',' ident } ]
+
+(* Literals *)
+literal = nil_literal
+        | bool_literal
+        | int_literal
+        | float_literal
+        | char_literal
+        | string_literal
+        | array_literal
+        | dict_literal
+        | function_literal
+
+nil_literal = 'nil'
+
+bool_literal = 'true' | 'false'
+
+char_literal = "'" raw_char "'"
+
+string_literal = "\"" raw_string "\""
+
+array_literal = '[' [array_items] ']'
+array_items   = expression { ',' expression } [',']
+
+dict_literal = '@[' [dict_items] ']'
+dict_items   = dict_item { ',' dict_item } [',']
+dict_item    = ident '=' expression
+
+function_literal = 'function' function_body
+function_body    = parameters block 'end'
+
+
+(* Operators *)
+unary_operator = '-'    (* unary minus *)
+               | 'not' (* logcial *)
+
+binary_operator = '==' | '!=' | '<' | '<=' | '>' | '>=' (* relational *)
+                | '+' | '-' | '*' | '/' | '%'           (* arithmetic *)
+                | '++'                                  (* string concat *)
+                | 'and' | 'or'                          (* logical *)
+
+
+(* Expressions *)
+prefixexp = variable
+          | function_call
+          | '(' expression ')'
+          | command_block
+
+variable = ident
+         | prefixexp '.' ident 
+         | prefixexp '[' expression ']'
+
+function_call = prefixexp parameters
+
+expression = literal
+           | prefixexp
+           | expression binary_operator expression
+           | unary_operator expression 
+
+(* Statements *)
+statement =  ';'
+          | 'let' ident [ '=' expression ]
+          | variable '=' expression
+          | function_call
+          | 'break'
+          | 'while' expression 'do' block 'end'
+          | 'if' expression 'then' block [ 'else' block ] 'end'
+          | 'for' ident 'in' expression 'do' block 'end'
+          | 'function' ident function_body
+
+(* Block *)
+block = {statement} ['return' expression]

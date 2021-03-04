@@ -85,6 +85,29 @@
 *** Comments
     Comments can be placed in any point of a line, starting with =#= and spanning until the
     end of the line.
+*** Operators
+    /Hush/ provides the following operators, in order of precedence:
+    - Unary:
+      + Logical: =not= (prefix).
+      + Arithmetic: =-= (prefix).
+      + Field access: =.=, =[]= (postfix).
+    - Binary:
+      + Arithmetic: =*=, =/=, =%=, =+=, =-=.
+      + String: =++= (right associative).
+      + Relational: =>=, =<=, =>==, =<==.
+      + Equality: ====, =!==.
+      + Logical: =and=, =or=.
+      + Assignment: ===.
+
+    Regarding semantics, check the [[#Operators-1][Operators]] section for more details.
+
+    Commands blocks¹ can be delimited by one of ={}=, =${}= or =&{}=, and inside them, only the
+    following operators apply:
+    - =>=, =>>=, =<=, =<<=.
+    - =|=.
+    - =?=.
+
+    [1]: Check the [[#Commands][Commands]] section for more details.
 ** Constructs
 *** Variables
     /Hush/ adopts static scope, and variables must be declared with a `let` statement.
@@ -146,6 +169,32 @@
     #+end_src
 
     Both loop constructs support the =break= keyword, which implements short exiting.
+*** Operators
+    - Field access: ::
+      The index operator (=[]=) may only be applied to values of types =array= and =dict=,
+      resulting in the respective associated value. [[#Panics][Panics]] when out of bounds.
+
+      The dot access operator may only be applied to values of type =dict=, and is a
+      shortcut for the index operator:
+      : a.b == a["b"]
+    - Logical: ::
+      Logical operators may only be applied to values of type =bool=, and always result in a
+      value of the same type. The =and= and =or= operators implement [[https://en.wikipedia.org/wiki/Short-circuit_evaluation][short circuit]] semantics.
+    - Arithmetic: ::
+      Arithmetic operators may be applied to numeric values (=int= and =float=). Values of
+      type =int= will be automatically converted to =float= when paired with a =float= on a
+      binary operator. The integer modulo operator (=%=) is only available for =int=
+      values. Integer division by zero will cause a [[#Panics][panic]].
+    - String: ::
+      The string concatenation operator (=++=) may only be applied to strings, and will
+      result in a new string. Note that strings in /Hush/ are immutable.
+    - Relational: ::
+      Relational operators may only be applied to values of type =int=, =float=, =char= or
+      =string=, and always result in a value of type =bool=.
+    - Equality: ::
+      Equality operators can be applied to values of arbitrary types, and always result in
+      a value of type =bool=.
+    Providing invalid types for any operator will cause a [[#Panics][panic]].
 *** Functions
     In traditional shells, function arguments are always strings, and the return value is
     always an integer (status code). /Hush/ proposes more generic semantics, which are
