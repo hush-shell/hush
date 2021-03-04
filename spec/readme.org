@@ -49,10 +49,10 @@
     literals:
     - =nil=: It's only value is ~nil~.
     - =bool=: ~true~ and ~false~.
-    - =char=: a single char enclosed in single quotes.
     - =int=: 64 bit decimal integer literal, optionally prefixed by a minus sign.
     - =float=: 64 bit floating point literal: a decimal followed by a period character,
       followed by another decimal literal, with an optional exponent.
+    - =char=: a single char enclosed in single quotes.
     - =string=: string literal enclosed in double quotes.
     - =array=: values enclosed in =[]=, separated by commas.
     - =dict=: identifier-expression pairs enclosed in =@[]=, separated by a colon and
@@ -124,21 +124,22 @@
 
     The =for= loop allows looping over an interator function:
     #+begin_src bash
-      for variable in expression do
+      for identifier in expression do
         # body
       end
     #+end_src
-    Here, =expression= must result in a function that can be called once for every
-    iteration, receiving no arguments and returning an array with two elements. The first
-    element *must* be a boolean. When =true=, the second element is assigned to the iteration
-    variable, and the loop body is executed. When =false=, the iteration is finished.
+    Here, a new variable is introduced (=identifier=), and =expression= must result in a
+    function that can be called once for every iteration, receiving no arguments and
+    returning an array with two elements. The first element *must* be a boolean. When =true=,
+    the second element is assigned to the iteration variable, and the loop body is
+    executed. When =false=, the iteration is finished.
 
     Under the hood, the =for= loop translates to something like:
     #+begin_src bash
       let _iter = expression
       let arr = _iter()
       while arr[0] do
-        let variable = arr[1]
+        let identifier = arr[1]
         # body
         arr = _iter()
       end
