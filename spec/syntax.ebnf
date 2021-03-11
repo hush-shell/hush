@@ -15,8 +15,7 @@ simple_command = argument redirection
                | argument simple_command
                | argument
 
-command = simple_command
-        | command '|' command
+command = simple_command { '|' simple_command }
 
 command_block = '{'  command { ['?'] ';' command } ['?'] [';'] '}'
               | '${' command { ['?'] ';' command } ['?'] [';'] '}'
@@ -86,8 +85,7 @@ expression = literal
            | unary_operator expression 
 
 (* Statements *)
-statement =  ';'
-          | 'let' ident [ '=' expression ]
+statement = 'let' ident [ '=' expression ]
           | variable '=' expression
           | function_call
           | 'break'
