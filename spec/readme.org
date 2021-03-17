@@ -1,4 +1,4 @@
-#+html: <img src="images/logo.png" alt="Logo" align="right" width="125">
+#+html: <img src="../images/logo.png" alt="Logo" align="right" width="125">
 
 * /Hush/
   /Hush/ is a /Unix/ shell scripting language inspired by the /[[http://www.lua.org/][Lua/ programming
