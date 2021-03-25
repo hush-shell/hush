@@ -29,7 +29,7 @@
    - =dict=: a heterogeneous hash map.
    - =function=: a callable function.
    - =error=: a special error type, to ease distinction of errors from other values. This
-     type can only be instantianted by the built-in =error= function. For more details, see
+     type can only be instantiated by the built-in =error= function. For more details, see
      the [[#Errors][errors]] section.
 
    All types except the ~array~ and ~dict~ are immutable. This means that, for instance, when
@@ -73,7 +73,7 @@
         field5: 12E+99, # float
         field6: [ # array
           "a simple string",
-          "a string with \n escaped \" charaters",
+          "a string with \n escaped \" characters",
           'c', # a char
           '\n' # another char
         ],
@@ -145,7 +145,7 @@
       end
     #+end_src
 
-    The =for= loop allows looping over an interator function:
+    The =for= loop allows looping over an iterator function:
     #+begin_src bash
       for identifier in expression do
         # body
@@ -198,7 +198,7 @@
 *** Functions
     In traditional shells, function arguments are always strings, and the return value is
     always an integer (status code). /Hush/ proposes more generic semantics, which are
-    tipically adopted by general purpose programming languages. Functions should be able
+    typically adopted by general purpose programming languages. Functions should be able
     to accept parameters of arbitrary types, and also be able to return a value of an
     arbitrary type. On the other hand, commands are limited by the operating system to
     accept strings and return a status code. Therefore, when invoking external commands,
@@ -316,7 +316,7 @@
 
 
          list-musics
-           | xargs --null -- mediainfo --Output='Audio;%Duration%\n' # get duration in miliseconds
+           | xargs --null -- mediainfo --Output='Audio;%Duration%\n' # get duration in milliseconds
            | awk NF # remove empty lines
            | paste -s -d + # join lines with +
            | bc # eval the resulting expression
@@ -386,7 +386,7 @@
         std.type(result[1]) == "error" # Permission denied.
         result[2] == 0 # Success.
 
-        # (E): Due to the previous failured not guarded by the ? operator, the last command in the
+        # (E): Due to the previous failure not guarded by the ? operator, the last command in the
         # block didn't get to execute.
         std.length(results) == 4
       #+end_src
@@ -553,7 +553,7 @@
       The capture operator (~${}~ in /Hush/) adopts more flexible semantics than those of
       traditional shells. Instead of resulting in the command's /stdout/, the result is a
       ~dict~ containing three fields: a =string= for /stdout/, a =string= for /stderr/, and the
-      result status. This enables acessing both /stdout/ and /stderr/ separately, as well as
+      result status. This enables accessing both /stdout/ and /stderr/ separately, as well as
       the result status, all with value semantics. If one cares only about the /stdout/ for
       instance, direct access can be used, without requiring any intermediate variables:
       #+begin_src bash
@@ -579,7 +579,7 @@
 ***** Asynchronous commands
       Shells like /Ksh/, /Zsh/ and /Bash/ support asynchronous commands through the =coproc=
       keyword and the =&= operator, also providing the =wait= built-in for joining such
-      coprocesses. In such shells, the /pid/ of a asynchronous command is immediately
+      co-processes. In such shells, the /pid/ of a asynchronous command is immediately
       available through the =$!= variable.
 
       Bash:
@@ -649,7 +649,7 @@
 
         for job in std.iter(jobs) do
           if job.running() then
-            # Job is stil running, abort...
+            # Job is still running, abort...
             job.abort()
             status = 1
           else
@@ -671,7 +671,7 @@
       shell functions. This is due to the fact that pipes in particular have concurrent
       semantics, i.e., each component (command or function) in the pipeline runs
       concurrently. This would be problematic for /Hush/ functions because they can reference
-      outter variables through parameters and closures, and consequently mutate their
+      outer variables through parameters and closures, and consequently mutate their
       values. Therefore, two functions in a pipeline could access the same variable
       concurrently, potentially causing a data race.
 
@@ -727,8 +727,8 @@
     /Hush/ provides a top-level =dict= named =std=, which contains all built-in functions:
     - =cd(dir)= ::
       If =dir= is a =string=, attempts to change the shell's current working directory,
-      returning an error on failure. [[#Panics][Panics]] otherwise. This functionality is also avaiable
-      through the =cd= [[#Commands-1][command]].
+      returning an error on failure. [[#Panics][Panics]] otherwise. This functionality is also
+      available through the =cd= [[#Commands-1][command]].
     - =error(description; context)= ::
       Returns a value of type =error=, containing the given description, a backtrace, and
       the optional context. If =description= is not a =string=, or =context= is not =nil= or a
@@ -749,8 +749,8 @@
     - ~print(; value)~ ::
       If =value= is not =nil=, converts it to string using =tostring=, then writes to =stdout=,
       followed by a line break. Prints an empty string otherwise.
-    - =sleep(miliseconds)= ::
-      If =miliseconds= is an =int=, sleeps for the given duration. [[#Panics][Panics]] otherwise.
+    - =sleep(milliseconds)= ::
+      If =milliseconds= is an =int=, sleeps for the given duration. [[#Panics][Panics]] otherwise.
     - ~tostring(value)~ ::
       Converts =value= to string, using the following rules:
       + =nil=, =bool=, =char=, =int=, =float=, =string=: traditional representation, without quotes.
@@ -791,8 +791,9 @@
     in a [[#Panics][panic]].
 ** Object model
    /Hush/ mainly focuses on functional programming, but also supports some sort of object
-   oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sofisticated dynamics
-   to /tables/, /Hush/ adopts simpler semantics, having /dicts/ as plain key-value stores.
+   oriented programming. While /Lua/ proposes the /metatable/ mechanism to add sophisticated
+   dynamics to /tables/, /Hush/ adopts simpler semantics, having /dicts/ as plain key-value
+   stores.
 
    Functions can act as methods by using the ~self~ operator, as described
    previously. Objects can be defined as /dicts/ with member functions, which can be defined
@@ -812,7 +813,7 @@
        return @[
          _value: initial_value, # Public field.
          # These methods could be implemented here as well.
-         # Remeber, functions are nothing but values.
+         # Remember, functions are nothing but values.
          increment: increment, # Method
          get: get,             # Method
        ]
