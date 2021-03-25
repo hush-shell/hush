@@ -42,7 +42,7 @@ class HushLexer(RegexLexer):
             # (r'::', Punctuation, 'label'),
             # (r'\.{3}', Punctuation),
             (r'[!=<>{}|+\-*/%]+', Operator),
-            (r'[\[\]().,:;]', Punctuation),
+            (r'[\[\]().,:;]|@\[', Punctuation),
             (r'(and|or|not)\b', Operator.Word),
 
             (r'(break|self|do|else|end|for|if|in|return|then|while)\b', Keyword.Reserved),
