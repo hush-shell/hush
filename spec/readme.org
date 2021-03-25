@@ -260,7 +260,7 @@
 
 
       # A member function.
-      my_obj = @[
+      let my_obj = @[
         value: 5,
 
         method: function()
@@ -274,7 +274,7 @@
 
       my_obj.method() # Returns 5
 
-      fun = my_obj.method
+      let fun = my_obj.method
 
       fun() # Returns 0
     #+end_src
