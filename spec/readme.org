@@ -33,7 +33,10 @@
      the [[#Errors][errors]] section.
 
    All types except the ~array~ and ~dict~ are immutable. This means that, for instance, when
-   one increments a integer, a new value is created with the result.
+   one increments a integer, a new value is created with the result. This is important
+   because, as =dict= is a central type in the language, usage of every other type as a
+   key will be very common. Dictionary keys should always be immutable, because mutation
+   has a side effect on hashing.
 ** Syntax
    As /Hush/ is heavily inspired by /Lua/, it borrows most of the syntax from it, with only
    minor tweaks to support the additional command invocation syntax.
@@ -114,6 +117,11 @@
     #+begin_src bash
       let x # Introduces the variable in the local scope
       let y = 5 # Shortcut for assignment
+    #+end_src
+
+    Assignment is straightforward, but requires previous declaration.
+    #+begin_src bash
+      x = 1
     #+end_src
 
     All variables are references, and therefore can refer to the same ~dict~ or ~array~ for
