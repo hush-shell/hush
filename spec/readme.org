@@ -345,7 +345,7 @@
           # (B) The following pipeline will contain an error, but the command block won't be aborted.
           echo Hello world!
             | cat
-            | cat /dev/shadow # Should error with permission denied.
+            | cat /etc/shadow # Should error with permission denied.
             | cat ?;
 
           # (C)
@@ -353,7 +353,7 @@
 
           # (D) Should error, aborting the command block.
           echo Hello world!
-            | cat /dev/shadow # Should error with permission denied.
+            | cat /etc/shadow # Should error with permission denied.
             | cat;
 
           # (E)
