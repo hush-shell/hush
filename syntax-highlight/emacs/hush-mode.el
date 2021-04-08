@@ -11,7 +11,7 @@
 
 (defvar hush-mode-syntax-table
   (with-syntax-table (copy-syntax-table)
-    ;; main comment syntax: begins with "--", ends with "\n"
+    ;; comment syntax: begins with "#", ends with "\n"
     (modify-syntax-entry ?# "<")
     (modify-syntax-entry ?\n ">")
 
