@@ -1,0 +1,8 @@
+* Custom /Pygments/ lexer for /Hush/
+  This is a custom /Pygments/ lexer for /Hush/, allowing for instance one to write /Latex/
+  documents with proper syntax highlight.
+** Installation
+   To build and install, use the following command:
+   #+begin_src bash
+     python setup.py install --user
+   #+end_src
