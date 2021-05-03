@@ -1,0 +1,7 @@
+[package]
+name = "hush"
+version = "0.1.0"
+authors = ["gahag <gabriel.s.b@live.com>"]
+edition = "2018"
+
+[dependencies]
