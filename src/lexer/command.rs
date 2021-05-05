@@ -1,18 +1,21 @@
-use super::Symbol;
+use super::{Scanner, SourcePos, Token};
+use crate::symbol::{self, Symbol};
+
+use std::io;
 
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BasicArgument<'a> {
-	Literal(Box<[u8]>),
-	Dollar(Symbol<'a>), // $, ${}
+pub enum BasicArgument {
+	Literal(Box<str>),
+	Dollar(Symbol), // $, ${}
 }
 
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Argument<'a> {
-	Unquoted(BasicArgument<'a>),
-	SingleQuoted(Box<[u8]>),
-	DoubleQuoted(Box<[BasicArgument<'a>]>),
+pub enum Argument {
+	Unquoted(BasicArgument),
+	SingleQuoted(Box<str>),
+	DoubleQuoted(Box<[BasicArgument]>),
 }
 
 
@@ -26,13 +29,44 @@ pub enum Operator {
 
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token<'a> {
-	Word(Box<[Argument<'a>]>),
+pub enum TokenKind {
+	Word(Box<[Argument]>),
 	Operator(Operator),
-	Semicolon,
+	Semicolon, // ;
 }
 
 
-// Here, the lexer should return EOF when the close command token is consumed.
-#[derive(Debug, Clone)]
-pub struct Lexer;
+#[derive(Debug)]
+pub struct Lexer<'a, R> {
+	reader: &'a mut R,
+	symbol_interner: &'a mut symbol::Interner,
+	pos: SourcePos,
+}
+
+
+impl<'a, R> Lexer<'a, R> {
+	pub fn new(
+		reader: &'a mut R,
+		symbol_interner: &'a mut symbol::Interner,
+		pos: SourcePos,
+	) -> Self {
+		Self {
+			reader,
+			symbol_interner,
+			pos,
+		}
+	}
+}
+
+
+impl<'a, R> Scanner<'a> for Lexer<'a, R>
+where
+	R: io::Read,
+{
+	type Token = Token<TokenKind>;
+
+	fn next(&'a mut self) -> Option<Self::Token> {
+		// Here, the lexer should return EOF (None) when the close command token is consumed.
+		todo!()
+	}
+}

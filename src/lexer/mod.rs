@@ -1,8 +1,32 @@
 pub mod command;
 
+use crate::symbol::{self, Symbol};
 
-/// Symbols are interned in the symbols table.
-type Symbol<'a> = &'a [u8];
+use std::{
+	fmt::{self, Display},
+	io,
+};
+
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SourcePos {
+	pub line: u32,
+	pub column: u32,
+}
+
+
+impl Display for SourcePos {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "line {}, column {}", self.line, self.column)
+	}
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token<Kind> {
+	kind: Kind,
+	pos: SourcePos,
+}
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,8 +54,9 @@ pub enum Literal {
 	False,
 	Int(i64),
 	Float(f64),
-	Char(u8),
-	String(Box<[u8]>), // TODO: should we intern string literals?
+	Char(char),
+	// String literals are not interned because they probably won't be repeated very often.
+	String(Box<str>),
 }
 
 
@@ -61,9 +86,9 @@ pub enum Operator {
 }
 
 
-#[derive(Debug, Clone)]
-pub enum Token<'a> {
-	Identifier(Symbol<'a>),
+#[derive(Debug)]
+pub enum TokenKind<'a, R> {
+	Identifier(Symbol),
 	Keyword(Keyword),
 	Literal(Literal),
 
@@ -78,11 +103,34 @@ pub enum Token<'a> {
 	CloseParens, // )
 
 	// Commands require a different lexer mode:
-	Command(command::Lexer),        // {}
-	CaptureCommand(command::Lexer), // ${}
-	AsyncCommand(command::Lexer),   // &{}
+	Command(command::Lexer<'a, R>),        // {}
+	CaptureCommand(command::Lexer<'a, R>), // ${}
+	AsyncCommand(command::Lexer<'a, R>),   // &{}
 }
 
 
-#[derive(Debug, Clone)]
-pub struct Lexer;
+pub trait Scanner<'a> {
+	type Token: 'a;
+
+	fn next(&'a mut self) -> Option<Self::Token>;
+}
+
+
+#[derive(Debug)]
+pub struct Lexer<'a, R> {
+	reader: &'a mut R,
+	symbol_interner: &'a mut symbol::Interner,
+	pos: SourcePos,
+}
+
+
+impl<'a, R> Scanner<'a> for Lexer<'a, R>
+where
+	R: io::Read + 'a,
+{
+	type Token = Token<TokenKind<'a, R>>;
+
+	fn next(&'a mut self) -> Option<Self::Token> {
+		todo!()
+	}
+}

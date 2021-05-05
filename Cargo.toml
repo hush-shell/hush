@@ -5,3 +5,4 @@ authors = ["gahag <gabriel.s.b@live.com>"]
 edition = "2018"
 
 [dependencies]
+string-interner = { version = "0.12", default-features = false, features = [ "std", "inline-more", "backends" ] }
