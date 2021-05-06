@@ -1,8 +1,6 @@
 use super::{Scanner, SourcePos, Token};
 use crate::symbol::{self, Symbol};
 
-use std::io;
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BasicArgument {
@@ -37,21 +35,21 @@ pub enum TokenKind {
 
 
 #[derive(Debug)]
-pub struct Lexer<'a, R> {
-	reader: &'a mut R,
+pub struct Lexer<'a> {
+	input: &'a str,
 	symbol_interner: &'a mut symbol::Interner,
 	pos: SourcePos,
 }
 
 
-impl<'a, R> Lexer<'a, R> {
+impl<'a> Lexer<'a> {
 	pub fn new(
-		reader: &'a mut R,
+		input: &'a str,
 		symbol_interner: &'a mut symbol::Interner,
 		pos: SourcePos,
 	) -> Self {
 		Self {
-			reader,
+			input,
 			symbol_interner,
 			pos,
 		}
@@ -59,10 +57,7 @@ impl<'a, R> Lexer<'a, R> {
 }
 
 
-impl<'a, R> Scanner<'a> for Lexer<'a, R>
-where
-	R: io::Read,
-{
+impl<'a> Scanner<'a> for Lexer<'a> {
 	type Token = Token<TokenKind>;
 
 	fn next(&'a mut self) -> Option<Self::Token> {

@@ -2,10 +2,7 @@ pub mod command;
 
 use crate::symbol::{self, Symbol};
 
-use std::{
-	fmt::{self, Display},
-	io,
-};
+use std::fmt::{self, Display};
 
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -87,7 +84,7 @@ pub enum Operator {
 
 
 #[derive(Debug)]
-pub enum TokenKind<'a, R> {
+pub enum TokenKind<'a> {
 	Identifier(Symbol),
 	Keyword(Keyword),
 	Literal(Literal),
@@ -103,9 +100,9 @@ pub enum TokenKind<'a, R> {
 	CloseParens, // )
 
 	// Commands require a different lexer mode:
-	Command(command::Lexer<'a, R>),        // {}
-	CaptureCommand(command::Lexer<'a, R>), // ${}
-	AsyncCommand(command::Lexer<'a, R>),   // &{}
+	Command(command::Lexer<'a>),        // {}
+	CaptureCommand(command::Lexer<'a>), // ${}
+	AsyncCommand(command::Lexer<'a>),   // &{}
 }
 
 
@@ -117,18 +114,65 @@ pub trait Scanner<'a> {
 
 
 #[derive(Debug)]
-pub struct Lexer<'a, R> {
-	reader: &'a mut R,
+pub struct Lexer<'a> {
+	input: &'a str,
 	symbol_interner: &'a mut symbol::Interner,
 	pos: SourcePos,
 }
 
 
-impl<'a, R> Scanner<'a> for Lexer<'a, R>
-where
-	R: io::Read + 'a,
-{
-	type Token = Token<TokenKind<'a, R>>;
+impl<'a> Lexer<'a> {
+	pub fn new(
+		input: &'a str,
+		symbol_interner: &'a mut symbol::Interner,
+		pos: SourcePos,
+	) -> Self {
+		Self {
+			input,
+			symbol_interner,
+			pos,
+		}
+	}
+
+	fn peek(&self) -> Option<char> {
+		self.input.chars().next()
+	}
+
+
+	fn peek_next(&self) -> Option<char> {
+		self.input.chars().nth(1)
+	}
+
+
+	fn advance(&mut self) -> Option<char> {
+		let mut chars = self.input.chars();
+		let result = chars.next();
+
+		self.input = chars.as_str();
+		if let Some('\n') = result {
+			self.pos.line += 1;
+			self.pos.column = 0;
+		} else {
+			self.pos.column += 1;
+		}
+
+		result
+	}
+
+	fn match_next(&mut self, expected: char) -> bool {
+		match self.peek() {
+			Some(next) if next == expected => {
+				self.advance();
+				true
+			},
+			_ => false,
+		}
+	}
+}
+
+
+impl<'a> Scanner<'a> for Lexer<'a> {
+	type Token = Token<TokenKind<'a>>;
 
 	fn next(&'a mut self) -> Option<Self::Token> {
 		todo!()
