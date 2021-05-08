@@ -1,4 +1,7 @@
-use super::{Scanner, SourcePos, Token};
+use super::{
+	cursor::{Cursor, SourcePos},
+	Token,
+};
 use crate::symbol::{self, Symbol};
 
 
@@ -31,37 +34,24 @@ pub enum TokenKind {
 	Word(Box<[Argument]>),
 	Operator(Operator),
 	Semicolon, // ;
+
+	Unexpected(char), // Lex error.
 }
 
 
 #[derive(Debug)]
-pub struct Lexer<'a> {
-	input: &'a str,
-	symbol_interner: &'a mut symbol::Interner,
-	pos: SourcePos,
+pub struct Lexer;
+
+
+impl Lexer {
 }
 
 
-impl<'a> Lexer<'a> {
-	pub fn new(
-		input: &'a str,
-		symbol_interner: &'a mut symbol::Interner,
-		pos: SourcePos,
-	) -> Self {
-		Self {
-			input,
-			symbol_interner,
-			pos,
-		}
-	}
-}
+// impl<'a> Scanner<'a> for Lexer<'a> {
+// 	type Token = Token<TokenKind>;
 
-
-impl<'a> Scanner<'a> for Lexer<'a> {
-	type Token = Token<TokenKind>;
-
-	fn next(&'a mut self) -> Option<Self::Token> {
-		// Here, the lexer should return EOF (None) when the close command token is consumed.
-		todo!()
-	}
-}
+// 	fn next(&'a mut self, cursor: &'a mut Cursor) -> Option<Self::Token> {
+// 		// Here, the lexer should return EOF (None) when the close command token is consumed.
+// 		todo!()
+// 	}
+// }
