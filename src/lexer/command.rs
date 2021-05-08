@@ -43,8 +43,7 @@ pub enum TokenKind {
 pub struct Lexer;
 
 
-impl Lexer {
-}
+impl Lexer {}
 
 
 // impl<'a> Scanner<'a> for Lexer<'a> {

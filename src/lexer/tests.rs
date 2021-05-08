@@ -29,16 +29,15 @@ fn test_simple_function() {
 	let mut interner = symbol::Interner::new();
 
 	macro_rules! next {
-		() => { Lexer::read_token(&mut cursor, &mut interner) }
+		() => {
+			Lexer::read_token(&mut cursor, &mut interner)
+		};
 	}
 
 	macro_rules! assert_symbol {
 		($symbol:ident, $expected:literal) => {
-			assert_eq!(
-				interner.resolve($symbol),
-				Some($expected)
-			)
-		}
+			assert_eq!(interner.resolve($symbol), Some($expected))
+		};
 	}
 
 	assert_token!(next!(), TokenKind::Keyword(Keyword::Function));
@@ -82,22 +81,15 @@ fn test_invalid_tokens() {
 
 	let mut cursor = Cursor::new(input.as_bytes());
 	let mut interner = symbol::Interner::new();
-	let tokens: Vec<TokenKind> = std::iter
-		::from_fn(
-			|| Lexer::read_token(&mut cursor, &mut interner)
-		)
-    .map(
-			|token| token.kind
-		)
-    .collect();
+	let tokens: Vec<TokenKind> =
+		std::iter::from_fn(|| Lexer::read_token(&mut cursor, &mut interner))
+			.map(|token| token.kind)
+			.collect();
 
 	macro_rules! assert_symbol {
 		($symbol:ident, $expected:literal) => {
-			assert_eq!(
-				interner.resolve(*$symbol),
-				Some($expected)
-			)
-		}
+			assert_eq!(interner.resolve(*$symbol), Some($expected))
+		};
 	}
 
 	assert_matches!(

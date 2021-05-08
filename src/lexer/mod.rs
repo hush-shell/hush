@@ -1,7 +1,7 @@
-#[cfg(test)]
-mod tests;
 pub mod command;
 pub mod cursor;
+#[cfg(test)]
+mod tests;
 
 use crate::symbol::{self, Symbol};
 use cursor::{Cursor, SourcePos};
@@ -136,7 +136,9 @@ impl Lexer {
 
 			macro_rules! try_eat {
 				($pattern:expr, $val:expr) => {
-					if cursor.eat($pattern) { return $val; }
+					if cursor.eat($pattern) {
+						return $val;
+					}
 				};
 			}
 
@@ -158,7 +160,7 @@ impl Lexer {
 					if Self::is_identifier(c) {
 						return Some(
 							Self::read_word(cursor, interner)
-								.expect("at least one identifier character should have been read")
+								.expect("at least one identifier character should have been read"),
 						);
 					}
 
@@ -199,7 +201,7 @@ impl Lexer {
 
 					// Unexpected token:
 					cursor.skip();
-					return token!(TokenKind::Unexpected(c))
+					return token!(TokenKind::Unexpected(c));
 				}
 			}
 		}
@@ -221,29 +223,29 @@ impl Lexer {
 
 		match word {
 			// Keywords:
-			b"let"      => token!(TokenKind::Keyword(Keyword::Let)),
-			b"if"       => token!(TokenKind::Keyword(Keyword::If)),
-			b"then"     => token!(TokenKind::Keyword(Keyword::Then)),
-			b"else"     => token!(TokenKind::Keyword(Keyword::Else)),
-			b"end"      => token!(TokenKind::Keyword(Keyword::End)),
-			b"for"      => token!(TokenKind::Keyword(Keyword::For)),
-			b"in"       => token!(TokenKind::Keyword(Keyword::In)),
-			b"do"       => token!(TokenKind::Keyword(Keyword::Do)),
-			b"while"    => token!(TokenKind::Keyword(Keyword::While)),
+			b"let" => token!(TokenKind::Keyword(Keyword::Let)),
+			b"if" => token!(TokenKind::Keyword(Keyword::If)),
+			b"then" => token!(TokenKind::Keyword(Keyword::Then)),
+			b"else" => token!(TokenKind::Keyword(Keyword::Else)),
+			b"end" => token!(TokenKind::Keyword(Keyword::End)),
+			b"for" => token!(TokenKind::Keyword(Keyword::For)),
+			b"in" => token!(TokenKind::Keyword(Keyword::In)),
+			b"do" => token!(TokenKind::Keyword(Keyword::Do)),
+			b"while" => token!(TokenKind::Keyword(Keyword::While)),
 			b"function" => token!(TokenKind::Keyword(Keyword::Function)),
-			b"return"   => token!(TokenKind::Keyword(Keyword::Return)),
-			b"break"    => token!(TokenKind::Keyword(Keyword::Break)),
-			b"self"     => token!(TokenKind::Keyword(Keyword::Self_)),
+			b"return" => token!(TokenKind::Keyword(Keyword::Return)),
+			b"break" => token!(TokenKind::Keyword(Keyword::Break)),
+			b"self" => token!(TokenKind::Keyword(Keyword::Self_)),
 
 			// Literals:
-			b"nil"   => token!(TokenKind::Literal(Literal::Nil)),
-			b"true"  => token!(TokenKind::Literal(Literal::True)),
+			b"nil" => token!(TokenKind::Literal(Literal::Nil)),
+			b"true" => token!(TokenKind::Literal(Literal::True)),
 			b"false" => token!(TokenKind::Literal(Literal::False)),
 
 			// Operators:
 			b"not" => token!(TokenKind::Operator(Operator::Not)),
 			b"and" => token!(TokenKind::Operator(Operator::And)),
-			b"or"  => token!(TokenKind::Operator(Operator::Or)),
+			b"or" => token!(TokenKind::Operator(Operator::Or)),
 
 			// Identifier:
 			ident => {
@@ -254,13 +256,12 @@ impl Lexer {
 				};
 				let symbol = interner.get_or_intern(ident);
 				token!(TokenKind::Identifier(symbol))
-			},
+			}
 		}
 	}
 
 
 	fn is_identifier(c: u8) -> bool {
-		c.is_ascii_alphanumeric()
-			|| c == b'_'
+		c.is_ascii_alphanumeric() || c == b'_'
 	}
 }
