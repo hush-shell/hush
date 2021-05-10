@@ -110,7 +110,7 @@ impl<'a> Cursor<'a> {
 	}
 
 
-	pub fn skip(&mut self) -> Option<()> {
+	pub fn skip(&mut self) -> Option<u8> {
 		let (&first, remainder) = self.input.split_first()?;
 
 		if first == b'\n' {
@@ -121,7 +121,7 @@ impl<'a> Cursor<'a> {
 
 		self.input = remainder;
 
-		Some(())
+		Some(first)
 	}
 
 
