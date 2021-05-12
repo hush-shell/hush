@@ -151,6 +151,74 @@ fn test_invalid_tokens() {
 
 
 #[test]
+fn test_byte_literals() {
+	let input = r#"
+		let var = 'a'
+		var = '\n'
+		var = '\?'   # invalid escape sequence
+		var = '?     # undelimited literal
+		var = '\n    # undelimited literal with escape sequence
+		var = '\h    # undelimited literal with invalid escape sequence
+		var = 'aa'   # invalid literal
+		var = '\?a'  # invalid escape sequence followed by character
+	"#;
+
+	let cursor = Cursor::new(input.as_bytes());
+	let mut interner = SymbolInterner::new();
+	let lexer = Lexer::new(cursor, &mut interner);
+
+	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+
+	assert_matches!(
+		&tokens[..],
+		[
+			token!(TokenKind::Keyword(Keyword::Let)),
+			token!(TokenKind::Identifier(var)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			token!(TokenKind::Literal(Literal::Byte(b1))),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			token!(TokenKind::Literal(Literal::Byte(b2))),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::InvalidLiteral(InvalidLiteral::InvalidEscapeCodes(ec1))),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::Unexpected(b' ')),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::Unexpected(b' ')),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::Unexpected(b' ')),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::Unexpected(b'a')),
+			error!(ErrorKind::Unexpected(b' ')),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::Unexpected(b'a')),
+			error!(ErrorKind::Unexpected(b' ')),
+		]
+			=> {
+				assert_eq!(interner.resolve(*var), Some("var"));
+				assert_eq!(interner.len(), 1);
+				assert_eq!(*b1, b'a');
+				assert_eq!(*b2, b'\n');
+				assert_matches!(ec1.as_ref(), &[b"\\?"])
+			}
+	);
+}
+
+
+#[test]
 fn test_string_literals() {
 	let input = r#"
 		let var = "hello world" ++ "escape \n sequences \" are \0 cool"
@@ -161,14 +229,6 @@ fn test_string_literals() {
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
-
-	macro_rules! assert_symbol {
-		($symbol:ident, $expected:literal) => {
-			assert_eq!(interner.resolve(*$symbol), Some($expected))
-		};
-	}
-
-	println!("{:#?}", tokens);
 
 	assert_matches!(
 		&tokens[..],
@@ -181,7 +241,7 @@ fn test_string_literals() {
 			token!(TokenKind::Literal(Literal::String(lit2))),
 		]
 			=> {
-				assert_symbol!(var, "var");
+				assert_eq!(interner.resolve(*var), Some("var"));
 				assert_matches!(lit1.as_ref(), b"hello world");
 				assert_matches!(lit2.as_ref(), b"escape \n sequences \" are \0 cool");
 			}
