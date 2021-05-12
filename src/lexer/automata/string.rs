@@ -92,7 +92,7 @@ impl<'a> ByteLiteral<'a> {
 					b'0'  => Some(b'\0'),
 					_ => {
 						self.error = Some(
-							cursor.slice(escape_offset, cursor.offset())
+							&cursor.slice()[escape_offset ..= cursor.offset()]
 						);
 						None
 					}

@@ -50,7 +50,7 @@ impl Word {
 			Some(c) if c.is_word() => Transition::step(self),
 			// If we visit EOF or a non-identifier character, we should just produce.
 			_ => {
-				let word = cursor.slice(self.start_offset, cursor.offset());
+				let word = &cursor.slice()[self.start_offset .. cursor.offset()];
 				let token = Self::to_token(word, interner);
 
 				Transition::revisit_produce(

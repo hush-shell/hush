@@ -138,15 +138,15 @@ impl<'a> State<'a> {
 
 
 #[derive(Debug)]
-pub struct Automata<'a> {
+pub struct Automata<'a, 'b> {
 	state: State<'a>,
 	cursor: Cursor<'a>,
-	interner: &'a mut SymbolInterner,
+	interner: &'b mut SymbolInterner,
 }
 
 
-impl<'a> Automata<'a> {
-	pub fn new(cursor: Cursor<'a>, interner: &'a mut SymbolInterner) -> Self {
+impl<'a, 'b> Automata<'a, 'b> {
+	pub fn new(cursor: Cursor<'a>, interner: &'b mut SymbolInterner) -> Self {
 		Self {
 			state: State::default(),
 			cursor,
@@ -156,7 +156,7 @@ impl<'a> Automata<'a> {
 }
 
 
-impl<'a> Iterator for Automata<'a> {
+impl<'a, 'b> Iterator for Automata<'a, 'b> {
 	type Item = Output<'a>;
 
 	fn next(&mut self) -> Option<Output<'a>> {

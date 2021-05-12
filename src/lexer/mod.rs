@@ -13,11 +13,11 @@ use token::{Token, TokenKind, Keyword, Literal, Operator};
 
 
 #[derive(Debug)]
-pub struct Lexer<'a>(Automata<'a>);
+pub struct Lexer<'a, 'b>(Automata<'a, 'b>);
 
 
-impl<'a> Lexer<'a> {
-	pub fn new(cursor: Cursor<'a>, interner: &'a mut SymbolInterner) -> Self {
+impl<'a, 'b> Lexer<'a, 'b> {
+	pub fn new(cursor: Cursor<'a>, interner: &'b mut SymbolInterner) -> Self {
 		Self(
 			Automata::new(cursor, interner)
 		)
@@ -25,7 +25,7 @@ impl<'a> Lexer<'a> {
 }
 
 
-impl<'a> Iterator for Lexer<'a> {
+impl<'a, 'b> Iterator for Lexer<'a, 'b> {
 	type Item = Result<Token, Error<'a>>;
 
 	fn next(&mut self) -> Option<Self::Item> {

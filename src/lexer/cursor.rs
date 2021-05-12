@@ -65,8 +65,8 @@ impl<'a> Cursor<'a> {
 	}
 
 
-	pub fn slice(&self, from: usize, to: usize) -> &'a [u8] {
-		&self.input[from ..= to]
+	pub fn slice(&self) -> &'a [u8] {
+		&self.input
 	}
 
 
