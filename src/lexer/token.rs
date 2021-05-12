@@ -1,5 +1,5 @@
-use crate::symbol::Symbol;
 use super::SourcePos;
+use crate::symbol::Symbol;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

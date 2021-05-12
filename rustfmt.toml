@@ -1,2 +1,5 @@
 hard_tabs = true
 blank_lines_upper_bound = 2
+struct_lit_width = 50
+spaces_around_ranges = true
+imports_layout = "HorizontalVertical"

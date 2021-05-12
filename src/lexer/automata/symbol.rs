@@ -1,14 +1,4 @@
-use super::{
-	Error,
-	Cursor,
-	Operator,
-	Root,
-	SourcePos,
-	State,
-	Token,
-	TokenKind,
-	Transition,
-};
+use super::{Cursor, Error, Operator, Root, SourcePos, State, Token, TokenKind, Transition};
 
 
 #[derive(Debug)]
@@ -20,10 +10,7 @@ pub(super) struct Symbol {
 
 impl Symbol {
 	pub fn from_first(first: u8, cursor: &Cursor) -> Self {
-		Self {
-			first,
-			pos: cursor.pos(),
-		}
+		Self { first, pos: cursor.pos() }
 	}
 
 
@@ -118,7 +105,7 @@ impl SymbolChar {
 			b'&' => double(first),
 
 			// Not a symbol character:
-			_ => SymbolChar::None
+			_ => SymbolChar::None,
 		}
 	}
 }

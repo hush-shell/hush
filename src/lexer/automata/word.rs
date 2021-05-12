@@ -34,18 +34,11 @@ impl IsWord for u8 {
 
 impl Word {
 	pub fn at(cursor: &Cursor) -> Self {
-		Self {
-			start_offset: cursor.offset(),
-			pos: cursor.pos()
-		}
+		Self { start_offset: cursor.offset(), pos: cursor.pos() }
 	}
 
 
-	pub fn visit<'a>(
-		self,
-		cursor: &Cursor<'a>,
-		interner: &mut SymbolInterner
-	) -> Transition<'a> {
+	pub fn visit<'a>(self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
 		match cursor.peek() {
 			Some(c) if c.is_word() => Transition::step(self),
 			// If we visit EOF or a non-identifier character, we should just produce.
@@ -53,10 +46,7 @@ impl Word {
 				let word = &cursor.slice()[self.start_offset .. cursor.offset()];
 				let token = Self::to_token(word, interner);
 
-				Transition::revisit_produce(
-					Root,
-					Token { token, pos: self.pos }
-				)
+				Transition::revisit_produce(Root, Token { token, pos: self.pos })
 			}
 		}
 	}

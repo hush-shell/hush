@@ -1,9 +1,4 @@
-use super::{
-	Cursor,
-	Root,
-	State,
-	Transition
-};
+use super::{Cursor, Root, State, Transition};
 
 #[derive(Debug)]
 pub(super) struct Comment;

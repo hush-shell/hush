@@ -72,9 +72,6 @@ impl<'a> Display for Error<'a> {
 
 impl<'a> Error<'a> {
 	pub fn unexpected(input: u8, pos: SourcePos) -> Self {
-		Self {
-			error: ErrorKind::Unexpected(input),
-			pos
-		}
+		Self { error: ErrorKind::Unexpected(input), pos }
 	}
 }

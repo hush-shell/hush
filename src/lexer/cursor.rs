@@ -37,11 +37,7 @@ pub struct Cursor<'a> {
 
 impl<'a> Cursor<'a> {
 	pub fn new(input: &'a [u8]) -> Self {
-		Self {
-			input,
-			offset: 0,
-			pos: SourcePos::default(),
-		}
+		Self { input, offset: 0, pos: SourcePos::default() }
 	}
 
 

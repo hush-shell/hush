@@ -34,17 +34,16 @@ impl NumberLiteral {
 
 
 	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
-		let error = |error| Transition::error(
-			Root,
-			Error {
-				error,
-				pos: self.pos,
-			}
-		);
+		let error = |error| Transition::error(Root, Error { error, pos: self.pos });
 
 		match (&self, cursor.peek()) {
 			// There must be a single dot, and it must precede the exponent if any.
-			(&Self { consumed_decimal: None, consumed_exponent: None, .. }, Some(b'.')) => {
+			(
+				&Self {
+					consumed_decimal: None, consumed_exponent: None, ..
+				},
+				Some(b'.'),
+			) => {
 				self.consumed_decimal = Some(false);
 				Transition::step(self)
 			}
@@ -69,8 +68,8 @@ impl NumberLiteral {
 			}
 
 			// A dot or an exponent must be followed by a digit.
-			(&Self { consumed_decimal: Some(false), .. }, value) |
-			(&Self { consumed_exponent: Some(false), .. }, value) => {
+			(&Self { consumed_decimal: Some(false), .. }, value)
+			| (&Self { consumed_exponent: Some(false), .. }, value) => {
 				if let Some(value) = value {
 					error(ErrorKind::Unexpected(value))
 				} else {
@@ -79,12 +78,10 @@ impl NumberLiteral {
 			}
 
 			// Stop and produce if a non-digit is found, including EOF.
-			(_, _) => {
-				match self.parse(cursor) {
-					Ok(token) => Transition::revisit_produce(Root, token),
-					Err(error) => Transition::error(Root, error),
-				}
-			}
+			(_, _) => match self.parse(cursor) {
+				Ok(token) => Transition::revisit_produce(Root, token),
+				Err(error) => Transition::error(Root, error),
+			},
 		}
 	}
 
@@ -92,25 +89,15 @@ impl NumberLiteral {
 	fn parse<'a>(&self, cursor: &Cursor<'a>) -> Result<Token, Error<'a>> {
 		let number = &cursor.slice()[self.start_offset .. cursor.offset()];
 
-		let literal = |literal| Ok(
-			Token {
-				token: TokenKind::Literal(literal),
-				pos: self.pos,
-			}
-		);
+		let literal = |literal| Ok(Token { token: TokenKind::Literal(literal), pos: self.pos });
 
-		let error = Err(
-			Error {
-				error: ErrorKind::InvalidLiteral(
-					InvalidLiteral::InvalidNumber(number)
-				),
-				pos: self.pos,
-			}
-		);
+		let error = Err(Error {
+			error: ErrorKind::InvalidLiteral(InvalidLiteral::InvalidNumber(number)),
+			pos: self.pos,
+		});
 
 		// There is no method in std to parse a number from a byte array.
-		let number_str = std::str
-			::from_utf8(number)
+		let number_str = std::str::from_utf8(number)
 			.expect("number literals should be valid ascii, which should be valid utf8");
 
 		if self.is_float() {
@@ -121,7 +108,7 @@ impl NumberLiteral {
 		} else {
 			match number_str.parse() {
 				Ok(int) => literal(Literal::Int(int)),
-				Err(_) => error
+				Err(_) => error,
 			}
 		}
 	}

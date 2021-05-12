@@ -1,11 +1,18 @@
-mod root;
 mod comment;
 mod number;
+mod root;
 mod string;
-mod word;
 mod symbol;
+mod word;
 
-use crate::symbol::Interner as SymbolInterner;
+use self::{
+	comment::Comment,
+	number::NumberLiteral,
+	root::Root,
+	string::{ByteLiteral, StringLiteral},
+	symbol::Symbol,
+	word::Word,
+};
 use super::{
 	Cursor,
 	Error,
@@ -19,14 +26,7 @@ use super::{
 	Token,
 	TokenKind,
 };
-use self::{
-	root::Root,
-	comment::Comment,
-	number::NumberLiteral,
-	string::{ByteLiteral, StringLiteral},
-	word::Word,
-	symbol::Symbol,
-};
+use crate::symbol::Interner as SymbolInterner;
 
 
 type Output<'a> = Result<Token, Error<'a>>;
@@ -47,11 +47,7 @@ impl<'a> Transition<'a> {
 	/// Consume the character while updating the machine state, but not producing a token
 	/// yet.
 	pub fn step<S: Into<State<'a>>>(state: S) -> Self {
-		Self {
-			state: state.into(),
-			consume: true,
-			output: None,
-		}
+		Self { state: state.into(), consume: true, output: None }
 	}
 
 	/// Consume the input character and produce a token.
@@ -74,11 +70,7 @@ impl<'a> Transition<'a> {
 
 	/// Don't consume the input character, updating the machine state instead.
 	pub fn revisit<S: Into<State<'a>>>(state: S) -> Self {
-		Self {
-			state: state.into(),
-			consume: false,
-			output: None,
-		}
+		Self { state: state.into(), consume: false, output: None }
 	}
 
 	/// Don't consume the input character, but produce a token.
@@ -129,7 +121,7 @@ impl<'a> State<'a> {
 			State::StringLiteral(state) => state.visit(cursor),
 			State::NumberLiteral(state) => state.visit(cursor),
 			State::Word(state) => state.visit(cursor, interner),
-			State::Symbol(state) =>state.visit(cursor),
+			State::Symbol(state) => state.visit(cursor),
 		}
 	}
 }
@@ -145,11 +137,7 @@ pub(super) struct Automata<'a, 'b> {
 
 impl<'a, 'b> Automata<'a, 'b> {
 	pub fn new(cursor: Cursor<'a>, interner: &'b mut SymbolInterner) -> Self {
-		Self {
-			state: State::default(),
-			cursor,
-			interner
-		}
+		Self { state: State::default(), cursor, interner }
 	}
 }
 
