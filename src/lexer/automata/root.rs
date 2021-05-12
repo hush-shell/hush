@@ -16,7 +16,7 @@ use super::{
 
 
 #[derive(Debug)]
-pub struct Root;
+pub(super) struct Root;
 
 
 impl Root {

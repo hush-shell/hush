@@ -136,7 +136,7 @@ impl<'a> State<'a> {
 
 
 #[derive(Debug)]
-pub struct Automata<'a, 'b> {
+pub(super) struct Automata<'a, 'b> {
 	state: State<'a>,
 	cursor: Cursor<'a>,
 	interner: &'b mut SymbolInterner,

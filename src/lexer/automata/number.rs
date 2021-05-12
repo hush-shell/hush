@@ -14,7 +14,7 @@ use super::{
 
 
 #[derive(Debug)]
-pub struct NumberLiteral {
+pub(super) struct NumberLiteral {
 	start_offset: usize,
 	consumed_decimal: Option<bool>,
 	consumed_exponent: Option<bool>,

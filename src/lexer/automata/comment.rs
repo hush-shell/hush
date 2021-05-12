@@ -6,7 +6,7 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct Comment;
+pub(super) struct Comment;
 
 
 impl Comment {

@@ -14,7 +14,7 @@ use super::{
 
 
 #[derive(Debug)]
-pub struct Word {
+pub(super) struct Word {
 	start_offset: usize,
 	pos: SourcePos,
 }

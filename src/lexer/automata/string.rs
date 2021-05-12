@@ -15,7 +15,7 @@ use super::{
 
 
 #[derive(Debug)]
-pub struct ByteLiteral<'a> {
+pub(super) struct ByteLiteral<'a> {
 	/// The parsed value, if any.
 	value: Option<u8>,
 	/// Escape sequence error, if any.
@@ -119,7 +119,7 @@ impl<'a> From<ByteLiteral<'a>> for State<'a> {
 
 
 #[derive(Debug)]
-pub struct StringLiteral<'a> {
+pub(super) struct StringLiteral<'a> {
 	/// The parsed bytes, if any.
 	value: Vec<u8>,
 	/// Escape sequence errors, if any.

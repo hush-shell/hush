@@ -1,6 +1,5 @@
 use super::{
 	Error,
-	ErrorKind,
 	Cursor,
 	Operator,
 	Root,
@@ -13,7 +12,7 @@ use super::{
 
 
 #[derive(Debug)]
-pub struct Symbol {
+pub(super) struct Symbol {
 	first: u8,
 	pos: SourcePos,
 }
