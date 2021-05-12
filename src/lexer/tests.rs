@@ -14,16 +14,17 @@ fn test_simple_function() {
 		end
 	"#;
 
-	let mut cursor = Cursor::new(input.as_bytes());
-	let mut interner = symbol::Interner::new();
+	let cursor = Cursor::new(input.as_bytes());
+	let mut interner = SymbolInterner::new();
+	let mut lexer = Lexer::new(cursor, &mut interner);
 
 	macro_rules! assert_token {
 		($token_kind:pat) => {
-			assert_matches!(Lexer::read_token(&mut cursor, &mut interner), Token::Token { kind: $token_kind, .. })
+			assert_matches!(lexer.next(), Some(Ok(Token { token: $token_kind, .. })))
 		};
 
 		($token_kind:pat => $arm:expr) => {
-			assert_matches!(Lexer::read_token(&mut cursor, &mut interner), Token::Token { kind: $token_kind, .. } => $arm)
+			assert_matches!(lexer.next(), Some(Ok(Token { token: $token_kind, .. })) => $arm)
 		};
 	}
 
@@ -57,7 +58,7 @@ fn test_simple_function() {
 	assert_token!(TokenKind::Identifier(symbol) => assert_symbol!(symbol, "result"));
 	assert_token!(TokenKind::Keyword(Keyword::End));
 	assert_token!(TokenKind::Keyword(Keyword::End));
-	assert_matches!(Lexer::read_token(&mut cursor, &mut interner), Token::Eof);
+	assert_matches!(lexer.next(), None);
 }
 
 

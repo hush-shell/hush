@@ -9,28 +9,12 @@ pub struct SourcePos {
 
 
 impl SourcePos {
-	pub fn forward_line(&mut self) {
-		self.line += 1;
-		self.column = 0;
-	}
-
-	pub fn forward_column(&mut self) {
-		self.column += 1;
-	}
-
-	pub fn visit(&mut self, input: &[u8]) {
-		let (lines, last_line_len) = input
-			.split(|&c| c == b'\n')
-			.enumerate()
-			.last()
-			.map(|(lines, last_line)| (lines as u32, last_line.len() as u32))
-			.expect("split should always yield at least once");
-
-		self.line += lines;
-		self.column = if lines == 0 {
-			self.column + last_line_len
+	pub fn visit(&mut self, input: u8) {
+		if input == b'\n' {
+			self.line += 1;
+			self.column = 0;
 		} else {
-			last_line_len
+			self.column += 1;
 		}
 	}
 }
@@ -46,6 +30,7 @@ impl Display for SourcePos {
 #[derive(Debug, Clone)]
 pub struct Cursor<'a> {
 	input: &'a [u8],
+	offset: usize,
 	pos: SourcePos,
 }
 
@@ -54,6 +39,7 @@ impl<'a> Cursor<'a> {
 	pub fn new(input: &'a [u8]) -> Self {
 		Self {
 			input,
+			offset: 0,
 			pos: SourcePos::default(),
 		}
 	}
@@ -64,69 +50,32 @@ impl<'a> Cursor<'a> {
 	}
 
 
-	pub fn eat(&mut self, pattern: &[u8]) -> bool {
-		if let Some(remainder) = self.input.strip_prefix(pattern) {
-			self.input = remainder;
-			self.pos.visit(pattern);
-			true
-		} else {
-			false
-		}
+	pub fn offset(&self) -> usize {
+		self.offset
+	}
+
+
+	pub fn is_eof(&self) -> bool {
+		self.offset == self.input.len()
 	}
 
 
 	pub fn peek(&self) -> Option<u8> {
-		self.input.first().copied()
+		self.input.get(self.offset).copied()
 	}
 
 
-	pub fn take<P>(&mut self, mut predicate: P) -> Option<&'a [u8]>
-	where
-		P: FnMut(u8) -> bool,
-	{
-		if self.input.is_empty() {
-			return None;
+	pub fn slice(&self, from: usize, to: usize) -> &'a [u8] {
+		&self.input[from ..= to]
+	}
+
+
+	pub fn step(&mut self) {
+		if self.input.len() == self.offset {
+			return;
 		}
 
-		// Find the index of the first character that does not match.
-		let result = self.input.iter().position(|&c| {
-			if c == b'\n' {
-				self.pos.forward_line();
-			} else {
-				self.pos.forward_column();
-			}
-
-			!predicate(c)
-		});
-
-		let (prefix, remainder) = self.input.split_at(
-			// If such character was not found, it means the entire input must be consumed.
-			result.unwrap_or(self.input.len()),
-		);
-
-		self.input = remainder;
-
-		Some(prefix)
-	}
-
-
-	pub fn skip(&mut self) -> Option<u8> {
-		let (&first, remainder) = self.input.split_first()?;
-
-		if first == b'\n' {
-			self.pos.forward_line();
-		} else {
-			self.pos.forward_column();
-		}
-
-		self.input = remainder;
-
-		Some(first)
-	}
-
-
-	pub fn skip_line(&mut self) -> Option<()> {
-		self.take(|c| c != b'\n')?;
-		Some(())
+		self.pos.visit(self.input[self.offset]);
+		self.offset += 1;
 	}
 }
