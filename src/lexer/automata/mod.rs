@@ -5,8 +5,6 @@ mod string;
 mod word;
 mod symbol;
 
-use std::fmt::{self, Display};
-
 use crate::symbol::Interner as SymbolInterner;
 use super::{
 	Cursor,

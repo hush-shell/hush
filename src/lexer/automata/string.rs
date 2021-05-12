@@ -39,8 +39,6 @@ impl<'a> ByteLiteral<'a> {
 
 
 	pub fn visit(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
-		type State<'a> = ByteLiteral<'a>;
-
 		let literal = |literal| Token { token: TokenKind::Literal(literal), pos: self.pos };
 
 		let produce = |token| Transition::produce(Root, token);
@@ -63,26 +61,26 @@ impl<'a> ByteLiteral<'a> {
 
 			// If there has been some previous error, consume the closing quote before
 			// reporting.
-			(&State { error: Some(err), .. }, Some(b'\'')) => {
+			(&Self { error: Some(err), .. }, Some(b'\'')) => {
 				error(
 					ErrorKind::InvalidLiteral(invalid_literal(err))
 				)
 			}
 
 			// Value has been scanned, and there have been no errors.
-			(&State { value: Some(value), .. }, Some(b'\'')) => {
+			(&Self { value: Some(value), .. }, Some(b'\'')) => {
 				produce(literal(Literal::Byte(value)))
 			}
 
 			// If a value has already been scanned (including incorrect escape sequences). There
 			// should be no further characters except for the closing quote.
-			(&State { value: Some(_), .. }, Some(c)) |
-			(&State { error: Some(_), .. }, Some(c)) => {
+			(&Self { value: Some(_), .. }, Some(c)) |
+			(&Self { error: Some(_), .. }, Some(c)) => {
 				error(ErrorKind::Unexpected(c))
 			}
 
 			// Escaped character.
-			(&State { escaping: Some(escape_offset), .. }, Some(value)) => {
+			(&Self { escaping: Some(escape_offset), .. }, Some(value)) => {
 				match value {
 					b'"'  => self.value = Some(b'"'),
 					b'\'' => self.value = Some(b'\''),
@@ -145,8 +143,6 @@ impl<'a> StringLiteral<'a> {
 
 
 	pub fn visit(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
-		type State<'a> = StringLiteral<'a>;
-
 		let produce = |token| Transition::produce(Root, token);
 
 		macro_rules! literal {
@@ -174,7 +170,7 @@ impl<'a> StringLiteral<'a> {
 			}
 
 			// Escaped character.
-			(&State { escaping: Some(escape_offset), .. }, Some(value)) => {
+			(&Self { escaping: Some(escape_offset), .. }, Some(value)) => {
 				match value {
 					b'"'  => self.value.push(b'"'),
 					b'\'' => self.value.push(b'\''),

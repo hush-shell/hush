@@ -247,3 +247,40 @@ fn test_string_literals() {
 			}
 	);
 }
+
+
+#[test]
+fn test_number_literals() {
+	let input = r#"
+		let var = 123 + 456.7 + 89e10 + 1.2e3
+	"#;
+
+	let cursor = Cursor::new(input.as_bytes());
+	let mut interner = SymbolInterner::new();
+	let lexer = Lexer::new(cursor, &mut interner);
+
+	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+
+	assert_matches!(
+		&tokens[..],
+		[
+			token!(TokenKind::Keyword(Keyword::Let)),
+			token!(TokenKind::Identifier(var)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			token!(TokenKind::Literal(Literal::Int(i1))),
+			token!(TokenKind::Operator(Operator::Plus)),
+			token!(TokenKind::Literal(Literal::Float(f1))),
+			token!(TokenKind::Operator(Operator::Plus)),
+			token!(TokenKind::Literal(Literal::Float(f2))),
+			token!(TokenKind::Operator(Operator::Plus)),
+			token!(TokenKind::Literal(Literal::Float(f3))),
+		]
+			=> {
+				assert_eq!(interner.resolve(*var), Some("var"));
+				assert_eq!(*i1, 123);
+				assert_eq!(*f1, 456.7);
+				assert_eq!(*f2, 89e10);
+				assert_eq!(*f3, 1.2e3);
+			}
+	);
+}

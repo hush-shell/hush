@@ -1,15 +1,16 @@
 use super::{
 	symbol::SymbolChar,
 	word::IsWord,
+	ByteLiteral,
 	Comment,
 	Cursor,
 	Error,
+	NumberLiteral,
 	State,
+	StringLiteral,
+	Symbol,
 	Token,
 	Transition,
-	StringLiteral,
-	ByteLiteral,
-	Symbol,
 	Word,
 };
 
@@ -35,6 +36,10 @@ impl Root {
 
 			Some(b'\'') => {
 				Transition::step(ByteLiteral::at(cursor))
+			}
+
+			Some(c) if c.is_ascii_digit() => {
+				Transition::step(NumberLiteral::at(cursor))
 			}
 
 			Some(c) if c.is_word() => {
