@@ -79,7 +79,7 @@ impl NumberLiteral {
 
 			// Stop and produce if a non-digit is found, including EOF.
 			(_, _) => match self.parse(cursor) {
-				Ok(token) => Transition::revisit_produce(Root, token),
+				Ok(token) => Transition::resume_produce(Root, token),
 				Err(error) => Transition::error(Root, error),
 			},
 		}

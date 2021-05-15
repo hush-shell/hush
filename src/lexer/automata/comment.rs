@@ -1,21 +1,39 @@
-use super::{Cursor, Root, State, Transition};
+use super::{Cursor, Command, Root, State, Transition};
 
 #[derive(Debug)]
-pub(super) struct Comment;
+pub(super) struct Comment<S>(S);
 
 
-impl Comment {
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+impl<'a, S> Comment<S>
+where
+	S: Into<State<'a>>,
+	State<'a>: From<Self>
+{
+	pub fn visit(self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match cursor.peek() {
-			Some(b'\n') => Transition::revisit(Root),
+			Some(b'\n') => Transition::resume(self.0),
 			_ => Transition::step(self),
 		}
 	}
 }
 
 
-impl<'a> From<Comment> for State<'a> {
-	fn from(state: Comment) -> State<'a> {
+impl<S> From<S> for Comment<S> {
+	fn from(state: S) -> Self {
+		Self(state)
+	}
+}
+
+
+impl<'a> From<Comment<Root>> for State<'a> {
+	fn from(state: Comment<Root>) -> State<'a> {
 		State::Comment(state)
+	}
+}
+
+
+impl<'a> From<Comment<Command>> for State<'a> {
+	fn from(state: Comment<Command>) -> State<'a> {
+		State::CommandComment(state)
 	}
 }

@@ -29,7 +29,7 @@ pub(super) struct ByteLiteral<'a> {
 
 impl<'a> ByteLiteral<'a> {
 	pub fn at(cursor: &Cursor) -> Self {
-		ByteLiteral {
+		Self {
 			value: None,
 			error: None,
 			escaping: None,
@@ -75,6 +75,7 @@ impl<'a> ByteLiteral<'a> {
 					b'n' => self.value = Some(b'\n'),
 					b't' => self.value = Some(b'\t'),
 					b'0' => self.value = Some(b'\0'),
+					b'\\' => self.value = Some(b'\\'),
 					_ => {
 						self.error = Some(
 							// Invalid escape sequence.
@@ -124,7 +125,7 @@ pub(super) struct StringLiteral<'a> {
 
 impl<'a> StringLiteral<'a> {
 	pub fn at(cursor: &Cursor) -> Self {
-		StringLiteral {
+		Self {
 			value: Vec::with_capacity(10), // We expect most literals to not be empty.
 			errors: Vec::new(),            // Don't allocate until we meet errors.
 			escaping: None,
@@ -162,6 +163,7 @@ impl<'a> StringLiteral<'a> {
 					b'n' => self.value.push(b'\n'),
 					b't' => self.value.push(b'\t'),
 					b'0' => self.value.push(b'\0'),
+					b'\\' => self.value.push(b'\\'),
 					_ => self.errors.push(
 						// Invalid escape sequence.
 						&cursor.slice()[escape_offset ..= cursor.offset()],

@@ -1,4 +1,6 @@
+mod argument;
 mod comment;
+mod command;
 mod number;
 mod root;
 mod string;
@@ -6,14 +8,18 @@ mod symbol;
 mod word;
 
 use self::{
+	argument::{Arg, SingleQuoted, DoubleQuoted},
 	comment::Comment,
+	command::Command,
 	number::NumberLiteral,
 	root::Root,
 	string::{ByteLiteral, StringLiteral},
-	symbol::Symbol,
+	symbol::{CommandSymbol, Symbol},
 	word::Word,
 };
 use super::{
+	Argument,
+	BasicArgument,
 	Cursor,
 	Error,
 	ErrorKind,
@@ -22,6 +28,7 @@ use super::{
 	Keyword,
 	Literal,
 	Operator,
+	CommandOperator,
 	SourcePos,
 	Token,
 	TokenKind,
@@ -51,11 +58,11 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Consume the input character and produce a token.
-	pub fn produce<S: Into<State<'a>>>(state: S, output: Token) -> Self {
+	pub fn produce<S: Into<State<'a>>>(state: S, token: Token) -> Self {
 		Self {
 			state: state.into(),
 			consume: true,
-			output: Some(Ok(output)),
+			output: Some(Ok(token)),
 		}
 	}
 
@@ -69,12 +76,12 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Don't consume the input character, updating the machine state instead.
-	pub fn revisit<S: Into<State<'a>>>(state: S) -> Self {
+	pub fn resume<S: Into<State<'a>>>(state: S) -> Self {
 		Self { state: state.into(), consume: false, output: None }
 	}
 
 	/// Don't consume the input character, but produce a token.
-	pub fn revisit_produce<S: Into<State<'a>>>(state: S, output: Token) -> Self {
+	pub fn resume_produce<S: Into<State<'a>>>(state: S, output: Token) -> Self {
 		Self {
 			state: state.into(),
 			consume: false,
@@ -82,8 +89,8 @@ impl<'a> Transition<'a> {
 		}
 	}
 
-	/// Consume the input character and produce an error.
-	pub fn skip_error<S: Into<State<'a>>>(state: S, error: Error<'a>) -> Self {
+	/// Don't consume the input character and produce an error.
+	pub fn resume_error<S: Into<State<'a>>>(state: S, error: Error<'a>) -> Self {
 		Self {
 			state: state.into(),
 			consume: false,
@@ -95,13 +102,24 @@ impl<'a> Transition<'a> {
 
 #[derive(Debug)]
 enum State<'a> {
+	// Top level lexer states:
 	Root(Root),
-	Comment(Comment),
+	Comment(Comment<Root>),
 	NumberLiteral(NumberLiteral),
 	ByteLiteral(ByteLiteral<'a>),
 	StringLiteral(StringLiteral<'a>),
 	Word(Word),
 	Symbol(Symbol),
+	// Command block lexer states:
+	Command(Command),
+	CommandComment(Comment<Command>),
+	Argument(Arg<'a>),
+	SingleQuoted(SingleQuoted<'a>),
+	DoubleQuoted(DoubleQuoted<'a>),
+	UnquotedWord(argument::Word<'a, Arg<'a>>),
+	SingleQuotedWord(argument::Word<'a, SingleQuoted<'a>>),
+	DoubleQuotedWord(argument::Word<'a, DoubleQuoted<'a>>),
+	CommandSymbol(CommandSymbol),
 }
 
 
@@ -117,11 +135,21 @@ impl<'a> State<'a> {
 		match self {
 			State::Root(state) => state.visit(cursor),
 			State::Comment(state) => state.visit(cursor),
+			State::NumberLiteral(state) => state.visit(cursor),
 			State::ByteLiteral(state) => state.visit(cursor),
 			State::StringLiteral(state) => state.visit(cursor),
-			State::NumberLiteral(state) => state.visit(cursor),
 			State::Word(state) => state.visit(cursor, interner),
 			State::Symbol(state) => state.visit(cursor),
+
+			State::Command(state) => state.visit(cursor),
+			State::CommandComment(state) => state.visit(cursor),
+			State::Argument(state) => state.visit(cursor),
+			State::SingleQuoted(state) => state.visit(cursor),
+			State::DoubleQuoted(state) => state.visit(cursor),
+			State::UnquotedWord(state) => state.visit(cursor),
+			State::SingleQuotedWord(state) => state.visit(cursor),
+			State::DoubleQuotedWord(state) => state.visit(cursor),
+			State::CommandSymbol(state) => state.visit(cursor),
 		}
 	}
 }

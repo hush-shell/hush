@@ -284,3 +284,19 @@ fn test_number_literals() {
 			}
 	);
 }
+
+
+#[test]
+fn test_command_block() {
+	let input = r#"
+		let result = { here-is-some 1arg "2arg" '3arg' 4'arg' "5"arg; }
+	"#;
+
+	let cursor = Cursor::new(input.as_bytes());
+	let mut interner = SymbolInterner::new();
+	let lexer = Lexer::new(cursor, &mut interner);
+
+	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+
+	todo!()
+}
