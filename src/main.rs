@@ -1,7 +1,6 @@
 #[allow(dead_code)] // This is temporarily used for the inital development.
 mod lexer;
 mod symbol;
-mod source;
 
 use lexer::{Lexer, cursor::Cursor};
 

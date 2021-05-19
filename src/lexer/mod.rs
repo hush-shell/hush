@@ -5,12 +5,9 @@ mod token;
 #[cfg(test)]
 mod tests;
 
-use crate::{
-	source::Pos as SourcePos,
-	symbol::Interner as SymbolInterner,
-};
+use crate::symbol::Interner as SymbolInterner;
 use automata::Automata;
-use cursor::Cursor;
+use cursor::{Cursor, SourcePos};
 use error::{Error, ErrorKind};
 use token::{ArgPart, ArgUnit, Keyword, Literal, CommandOperator, Operator, Token, TokenKind};
 

@@ -1,6 +1,6 @@
 use std::fmt::{self, Debug, Display};
 
-use crate::source::Pos as SourcePos;
+use super::SourcePos;
 
 
 /// The kind of lexical error.
