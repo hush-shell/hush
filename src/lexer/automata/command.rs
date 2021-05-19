@@ -1,14 +1,14 @@
 use super::{
-	Argument,
 	symbol::CommandSymbolChar,
-	Error,
-	Root,
-	TokenKind,
+	Argument,
+	CommandSymbol,
 	Comment,
 	Cursor,
+	Error,
+	Root,
 	State,
-	CommandSymbol,
 	Token,
+	TokenKind,
 	Transition,
 };
 
@@ -30,10 +30,7 @@ impl Command {
 			// Close command block.
 			Some(b'}') => Transition::produce(
 				Root,
-				Token {
-					token: TokenKind::CloseCommand,
-					pos: cursor.pos(),
-				}
+				Token { token: TokenKind::CloseCommand, pos: cursor.pos() },
 			),
 
 			// Argument or operator.
@@ -41,21 +38,19 @@ impl Command {
 				// Argument.
 				CommandSymbolChar::None => Transition::resume(Argument::at(cursor)),
 
-				CommandSymbolChar::Single(token) => { // Semicolon, pipe or try.
+				// Semicolon, pipe or try.
+				CommandSymbolChar::Single(token) => {
 					Transition::produce(self, Token { token, pos: cursor.pos() })
 				}
 
 				// >, >>, <, <<.
-				CommandSymbolChar::Double { first } => Transition::step(
-					CommandSymbol::from_first(first, cursor)
-				),
+				CommandSymbolChar::Double { first } => {
+					Transition::step(CommandSymbol::from_first(first, cursor))
+				}
 			},
 
 			// Eof.
-			None => Transition::error(
-				Root,
-				Error::unexpected_eof(cursor.pos())
-			),
+			None => Transition::error(Root, Error::unexpected_eof(cursor.pos())),
 		}
 	}
 }

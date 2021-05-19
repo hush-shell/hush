@@ -25,23 +25,21 @@ pub enum Keyword {
 
 impl Debug for Keyword {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(
-			match self {
-				Self::Let => "let",
-				Self::If => "if",
-				Self::Then => "then",
-				Self::Else => "else",
-				Self::End => "end",
-				Self::For => "for",
-				Self::In => "in",
-				Self::Do => "do",
-				Self::While => "while",
-				Self::Function => "function",
-				Self::Return => "return",
-				Self::Break => "break",
-				Self::Self_ => "self",
-			}
-		)
+		f.write_str(match self {
+			Self::Let => "let",
+			Self::If => "if",
+			Self::Then => "then",
+			Self::Else => "else",
+			Self::End => "end",
+			Self::For => "for",
+			Self::In => "in",
+			Self::Do => "do",
+			Self::While => "while",
+			Self::Function => "function",
+			Self::Return => "return",
+			Self::Break => "break",
+			Self::Self_ => "self",
+		})
 	}
 }
 
@@ -104,27 +102,25 @@ pub enum Operator {
 
 impl Debug for Operator {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(
-			match self {
-				Self::Plus => "+",
-				Self::Minus => "-",
-				Self::Times => "*",
-				Self::Div => "/",
-				Self::Mod => "%",
-				Self::Equals => "==",
-				Self::NotEquals => "!=",
-				Self::Greater => ">",
-				Self::GreaterEquals => ">=",
-				Self::Lower => "<",
-				Self::LowerEquals => "<=",
-				Self::Not => "not",
-				Self::And => "and",
-				Self::Or => "or",
-				Self::Concat => "++",
-				Self::Dot => ".",
-				Self::Assign => "=",
-			}
-		)
+		f.write_str(match self {
+			Self::Plus => "+",
+			Self::Minus => "-",
+			Self::Times => "*",
+			Self::Div => "/",
+			Self::Mod => "%",
+			Self::Equals => "==",
+			Self::NotEquals => "!=",
+			Self::Greater => ">",
+			Self::GreaterEquals => ">=",
+			Self::Lower => "<",
+			Self::LowerEquals => "<=",
+			Self::Not => "not",
+			Self::And => "and",
+			Self::Or => "or",
+			Self::Concat => "++",
+			Self::Dot => ".",
+			Self::Assign => "=",
+		})
 	}
 }
 
@@ -187,15 +183,13 @@ pub enum CommandOperator {
 
 impl Debug for CommandOperator {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(
-			match self {
-				Self::OutputRedirection { overwrite: true } => ">>",
-				Self::OutputRedirection { overwrite: false } => ">",
-				Self::InputRedirection { literal: true } => "<<",
-				Self::InputRedirection { literal: false } => "<",
-				Self::Try => "?",
-			}
-		)
+		f.write_str(match self {
+			Self::OutputRedirection { overwrite: true } => ">>",
+			Self::OutputRedirection { overwrite: false } => ">",
+			Self::InputRedirection { literal: true } => "<<",
+			Self::InputRedirection { literal: false } => "<",
+			Self::Try => "?",
+		})
 	}
 }
 
@@ -252,9 +246,11 @@ impl Debug for TokenKind {
 			Self::CaptureCommand => write!(f, "${{")?,
 			Self::AsyncCommand => write!(f, "&{{")?,
 			Self::CloseCommand => write!(f, "}}")?,
-			Self::Argument(parts) => for part in parts.iter() {
-				write!(f, "{:?}", part)?
-			},
+			Self::Argument(parts) => {
+				for part in parts.iter() {
+					write!(f, "{:?}", part)?
+				}
+			}
 			Self::CommandOperator(op) => write!(f, "{:?}", op)?,
 			Self::Semicolon => write!(f, ";")?,
 			Self::Pipe => write!(f, "|")?,

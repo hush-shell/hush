@@ -37,7 +37,11 @@ impl<'a> Display for ErrorKind<'a> {
 			ErrorKind::EmptyByteLiteral => write!(f, "empty char literal")?,
 
 			ErrorKind::InvalidEscapeSequence(sequence) => {
-				write!(f, "invalid escape sequence: {}", String::from_utf8_lossy(sequence))?;
+				write!(
+					f,
+					"invalid escape sequence: {}",
+					String::from_utf8_lossy(sequence)
+				)?;
 			}
 
 			ErrorKind::InvalidNumber(number) => {
@@ -83,7 +87,10 @@ impl<'a> Error<'a> {
 	}
 
 	pub fn invalid_escape_sequence(sequence: &'a [u8], pos: SourcePos) -> Self {
-		Self { error: ErrorKind::InvalidEscapeSequence(sequence), pos }
+		Self {
+			error: ErrorKind::InvalidEscapeSequence(sequence),
+			pos,
+		}
 	}
 
 	pub fn invalid_number(number: &'a [u8], pos: SourcePos) -> Self {

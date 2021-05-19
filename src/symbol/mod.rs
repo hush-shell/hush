@@ -1,5 +1,5 @@
-use string_interner::{DefaultSymbol, StringInterner};
 pub use string_interner::Symbol as SymbolExt;
+use string_interner::{DefaultSymbol, StringInterner};
 
 
 /// A symbol is a reference to an identifier stored in the string interner.

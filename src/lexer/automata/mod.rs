@@ -1,6 +1,6 @@
 mod argument;
-mod comment;
 mod command;
+mod comment;
 mod number;
 mod root;
 mod string;
@@ -8,9 +8,9 @@ mod symbol;
 mod word;
 
 use self::{
-	argument::{Argument, SingleQuoted, DoubleQuoted},
-	comment::Comment,
+	argument::{Argument, DoubleQuoted, SingleQuoted},
 	command::Command,
+	comment::Comment,
 	number::NumberLiteral,
 	root::Root,
 	string::{ByteLiteral, StringLiteral},
@@ -20,13 +20,13 @@ use self::{
 use super::{
 	ArgPart,
 	ArgUnit,
+	CommandOperator,
 	Cursor,
 	Error,
 	ErrorKind,
 	Keyword,
 	Literal,
 	Operator,
-	CommandOperator,
 	SourcePos,
 	Token,
 	TokenKind,

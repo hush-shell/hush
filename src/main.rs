@@ -2,7 +2,7 @@
 mod lexer;
 mod symbol;
 
-use lexer::{Lexer, cursor::Cursor};
+use lexer::{cursor::Cursor, Lexer};
 
 use std::io::{self, Read};
 

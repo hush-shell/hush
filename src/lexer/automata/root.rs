@@ -1,9 +1,8 @@
 use super::{
 	symbol::SymbolChar,
 	word::IsWord,
-	Command,
-	TokenKind,
 	ByteLiteral,
+	Command,
 	Comment,
 	Cursor,
 	Error,
@@ -12,6 +11,7 @@ use super::{
 	StringLiteral,
 	Symbol,
 	Token,
+	TokenKind,
 	Transition,
 	Word,
 };
@@ -47,12 +47,10 @@ impl Root {
 			Some(c) => match SymbolChar::from_first(c) {
 				SymbolChar::None => Transition::error(self, Error::unexpected(c, cursor.pos())),
 
-				SymbolChar::Single(TokenKind::Command) => {
-					Transition::produce(
-						Command,
-						Token { token:TokenKind::Command, pos: cursor.pos() }
-					)
-				}
+				SymbolChar::Single(TokenKind::Command) => Transition::produce(
+					Command,
+					Token { token: TokenKind::Command, pos: cursor.pos() },
+				),
 
 				SymbolChar::Single(token) => {
 					Transition::produce(self, Token { token, pos: cursor.pos() })

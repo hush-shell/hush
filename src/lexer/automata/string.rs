@@ -1,14 +1,4 @@
-use super::{
-	Cursor,
-	Error,
-	Literal,
-	Root,
-	SourcePos,
-	State,
-	Token,
-	TokenKind,
-	Transition,
-};
+use super::{Cursor, Error, Literal, Root, SourcePos, State, Token, TokenKind, Transition};
 
 
 /// The state for lexing byte literals.
@@ -25,40 +15,34 @@ pub(super) struct ByteLiteral {
 
 impl ByteLiteral {
 	pub fn at(cursor: &Cursor) -> Self {
-		Self {
-			value: None,
-			escaping: None,
-			pos: cursor.pos(),
-		}
+		Self { value: None, escaping: None, pos: cursor.pos() }
 	}
 
 
 	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match (&self, cursor.peek()) {
 			// EOF while scanning a literal is always an error.
-			(_, None) => Transition::error(
-				Root,
-				Error::unexpected_eof(cursor.pos())
-			),
+			(_, None) => Transition::error(Root, Error::unexpected_eof(cursor.pos())),
 
 			// Closing quote.
 			(&Self { value: Some(c), .. }, Some(b'\'')) => Transition::produce(
 				Root,
-				Token { token: TokenKind::Literal(Literal::Byte(c)), pos: self.pos }
+				Token {
+					token: TokenKind::Literal(Literal::Byte(c)),
+					pos: self.pos,
+				},
 			),
 
 			// Empty literal.
-			(&Self { value: None, .. }, Some(b'\'')) => Transition::error(
-				Root,
-				Error::empty_byte_literal(self.pos)
-			),
+			(&Self { value: None, .. }, Some(b'\'')) => {
+				Transition::error(Root, Error::empty_byte_literal(self.pos))
+			}
 
 			// If a value has already been scanned (including incorrect escape sequences). There
 			// should be no further characters except for the closing quote.
-			(&Self { value: Some(_), .. }, Some(c)) => Transition::error(
-				self,
-				Error::unexpected(c, cursor.pos())
-			),
+			(&Self { value: Some(_), .. }, Some(c)) => {
+				Transition::error(self, Error::unexpected(c, cursor.pos()))
+			}
 
 			// Escaped character.
 			(&Self { escaping: Some((offset, pos)), .. }, Some(value)) => {
@@ -73,10 +57,7 @@ impl ByteLiteral {
 					// parsing.
 					self.value = Some(b'\0');
 					let escape_sequence = &cursor.slice()[offset ..= cursor.offset()];
-					Transition::error(
-						self,
-						Error::invalid_escape_sequence(escape_sequence, pos)
-					)
+					Transition::error(self, Error::invalid_escape_sequence(escape_sequence, pos))
 				}
 			}
 
@@ -128,10 +109,7 @@ impl StringLiteral {
 	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match (&self, cursor.peek()) {
 			// EOF while scanning a literal is always an error.
-			(_, None) => Transition::error(
-				Root,
-				Error::unexpected_eof(cursor.pos())
-			),
+			(_, None) => Transition::error(Root, Error::unexpected_eof(cursor.pos())),
 
 			// Escaped character.
 			(&Self { escaping: Some((offset, pos)), .. }, Some(value)) => {
@@ -142,10 +120,7 @@ impl StringLiteral {
 					Transition::step(self)
 				} else {
 					let escape_sequence = &cursor.slice()[offset ..= cursor.offset()];
-					Transition::error(
-						self,
-						Error::invalid_escape_sequence(escape_sequence, pos)
-					)
+					Transition::error(self, Error::invalid_escape_sequence(escape_sequence, pos))
 				}
 			}
 
@@ -160,8 +135,8 @@ impl StringLiteral {
 				Root,
 				Token {
 					token: TokenKind::Literal(Literal::String(self.value.into_boxed_slice())),
-					pos: self.pos
-				}
+					pos: self.pos,
+				},
 			),
 
 			// Ordinary character.

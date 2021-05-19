@@ -1,15 +1,15 @@
 mod automata;
 pub mod cursor;
 mod error;
-mod token;
 #[cfg(test)]
 mod tests;
+mod token;
 
 use crate::symbol::Interner as SymbolInterner;
 use automata::Automata;
 use cursor::{Cursor, SourcePos};
 use error::{Error, ErrorKind};
-use token::{ArgPart, ArgUnit, Keyword, Literal, CommandOperator, Operator, Token, TokenKind};
+use token::{ArgPart, ArgUnit, CommandOperator, Keyword, Literal, Operator, Token, TokenKind};
 
 
 /// The lexer for Hush source code.

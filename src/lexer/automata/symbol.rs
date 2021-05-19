@@ -1,15 +1,15 @@
 use super::{
-	Cursor,
 	Command,
+	CommandOperator,
+	Cursor,
 	Error,
 	Operator,
-	CommandOperator,
 	Root,
 	SourcePos,
 	State,
 	Token,
 	TokenKind,
-	Transition
+	Transition,
 };
 
 
@@ -96,11 +96,19 @@ impl CommandSymbol {
 		let skip_produce = |output| Transition::resume_produce(Command, output);
 
 		match (self.first, cursor.peek()) {
-			(b'>', Some(b'>')) => produce(operator(CommandOperator::OutputRedirection { overwrite: false })),
-			(b'>', _) => skip_produce(operator(CommandOperator::OutputRedirection { overwrite : true })),
+			(b'>', Some(b'>')) => produce(operator(CommandOperator::OutputRedirection {
+				overwrite: false,
+			})),
+			(b'>', _) => skip_produce(operator(CommandOperator::OutputRedirection {
+				overwrite: true,
+			})),
 
-			(b'<', Some(b'<')) => produce(operator(CommandOperator::InputRedirection { literal: true })),
-			(b'<', _) => skip_produce(operator(CommandOperator::InputRedirection { literal: false })),
+			(b'<', Some(b'<')) => produce(operator(CommandOperator::InputRedirection {
+				literal: true,
+			})),
+			(b'<', _) => skip_produce(operator(CommandOperator::InputRedirection {
+				literal: false,
+			})),
 
 			// We must have covered all possibilites for the first character. The peeked
 			// character is wildcarded, which will cover everthing including EOF (None).

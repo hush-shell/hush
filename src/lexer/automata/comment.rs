@@ -1,4 +1,4 @@
-use super::{Cursor, Command, Root, State, Transition};
+use super::{Command, Cursor, Root, State, Transition};
 
 /// The state for lexing comments.
 /// This state is generic in the sense that it returns to the previous state once the
@@ -10,7 +10,7 @@ pub(super) struct Comment<S>(S);
 impl<S> Comment<S>
 where
 	S: Into<State>,
-	State: From<Self>
+	State: From<Self>,
 {
 	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match cursor.peek() {

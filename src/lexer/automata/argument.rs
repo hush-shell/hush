@@ -1,18 +1,18 @@
-use crate::symbol;
 use super::{
 	word::IsWord,
-	SymbolInterner,
-	Error,
-	Cursor,
+	ArgPart,
+	ArgUnit,
 	Command,
+	Cursor,
+	Error,
 	SourcePos,
-	Transition,
 	State,
+	SymbolInterner,
 	Token,
 	TokenKind,
-	ArgPart,
-	ArgUnit
+	Transition,
 };
+use crate::symbol;
 
 
 /// The state context for the Word state.
@@ -54,12 +54,10 @@ where
 					self.value.push(c);
 					self.escaping = None;
 					Transition::step(self)
-				} else { // Invalid escape sequence.
+				} else {
+					// Invalid escape sequence.
 					let escape_sequence = &cursor.slice()[offset ..= cursor.offset()];
-					Transition::error(
-						self,
-						Error::invalid_escape_sequence(escape_sequence, pos)
-					)
+					Transition::error(self, Error::invalid_escape_sequence(escape_sequence, pos))
 				}
 			}
 
@@ -76,9 +74,7 @@ where
 			}
 
 			// End of word. Let the context deal with EOF.
-			_ => {
-				self.context.resume_produce(self.value)
-			}
+			_ => self.context.resume_produce(self.value),
 		}
 	}
 }
@@ -131,11 +127,7 @@ pub(super) trait DollarContext {
 
 impl DollarContext for Argument {
 	fn produce<'a>(mut self, symbol: symbol::Symbol) -> Transition<'a> {
-		self.parts.push(
-			ArgPart::Unquoted(
-				ArgUnit::Dollar(symbol)
-			)
-		);
+		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar(symbol)));
 
 		Transition::step(self)
 	}
@@ -198,34 +190,36 @@ where
 			braces: None,
 			error: false,
 			pos: cursor.pos(),
-			context
+			context,
 		}
 	}
 
 
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
+	pub fn visit<'a>(
+		mut self,
+		cursor: &Cursor<'a>,
+		interner: &mut SymbolInterner,
+	) -> Transition<'a> {
 		macro_rules! produce {
-			($consume:expr) => {
-				{
-					// If no characters have been read, the identifier is empty, which is an error.
-					let offset = self.start_offset.unwrap_or(cursor.offset());
-					let identifier = &cursor.slice()[offset .. cursor.offset()];
-					let identifier_str = std::str::from_utf8(identifier).expect("invalid utf8 identifier");
-					let symbol = interner.get_or_intern(identifier_str);
+			($consume:expr) => {{
+				// If no characters have been read, the identifier is empty, which is an error.
+				let offset = self.start_offset.unwrap_or(cursor.offset());
+				let identifier = &cursor.slice()[offset .. cursor.offset()];
+				let identifier_str =
+					std::str::from_utf8(identifier).expect("invalid utf8 identifier");
+				let symbol = interner.get_or_intern(identifier_str);
 
-					if identifier.is_empty() || self.error {
-						self.context.error(
-							Error::invalid_identifier(identifier, self.pos)
-						)
+				if identifier.is_empty() || self.error {
+					self.context
+						.error(Error::invalid_identifier(identifier, self.pos))
+				} else {
+					if $consume {
+						self.context.produce(symbol)
 					} else {
-						if $consume {
-							self.context.produce(symbol)
-						} else {
-							self.context.resume(symbol)
-						}
+						self.context.resume(symbol)
 					}
 				}
-			};
+			}};
 		}
 
 		match (&self, cursor.peek()) {
@@ -271,9 +265,7 @@ where
 
 			// EOF before close brace.
 			(&Self { braces: Some(true), .. }, None) => {
-				self.context.error(
-					Error::unexpected_eof(cursor.pos())
-				)
+				self.context.error(Error::unexpected_eof(cursor.pos()))
 			}
 
 			// EOF when no braces.
@@ -312,9 +304,9 @@ impl SingleQuoted {
 		match cursor.peek() {
 			// Closing quote.
 			Some(b'\'') => {
-				self.parent.parts.push(
-					ArgPart::SingleQuoted(self.value.into_boxed_slice())
-				);
+				self.parent
+					.parts
+					.push(ArgPart::SingleQuoted(self.value.into_boxed_slice()));
 
 				Transition::step(self.parent)
 			}
@@ -324,10 +316,7 @@ impl SingleQuoted {
 			Some(_) => Transition::resume(Word::from(self)),
 
 			// Eof.
-			None => Transition::error(
-				self.parent,
-				Error::unexpected_eof(cursor.pos())
-			)
+			None => Transition::error(self.parent, Error::unexpected_eof(cursor.pos())),
 		}
 	}
 }
@@ -394,9 +383,9 @@ impl DoubleQuoted {
 		match cursor.peek() {
 			// Closing quote.
 			Some(b'\"') => {
-				self.parent.parts.push(
-					ArgPart::DoubleQuoted(self.parts.into_boxed_slice())
-				);
+				self.parent
+					.parts
+					.push(ArgPart::DoubleQuoted(self.parts.into_boxed_slice()));
 
 				Transition::step(self.parent)
 			}
@@ -410,10 +399,7 @@ impl DoubleQuoted {
 			Some(_) => Transition::resume(Word::from(self)),
 
 			// Eof.
-			None => Transition::error(
-				self.parent,
-				Error::unexpected_eof(cursor.pos())
-			)
+			None => Transition::error(self.parent, Error::unexpected_eof(cursor.pos())),
 		}
 	}
 }
@@ -431,16 +417,14 @@ impl From<Argument> for DoubleQuoted {
 
 impl WordContext for DoubleQuoted {
 	fn resume_produce<'a>(mut self, value: Vec<u8>) -> Transition<'a> {
-		self.parts.push(
-			ArgUnit::Literal(value.into_boxed_slice())
-		);
+		self.parts.push(ArgUnit::Literal(value.into_boxed_slice()));
 
 		Transition::resume(self)
 	}
 
 	fn is_word(value: u8) -> bool {
 		// Comments, single quotes, symbols and whitespace are literals in double quotes.
-		value != b'"' && value !=  b'$'
+		value != b'"' && value != b'$'
 	}
 
 	fn validate_escape(value: u8) -> Option<u8> {
@@ -510,8 +494,8 @@ impl Argument {
 				Token {
 					token: TokenKind::Argument(self.parts.into_boxed_slice()),
 					pos: self.pos,
-				}
-			)
+				},
+			),
 		}
 	}
 }
@@ -519,21 +503,19 @@ impl Argument {
 
 impl WordContext for Argument {
 	fn resume_produce<'a>(mut self, value: Vec<u8>) -> Transition<'a> {
-		self.parts.push(
-			ArgPart::Unquoted(
-				ArgUnit::Literal(value.into_boxed_slice())
-			)
-		);
+		self.parts.push(ArgPart::Unquoted(ArgUnit::Literal(
+			value.into_boxed_slice(),
+		)));
 
 		Transition::resume(self)
 	}
 
 	fn is_word(value: u8) -> bool {
 		match value {
-			b'#' => false, // Comments.
-			b'\'' | b'"' => false, // Quotes.
-			b'>' | b'<' | b'?' | b';' => false, // Symbols.
-			b'$' => false, // Dollar.
+			b'#' => false,                         // Comments.
+			b'\'' | b'"' => false,                 // Quotes.
+			b'>' | b'<' | b'?' | b';' => false,    // Symbols.
+			b'$' => false,                         // Dollar.
 			c if c.is_ascii_whitespace() => false, // Whitespace.
 			_ => true,
 		}
@@ -542,10 +524,10 @@ impl WordContext for Argument {
 	fn validate_escape(value: u8) -> Option<u8> {
 		match value {
 			// Syntactical escape sequences:
-			b'#' => Some(value), // Escaped comment starter.
-			b'\'' | b'"' => Some(value), // Escaped quotes.
-			b'>' | b'<' | b'?' | b';' => Some(value), // Escaped symbols.
-			b'$' => Some(value), // Escaped dollar.
+			b'#' => Some(value),                         // Escaped comment starter.
+			b'\'' | b'"' => Some(value),                 // Escaped quotes.
+			b'>' | b'<' | b'?' | b';' => Some(value),    // Escaped symbols.
+			b'$' => Some(value),                         // Escaped dollar.
 			c if c.is_ascii_whitespace() => Some(value), // Escaped whitespace.
 
 			// Additional escape sequences:
