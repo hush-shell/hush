@@ -1,6 +1,7 @@
 use super::{
-	Arg,
+	Argument,
 	symbol::CommandSymbolChar,
+	Error,
 	Root,
 	TokenKind,
 	Comment,
@@ -12,6 +13,7 @@ use super::{
 };
 
 
+/// The state for lexing command blocks.
 #[derive(Debug)]
 pub(super) struct Command;
 
@@ -19,10 +21,13 @@ pub(super) struct Command;
 impl Command {
 	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match cursor.peek() {
+			// Whitespace.
 			Some(c) if c.is_ascii_whitespace() => Transition::step(self),
 
+			// Comment.
 			Some(b'#') => Transition::step(Comment::from(self)),
 
+			// Close command block.
 			Some(b'}') => Transition::produce(
 				Root,
 				Token {
@@ -31,25 +36,33 @@ impl Command {
 				}
 			),
 
+			// Argument or operator.
 			Some(c) => match CommandSymbolChar::from_first(c) {
-				CommandSymbolChar::None => Transition::resume(Arg::at(cursor)), // Argument.
+				// Argument.
+				CommandSymbolChar::None => Transition::resume(Argument::at(cursor)),
 
 				CommandSymbolChar::Single(token) => { // Semicolon, pipe or try.
 					Transition::produce(self, Token { token, pos: cursor.pos() })
 				}
 
-				// >, >>, <, <<
-				CommandSymbolChar::Double { first } => Transition::step(CommandSymbol::from_first(first, cursor)),
+				// >, >>, <, <<.
+				CommandSymbolChar::Double { first } => Transition::step(
+					CommandSymbol::from_first(first, cursor)
+				),
 			},
 
-			None => Transition::step(self),
+			// Eof.
+			None => Transition::error(
+				Root,
+				Error::unexpected_eof(cursor.pos())
+			),
 		}
 	}
 }
 
 
-impl<'a> From<Command> for State<'a> {
-	fn from(state: Command) -> State<'a> {
+impl From<Command> for State {
+	fn from(state: Command) -> State {
 		State::Command(state)
 	}
 }

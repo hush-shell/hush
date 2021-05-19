@@ -8,7 +8,7 @@ mod symbol;
 mod word;
 
 use self::{
-	argument::{Arg, SingleQuoted, DoubleQuoted},
+	argument::{Argument, SingleQuoted, DoubleQuoted},
 	comment::Comment,
 	command::Command,
 	number::NumberLiteral,
@@ -18,13 +18,11 @@ use self::{
 	word::Word,
 };
 use super::{
-	Argument,
-	BasicArgument,
+	ArgPart,
+	ArgUnit,
 	Cursor,
 	Error,
 	ErrorKind,
-	InvalidEscapeCode,
-	InvalidLiteral,
 	Keyword,
 	Literal,
 	Operator,
@@ -36,13 +34,15 @@ use super::{
 use crate::symbol::Interner as SymbolInterner;
 
 
+/// The automata may produce a token, or an error.
 type Output<'a> = Result<Token, Error<'a>>;
 
 
+/// The transition to be made after a character in the input has been visited.
 #[derive(Debug)]
 struct Transition<'a> {
-	/// The currect state.
-	state: State<'a>,
+	/// The next state.
+	state: State,
 	/// Whether to consume the visited input character.
 	consume: bool,
 	/// The produced output, if any.
@@ -53,12 +53,12 @@ struct Transition<'a> {
 impl<'a> Transition<'a> {
 	/// Consume the character while updating the machine state, but not producing a token
 	/// yet.
-	pub fn step<S: Into<State<'a>>>(state: S) -> Self {
+	pub fn step<S: Into<State>>(state: S) -> Self {
 		Self { state: state.into(), consume: true, output: None }
 	}
 
 	/// Consume the input character and produce a token.
-	pub fn produce<S: Into<State<'a>>>(state: S, token: Token) -> Self {
+	pub fn produce<S: Into<State>>(state: S, token: Token) -> Self {
 		Self {
 			state: state.into(),
 			consume: true,
@@ -67,7 +67,7 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Consume the input character and produce an error.
-	pub fn error<S: Into<State<'a>>>(state: S, error: Error<'a>) -> Self {
+	pub fn error<S: Into<State>>(state: S, error: Error<'a>) -> Self {
 		Self {
 			state: state.into(),
 			consume: true,
@@ -76,12 +76,12 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Don't consume the input character, updating the machine state instead.
-	pub fn resume<S: Into<State<'a>>>(state: S) -> Self {
+	pub fn resume<S: Into<State>>(state: S) -> Self {
 		Self { state: state.into(), consume: false, output: None }
 	}
 
 	/// Don't consume the input character, but produce a token.
-	pub fn resume_produce<S: Into<State<'a>>>(state: S, output: Token) -> Self {
+	pub fn resume_produce<S: Into<State>>(state: S, output: Token) -> Self {
 		Self {
 			state: state.into(),
 			consume: false,
@@ -90,7 +90,7 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Don't consume the input character and produce an error.
-	pub fn resume_error<S: Into<State<'a>>>(state: S, error: Error<'a>) -> Self {
+	pub fn resume_error<S: Into<State>>(state: S, error: Error<'a>) -> Self {
 		Self {
 			state: state.into(),
 			consume: false,
@@ -100,38 +100,42 @@ impl<'a> Transition<'a> {
 }
 
 
+/// All states in the automata.
 #[derive(Debug)]
-enum State<'a> {
+enum State {
 	// Top level lexer states:
 	Root(Root),
 	Comment(Comment<Root>),
 	NumberLiteral(NumberLiteral),
-	ByteLiteral(ByteLiteral<'a>),
-	StringLiteral(StringLiteral<'a>),
+	ByteLiteral(ByteLiteral),
+	StringLiteral(StringLiteral),
 	Word(Word),
 	Symbol(Symbol),
+
 	// Command block lexer states:
 	Command(Command),
 	CommandComment(Comment<Command>),
-	Argument(Arg<'a>),
-	SingleQuoted(SingleQuoted<'a>),
-	DoubleQuoted(DoubleQuoted<'a>),
-	UnquotedWord(argument::Word<'a, Arg<'a>>),
-	SingleQuotedWord(argument::Word<'a, SingleQuoted<'a>>),
-	DoubleQuotedWord(argument::Word<'a, DoubleQuoted<'a>>),
+	Argument(Argument),
+	SingleQuoted(SingleQuoted),
+	DoubleQuoted(DoubleQuoted),
+	UnquotedWord(argument::Word<Argument>),
+	SingleQuotedWord(argument::Word<SingleQuoted>),
+	DoubleQuotedWord(argument::Word<DoubleQuoted>),
+	Dollar(argument::Dollar<Argument>),
+	QuotedDollar(argument::Dollar<DoubleQuoted>),
 	CommandSymbol(CommandSymbol),
 }
 
 
-impl<'a> Default for State<'a> {
+impl Default for State {
 	fn default() -> Self {
 		Root.into()
 	}
 }
 
 
-impl<'a> State<'a> {
-	pub fn visit(self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
+impl State {
+	pub fn visit<'a>(self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
 		match self {
 			State::Root(state) => state.visit(cursor),
 			State::Comment(state) => state.visit(cursor),
@@ -149,15 +153,18 @@ impl<'a> State<'a> {
 			State::UnquotedWord(state) => state.visit(cursor),
 			State::SingleQuotedWord(state) => state.visit(cursor),
 			State::DoubleQuotedWord(state) => state.visit(cursor),
+			State::Dollar(state) => state.visit(cursor, interner),
+			State::QuotedDollar(state) => state.visit(cursor, interner),
 			State::CommandSymbol(state) => state.visit(cursor),
 		}
 	}
 }
 
 
+/// The automata instance.
 #[derive(Debug)]
 pub(super) struct Automata<'a, 'b> {
-	state: State<'a>,
+	state: State,
 	cursor: Cursor<'a>,
 	interner: &'b mut SymbolInterner,
 }
@@ -182,6 +189,7 @@ impl<'a, 'b> Iterator for Automata<'a, 'b> {
 
 			self.state = transition.state;
 
+			// Check EOF *before* stepping.
 			let eof = self.cursor.is_eof();
 
 			if transition.consume {

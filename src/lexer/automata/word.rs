@@ -13,22 +13,11 @@ use super::{
 };
 
 
+/// The state for lexing identifiers, keywords and word operators.
 #[derive(Debug)]
 pub(super) struct Word {
 	start_offset: usize,
 	pos: SourcePos,
-}
-
-
-pub trait IsWord {
-	fn is_word(&self) -> bool;
-}
-
-
-impl IsWord for u8 {
-	fn is_word(&self) -> bool {
-		self.is_ascii_alphanumeric() || *self == b'_'
-	}
 }
 
 
@@ -39,8 +28,12 @@ impl Word {
 
 
 	pub fn visit<'a>(self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
+		// We don't need to check if the first character is a number here, because the Root
+		// state will only transition to this state if that is the case.
 		match cursor.peek() {
+			// Word character.
 			Some(c) if c.is_word() => Transition::step(self),
+
 			// If we visit EOF or a non-identifier character, we should just produce.
 			_ => {
 				let word = &cursor.slice()[self.start_offset .. cursor.offset()];
@@ -81,12 +74,10 @@ impl Word {
 
 			// Identifier:
 			ident => {
-				let ident = unsafe {
-					// As identifiers are composed only of alphanumeric or underscore characters,
-					// and we have checked those, they are valid utf8.
-					std::str::from_utf8_unchecked(ident)
-				};
+				let ident = std::str::from_utf8(ident)
+					.expect("words should be valid ascii, which should be valid utf8");
 				let symbol = interner.get_or_intern(ident);
+
 				TokenKind::Identifier(symbol)
 			}
 		}
@@ -94,8 +85,26 @@ impl Word {
 }
 
 
-impl<'a> From<Word> for State<'a> {
-	fn from(state: Word) -> State<'a> {
+impl From<Word> for State {
+	fn from(state: Word) -> State {
 		State::Word(state)
+	}
+}
+
+
+/// Helper trait for checking if a character is a valid word constituent.
+pub trait IsWord {
+	fn is_word_start(&self) -> bool;
+	fn is_word(&self) -> bool;
+}
+
+
+impl IsWord for u8 {
+	fn is_word_start(&self) -> bool {
+		self.is_ascii_alphabetic() || *self == b'_'
+	}
+
+	fn is_word(&self) -> bool {
+		self.is_ascii_alphanumeric() || *self == b'_'
 	}
 }

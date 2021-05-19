@@ -1,17 +1,23 @@
 use super::{Cursor, Command, Root, State, Transition};
 
+/// The state for lexing comments.
+/// This state is generic in the sense that it returns to the previous state once the
+/// entire comment is consumed.
 #[derive(Debug)]
 pub(super) struct Comment<S>(S);
 
 
-impl<'a, S> Comment<S>
+impl<S> Comment<S>
 where
-	S: Into<State<'a>>,
-	State<'a>: From<Self>
+	S: Into<State>,
+	State: From<Self>
 {
-	pub fn visit(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match cursor.peek() {
+			// Newline marks the end of the comment.
 			Some(b'\n') => Transition::resume(self.0),
+
+			// Otherwise, eat everything.
 			_ => Transition::step(self),
 		}
 	}
@@ -25,15 +31,15 @@ impl<S> From<S> for Comment<S> {
 }
 
 
-impl<'a> From<Comment<Root>> for State<'a> {
-	fn from(state: Comment<Root>) -> State<'a> {
+impl From<Comment<Root>> for State {
+	fn from(state: Comment<Root>) -> State {
 		State::Comment(state)
 	}
 }
 
 
-impl<'a> From<Comment<Command>> for State<'a> {
-	fn from(state: Comment<Command>) -> State<'a> {
+impl From<Comment<Command>> for State {
+	fn from(state: Comment<Command>) -> State {
 		State::CommandComment(state)
 	}
 }

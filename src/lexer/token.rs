@@ -4,6 +4,7 @@ use crate::symbol::{Symbol, SymbolExt};
 use std::fmt::{self, Debug};
 
 
+/// All keywords in the language, except for operator keywords (and, or, not).
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
 	Let,
@@ -45,6 +46,7 @@ impl Debug for Keyword {
 }
 
 
+/// Literals for non-composite types.
 #[derive(Clone, PartialEq)]
 pub enum Literal {
 	Nil,
@@ -73,6 +75,7 @@ impl Debug for Literal {
 }
 
 
+/// Non-command operators.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operator {
 	Plus,  // +
@@ -126,42 +129,46 @@ impl Debug for Operator {
 }
 
 
-/// An argument for a command.
+/// The indivisible part of a command argument.
 #[derive(Clone, PartialEq)]
-pub enum BasicArgument {
+pub enum ArgUnit {
 	Literal(Box<[u8]>),
 	Dollar(Symbol), // $, ${}
 }
 
 
-impl Debug for BasicArgument {
+impl Debug for ArgUnit {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::Literal(s) => write!(f, "'{}'", String::from_utf8_lossy(s)),
-			Self::Dollar(s) => write!(f, "${}", s.to_usize()),
+			Self::Literal(s) => write!(f, "{}", String::from_utf8_lossy(s)),
+			Self::Dollar(s) => write!(f, "${{id#{}}}", s.to_usize()),
 		}
 	}
 }
 
 
-/// Command arguments may be single, double ou unquoted.
+/// Argument parts may be single, double ou unquoted.
 #[derive(Clone, PartialEq)]
-pub enum Argument {
-	Unquoted(BasicArgument),
+pub enum ArgPart {
+	Unquoted(ArgUnit),
 	SingleQuoted(Box<[u8]>),
-	DoubleQuoted(Box<[BasicArgument]>),
+	DoubleQuoted(Box<[ArgUnit]>),
 }
 
 
-impl Debug for Argument {
+impl Debug for ArgPart {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			Self::Unquoted(arg) => write!(f, "{:?}", arg)?,
 			Self::SingleQuoted(s) => write!(f, "'{}'", String::from_utf8_lossy(s))?,
 			Self::DoubleQuoted(args) => {
+				write!(f, "\"")?;
+
 				for arg in args.iter() {
 					write!(f, "{:?}", arg)?
 				}
+
+				write!(f, "\"")?;
 			}
 		}
 		Ok(())
@@ -169,7 +176,7 @@ impl Debug for Argument {
 }
 
 
-// All command operators must be placed after the last argument of a command.
+/// Operators in command blocks.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CommandOperator {
 	OutputRedirection { overwrite: bool }, // >, >>
@@ -193,6 +200,7 @@ impl Debug for CommandOperator {
 }
 
 
+/// All possible kinds of token in Hush.
 #[derive(Clone, PartialEq)]
 pub enum TokenKind {
 	Identifier(Symbol),
@@ -217,10 +225,10 @@ pub enum TokenKind {
 	CloseCommand,   // }
 
 	// A single argument may be composed of many parts.
-	Argument(Box<[Argument]>),
+	Argument(Box<[ArgPart]>),
 	CommandOperator(CommandOperator),
 	// Semicolons and pipes are not considered operators because they separate different
-	// commands, instead of being attribute to a single command.
+	// commands, instead of being attributed to a single command.
 	Semicolon, // ;
 	Pipe,      // |
 }
@@ -256,8 +264,20 @@ impl Debug for TokenKind {
 }
 
 
-#[derive(Debug, Clone)]
+/// A lexical token.
+#[derive(Clone)]
 pub struct Token {
 	pub token: TokenKind,
 	pub pos: SourcePos,
+}
+
+
+impl Debug for Token {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		if f.alternate() {
+			writeln!(f, "{}: {:?}", self.pos, self.token)
+		} else {
+			write!(f, "{:?}", self.token)
+		}
+	}
 }

@@ -2,7 +2,6 @@ use super::{
 	Cursor,
 	Error,
 	ErrorKind,
-	InvalidLiteral,
 	Literal,
 	Root,
 	SourcePos,
@@ -13,6 +12,7 @@ use super::{
 };
 
 
+/// The state for lexing numeric literals, both integer and float.
 #[derive(Debug)]
 pub(super) struct NumberLiteral {
 	start_offset: usize,
@@ -37,7 +37,7 @@ impl NumberLiteral {
 		let error = |error| Transition::error(Root, Error { error, pos: self.pos });
 
 		match (&self, cursor.peek()) {
-			// There must be a single dot, and it must precede the exponent if any.
+			// There must be up to one dot, and it must precede the exponent.
 			(
 				&Self {
 					consumed_decimal: None, consumed_exponent: None, ..
@@ -86,15 +86,11 @@ impl NumberLiteral {
 	}
 
 
+	/// Parse the consumed characters.
 	fn parse<'a>(&self, cursor: &Cursor<'a>) -> Result<Token, Error<'a>> {
 		let number = &cursor.slice()[self.start_offset .. cursor.offset()];
 
 		let literal = |literal| Ok(Token { token: TokenKind::Literal(literal), pos: self.pos });
-
-		let error = Err(Error {
-			error: ErrorKind::InvalidLiteral(InvalidLiteral::InvalidNumber(number)),
-			pos: self.pos,
-		});
 
 		// There is no method in std to parse a number from a byte array.
 		let number_str = std::str::from_utf8(number)
@@ -103,25 +99,26 @@ impl NumberLiteral {
 		if self.is_float() {
 			match number_str.parse() {
 				Ok(float) => literal(Literal::Float(float)),
-				Err(_) => error,
+				Err(_) => Err(Error::invalid_number(number, self.pos)),
 			}
 		} else {
 			match number_str.parse() {
 				Ok(int) => literal(Literal::Int(int)),
-				Err(_) => error,
+				Err(_) => Err(Error::invalid_number(number, self.pos)),
 			}
 		}
 	}
 
 
+	/// Check if the consumed characters constitue a float.
 	fn is_float(&self) -> bool {
 		self.consumed_decimal.is_some() || self.consumed_exponent.is_some()
 	}
 }
 
 
-impl<'a> From<NumberLiteral> for State<'a> {
-	fn from(state: NumberLiteral) -> State<'a> {
+impl From<NumberLiteral> for State {
+	fn from(state: NumberLiteral) -> State {
 		State::NumberLiteral(state)
 	}
 }

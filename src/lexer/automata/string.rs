@@ -1,9 +1,6 @@
 use super::{
 	Cursor,
 	Error,
-	ErrorKind,
-	InvalidEscapeCode,
-	InvalidLiteral,
 	Literal,
 	Root,
 	SourcePos,
@@ -14,82 +11,78 @@ use super::{
 };
 
 
+/// The state for lexing byte literals.
 #[derive(Debug)]
-pub(super) struct ByteLiteral<'a> {
+pub(super) struct ByteLiteral {
 	/// The parsed value, if any.
 	value: Option<u8>,
-	/// Escape sequence error, if any.
-	error: Option<InvalidEscapeCode<'a>>,
 	/// The position of the current escape sequence, if any.
-	escaping: Option<usize>,
+	escaping: Option<(usize, SourcePos)>,
 	/// The position of the literal.
 	pos: SourcePos,
 }
 
 
-impl<'a> ByteLiteral<'a> {
+impl ByteLiteral {
 	pub fn at(cursor: &Cursor) -> Self {
 		Self {
 			value: None,
-			error: None,
 			escaping: None,
 			pos: cursor.pos(),
 		}
 	}
 
 
-	pub fn visit(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
-		let literal = |literal| Token { token: TokenKind::Literal(literal), pos: self.pos };
-
-		let produce = |token| Transition::produce(Root, token);
-		let error = |error| Transition::error(Root, Error { error, pos: self.pos });
-		let invalid_literal =
-			|escape_code| InvalidLiteral::InvalidEscapeCodes(Box::new([escape_code]));
-
+	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match (&self, cursor.peek()) {
 			// EOF while scanning a literal is always an error.
-			(_, None) => error(ErrorKind::UnexpectedEof),
+			(_, None) => Transition::error(
+				Root,
+				Error::unexpected_eof(cursor.pos())
+			),
 
-			// If there has been some previous error, consume the closing quote before
-			// reporting.
-			(&Self { error: Some(err), .. }, Some(b'\'')) => {
-				error(ErrorKind::InvalidLiteral(invalid_literal(err)))
-			}
+			// Closing quote.
+			(&Self { value: Some(c), .. }, Some(b'\'')) => Transition::produce(
+				Root,
+				Token { token: TokenKind::Literal(Literal::Byte(c)), pos: self.pos }
+			),
 
-			// Value has been scanned, and there have been no errors.
-			(&Self { value: Some(value), .. }, Some(b'\'')) => {
-				produce(literal(Literal::Byte(value)))
-			}
+			// Empty literal.
+			(&Self { value: None, .. }, Some(b'\'')) => Transition::error(
+				Root,
+				Error::empty_byte_literal(self.pos)
+			),
 
 			// If a value has already been scanned (including incorrect escape sequences). There
 			// should be no further characters except for the closing quote.
-			(&Self { value: Some(_), .. }, Some(c)) | (&Self { error: Some(_), .. }, Some(c)) => {
-				error(ErrorKind::Unexpected(c))
-			}
+			(&Self { value: Some(_), .. }, Some(c)) => Transition::error(
+				self,
+				Error::unexpected(c, cursor.pos())
+			),
 
 			// Escaped character.
-			(&Self { escaping: Some(escape_offset), .. }, Some(value)) => {
-				match value {
-					b'"' => self.value = Some(b'"'),
-					b'\'' => self.value = Some(b'\''),
-					b'n' => self.value = Some(b'\n'),
-					b't' => self.value = Some(b'\t'),
-					b'0' => self.value = Some(b'\0'),
-					b'\\' => self.value = Some(b'\\'),
-					_ => {
-						self.error = Some(
-							// Invalid escape sequence.
-							&cursor.slice()[escape_offset ..= cursor.offset()],
-						)
-					}
-				};
+			(&Self { escaping: Some((offset, pos)), .. }, Some(value)) => {
 				self.escaping = None;
-				Transition::step(self)
+
+				if let Some(c) = validate_escape(value) {
+					self.value = Some(c);
+					Transition::step(self)
+				} else {
+					// Use a placeholder to produce a valid literal after reporting the error. This
+					// won't get to be actually used, because the program won't be interpreted after
+					// parsing.
+					self.value = Some(b'\0');
+					let escape_sequence = &cursor.slice()[offset ..= cursor.offset()];
+					Transition::error(
+						self,
+						Error::invalid_escape_sequence(escape_sequence, pos)
+					)
+				}
 			}
 
 			// Begin of escape sequence.
 			(_, Some(b'\\')) => {
-				self.escaping = Some(cursor.offset());
+				self.escaping = Some((cursor.offset(), cursor.pos()));
 				Transition::step(self)
 			}
 
@@ -103,92 +96,73 @@ impl<'a> ByteLiteral<'a> {
 }
 
 
-impl<'a> From<ByteLiteral<'a>> for State<'a> {
-	fn from(state: ByteLiteral<'a>) -> State<'a> {
+impl From<ByteLiteral> for State {
+	fn from(state: ByteLiteral) -> State {
 		State::ByteLiteral(state)
 	}
 }
 
 
+/// The state for lexing string literals.
 #[derive(Debug)]
-pub(super) struct StringLiteral<'a> {
+pub(super) struct StringLiteral {
 	/// The parsed bytes, if any.
 	value: Vec<u8>,
-	/// Escape sequence errors, if any.
-	errors: Vec<InvalidEscapeCode<'a>>,
 	/// The position of the current escape sequence, if any.
-	escaping: Option<usize>,
+	escaping: Option<(usize, SourcePos)>,
 	/// The position of the literal.
 	pos: SourcePos,
 }
 
 
-impl<'a> StringLiteral<'a> {
+impl StringLiteral {
 	pub fn at(cursor: &Cursor) -> Self {
 		Self {
-			value: Vec::with_capacity(10), // We expect most literals to not be empty.
-			errors: Vec::new(),            // Don't allocate until we meet errors.
+			value: Vec::with_capacity(8), // We expect most literals to not be empty.
 			escaping: None,
 			pos: cursor.pos(),
 		}
 	}
 
 
-	pub fn visit(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
-		let produce = |token| Transition::produce(Root, token);
-
-		macro_rules! literal {
-			($literal:expr) => {
-				Token { token: TokenKind::Literal($literal), pos: self.pos }
-			};
-		}
-
-		macro_rules! error {
-			($error:expr) => {
-				Transition::error(Root, Error { error: $error, pos: self.pos })
-			};
-		}
-
+	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
 		match (&self, cursor.peek()) {
 			// EOF while scanning a literal is always an error.
-			(_, None) => {
-				error!(ErrorKind::UnexpectedEof)
-			}
+			(_, None) => Transition::error(
+				Root,
+				Error::unexpected_eof(cursor.pos())
+			),
 
 			// Escaped character.
-			(&Self { escaping: Some(escape_offset), .. }, Some(value)) => {
-				match value {
-					b'"' => self.value.push(b'"'),
-					b'\'' => self.value.push(b'\''),
-					b'n' => self.value.push(b'\n'),
-					b't' => self.value.push(b'\t'),
-					b'0' => self.value.push(b'\0'),
-					b'\\' => self.value.push(b'\\'),
-					_ => self.errors.push(
-						// Invalid escape sequence.
-						&cursor.slice()[escape_offset ..= cursor.offset()],
-					),
-				};
+			(&Self { escaping: Some((offset, pos)), .. }, Some(value)) => {
 				self.escaping = None;
-				Transition::step(self)
+
+				if let Some(c) = validate_escape(value) {
+					self.value.push(c);
+					Transition::step(self)
+				} else {
+					let escape_sequence = &cursor.slice()[offset ..= cursor.offset()];
+					Transition::error(
+						self,
+						Error::invalid_escape_sequence(escape_sequence, pos)
+					)
+				}
 			}
 
 			// Begin of escape sequence.
 			(_, Some(b'\\')) => {
-				self.escaping = Some(cursor.offset());
+				self.escaping = Some((cursor.offset(), cursor.pos()));
 				Transition::step(self)
 			}
 
-			// End of literal.
-			(_, Some(b'\"')) => {
-				if self.errors.is_empty() {
-					produce(literal!(Literal::String(self.value.into())))
-				} else {
-					error!(ErrorKind::InvalidLiteral(
-						InvalidLiteral::InvalidEscapeCodes(self.errors.into_boxed_slice())
-					))
+			// Closing quote.
+			(_, Some(b'\"')) => Transition::produce(
+				Root,
+				Token {
+					token: TokenKind::Literal(Literal::String(self.value.into_boxed_slice())),
+					pos: self.pos
 				}
-			}
+			),
 
 			// Ordinary character.
 			(_, Some(value)) => {
@@ -200,8 +174,22 @@ impl<'a> StringLiteral<'a> {
 }
 
 
-impl<'a> From<StringLiteral<'a>> for State<'a> {
-	fn from(state: StringLiteral<'a>) -> State<'a> {
+impl From<StringLiteral> for State {
+	fn from(state: StringLiteral) -> State {
 		State::StringLiteral(state)
+	}
+}
+
+
+/// Check if a escape sequence is valid, producing the correspondent byte if so.
+fn validate_escape(sequence: u8) -> Option<u8> {
+	match sequence {
+		b'"' => Some(b'"'),
+		b'\'' => Some(b'\''),
+		b'n' => Some(b'\n'),
+		b't' => Some(b'\t'),
+		b'0' => Some(b'\0'),
+		b'\\' => Some(b'\\'),
+		_ => None,
 	}
 }

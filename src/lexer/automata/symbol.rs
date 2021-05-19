@@ -13,6 +13,7 @@ use super::{
 };
 
 
+/// The state for lexing two-character symbols.
 #[derive(Debug)]
 pub(super) struct Symbol {
 	first: u8,
@@ -66,24 +67,14 @@ impl Symbol {
 }
 
 
-impl<'a> From<Symbol> for State<'a> {
-	fn from(state: Symbol) -> State<'a> {
+impl From<Symbol> for State {
+	fn from(state: Symbol) -> State {
 		State::Symbol(state)
 	}
 }
 
 
-/// Helper for special characters.
-pub enum SymbolChar {
-	/// Not a symbol character.
-	None,
-	/// Some symbols are single characters. We can produce them straight away.
-	Single(TokenKind),
-	/// Others have two characters, so we must handle those separately.
-	Double { first: u8 },
-}
-
-
+/// The state for lexing two-character symbols in command blocks.
 #[derive(Debug)]
 pub(super) struct CommandSymbol {
 	first: u8,
@@ -119,10 +110,21 @@ impl CommandSymbol {
 }
 
 
-impl<'a> From<CommandSymbol> for State<'a> {
-	fn from(state: CommandSymbol) -> State<'a> {
+impl From<CommandSymbol> for State {
+	fn from(state: CommandSymbol) -> State {
 		State::CommandSymbol(state)
 	}
+}
+
+
+/// Helper for symbols.
+pub enum SymbolChar {
+	/// Not a symbol character.
+	None,
+	/// Some symbols are single characters. We can produce them straight away.
+	Single(TokenKind),
+	/// Others have two characters, so we must handle those separately.
+	Double { first: u8 },
 }
 
 
@@ -164,7 +166,7 @@ impl SymbolChar {
 }
 
 
-/// Helper for special characters in command blocks.
+/// Helper for symbols in command blocks.
 pub enum CommandSymbolChar {
 	/// Not a symbol character.
 	None,

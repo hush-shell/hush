@@ -15,6 +15,12 @@ macro_rules! error {
 	};
 }
 
+macro_rules! assert_symbol {
+	($interner:ident, $symbol:ident, $expected:literal) => {
+		assert_eq!($interner.resolve(*$symbol), Some($expected))
+	};
+}
+
 
 #[test]
 fn test_simple_function() {
@@ -32,12 +38,6 @@ fn test_simple_function() {
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
-
-	macro_rules! assert_symbol {
-		($symbol:ident, $expected:literal) => {
-			assert_eq!(interner.resolve(*$symbol), Some($expected))
-		};
-	}
 
 	assert_matches!(
 		&tokens[..],
@@ -68,14 +68,14 @@ fn test_simple_function() {
 			token!(TokenKind::Keyword(Keyword::End)),
 		]
 			=> {
-				assert_symbol!(foo, "foo");
-				assert_symbol!(bar1, "bar");
-				assert_symbol!(bar2, "bar");
-				assert_symbol!(baz1, "baz");
-				assert_symbol!(baz2, "baz");
-				assert_symbol!(result1, "result");
-				assert_symbol!(result2, "result");
-				assert_symbol!(do_something, "do_something");
+				assert_symbol!(interner, foo, "foo");
+				assert_symbol!(interner, bar1, "bar");
+				assert_symbol!(interner, bar2, "bar");
+				assert_symbol!(interner, baz1, "baz");
+				assert_symbol!(interner, baz2, "baz");
+				assert_symbol!(interner, result1, "result");
+				assert_symbol!(interner, result2, "result");
+				assert_symbol!(interner, do_something, "do_something");
 			}
 	);
 }
@@ -97,12 +97,6 @@ fn test_invalid_tokens() {
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
-
-	macro_rules! assert_symbol {
-		($symbol:ident, $expected:literal) => {
-			assert_eq!(interner.resolve(*$symbol), Some($expected))
-		};
-	}
 
 	assert_matches!(
 		&tokens[..],
@@ -137,14 +131,14 @@ fn test_invalid_tokens() {
 			token!(TokenKind::Keyword(Keyword::End)),
 		]
 			=> {
-				assert_symbol!(foo, "foo");
-				assert_symbol!(bar1, "bar");
-				assert_symbol!(bar2, "bar");
-				assert_symbol!(baz1, "baz");
-				assert_symbol!(baz2, "baz");
-				assert_symbol!(result1, "result");
-				assert_symbol!(result2, "result");
-				assert_symbol!(do_something, "do_something");
+				assert_symbol!(interner, foo, "foo");
+				assert_symbol!(interner, bar1, "bar");
+				assert_symbol!(interner, bar2, "bar");
+				assert_symbol!(interner, baz1, "baz");
+				assert_symbol!(interner, baz2, "baz");
+				assert_symbol!(interner, result1, "result");
+				assert_symbol!(interner, result2, "result");
+				assert_symbol!(interner, do_something, "do_something");
 			}
 	);
 }
@@ -156,11 +150,9 @@ fn test_byte_literals() {
 		let var = 'a'
 		var = '\n'
 		var = '\?'   # invalid escape sequence
-		var = '?     # undelimited literal
-		var = '\n    # undelimited literal with escape sequence
-		var = '\h    # undelimited literal with invalid escape sequence
-		var = 'aa'   # invalid literal
-		var = '\?a'  # invalid escape sequence followed by character
+		var = '\na'  # invalid literal with escape sequence 1
+		var = 'a\n'  # invalid literal with escape sequence 2
+		var = '\1a'  # invalid escape sequence followed by character
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
@@ -175,44 +167,37 @@ fn test_byte_literals() {
 			token!(TokenKind::Keyword(Keyword::Let)),
 			token!(TokenKind::Identifier(var)),
 			token!(TokenKind::Operator(Operator::Assign)),
-			token!(TokenKind::Literal(Literal::Byte(b1))),
+			token!(TokenKind::Literal(Literal::Byte(b'a'))),
 
 			token!(TokenKind::Identifier(_)),
 			token!(TokenKind::Operator(Operator::Assign)),
-			token!(TokenKind::Literal(Literal::Byte(b2))),
+			token!(TokenKind::Literal(Literal::Byte(b'\n'))),
 
 			token!(TokenKind::Identifier(_)),
 			token!(TokenKind::Operator(Operator::Assign)),
-			error!(ErrorKind::InvalidLiteral(InvalidLiteral::InvalidEscapeCodes(ec1))),
-
-			token!(TokenKind::Identifier(_)),
-			token!(TokenKind::Operator(Operator::Assign)),
-			error!(ErrorKind::Unexpected(b' ')),
-
-			token!(TokenKind::Identifier(_)),
-			token!(TokenKind::Operator(Operator::Assign)),
-			error!(ErrorKind::Unexpected(b' ')),
-
-			token!(TokenKind::Identifier(_)),
-			token!(TokenKind::Operator(Operator::Assign)),
-			error!(ErrorKind::Unexpected(b' ')),
+			error!(ErrorKind::InvalidEscapeSequence(b"\\?")),
+			token!(TokenKind::Literal(Literal::Byte(_))),
 
 			token!(TokenKind::Identifier(_)),
 			token!(TokenKind::Operator(Operator::Assign)),
 			error!(ErrorKind::Unexpected(b'a')),
-			error!(ErrorKind::Unexpected(b' ')),
+			token!(TokenKind::Literal(Literal::Byte(b'\n'))),
 
 			token!(TokenKind::Identifier(_)),
 			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::Unexpected(b'\\')),
+			error!(ErrorKind::Unexpected(b'n')),
+			token!(TokenKind::Literal(Literal::Byte(b'a'))),
+
+			token!(TokenKind::Identifier(_)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			error!(ErrorKind::InvalidEscapeSequence(b"\\1")),
 			error!(ErrorKind::Unexpected(b'a')),
-			error!(ErrorKind::Unexpected(b' ')),
+			token!(TokenKind::Literal(Literal::Byte(_))),
 		]
 			=> {
-				assert_eq!(interner.resolve(*var), Some("var"));
+				assert_symbol!(interner, var, "var");
 				assert_eq!(interner.len(), 1);
-				assert_eq!(*b1, b'a');
-				assert_eq!(*b2, b'\n');
-				assert_matches!(ec1.as_ref(), &[b"\\?"])
 			}
 	);
 }
@@ -221,7 +206,7 @@ fn test_byte_literals() {
 #[test]
 fn test_string_literals() {
 	let input = r#"
-		let var = "hello world" ++ "escape \n sequences \" are \0 cool"
+		let var = "hello world" ++ "escape \n sequences \" are \0 cool" ++ ""
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
@@ -239,11 +224,14 @@ fn test_string_literals() {
 			token!(TokenKind::Literal(Literal::String(lit1))),
 			token!(TokenKind::Operator(Operator::Concat)),
 			token!(TokenKind::Literal(Literal::String(lit2))),
+			token!(TokenKind::Operator(Operator::Concat)),
+			token!(TokenKind::Literal(Literal::String(lit3))),
 		]
 			=> {
-				assert_eq!(interner.resolve(*var), Some("var"));
-				assert_matches!(lit1.as_ref(), b"hello world");
-				assert_matches!(lit2.as_ref(), b"escape \n sequences \" are \0 cool");
+				assert_symbol!(interner, var, "var");
+				assert_eq!(lit1.as_ref(), b"hello world");
+				assert_eq!(lit2.as_ref(), b"escape \n sequences \" are \0 cool");
+				assert!(lit3.is_empty());
 			}
 	);
 }
@@ -276,7 +264,7 @@ fn test_number_literals() {
 			token!(TokenKind::Literal(Literal::Float(f3))),
 		]
 			=> {
-				assert_eq!(interner.resolve(*var), Some("var"));
+				assert_symbol!(interner, var, "var");
 				assert_eq!(*i1, 123);
 				assert_eq!(*f1, 456.7);
 				assert_eq!(*f2, 89e10);
@@ -289,7 +277,11 @@ fn test_number_literals() {
 #[test]
 fn test_command_block() {
 	let input = r#"
-		let result = { here-is-some 1arg "2arg" '3arg' 4'arg' "5"arg; }
+		let result = {
+			here-is-some 1arg "2arg" '3arg' 4'arg' >> "5"arg?;
+			$dollars ${are} "$fun";
+			so\ are escape \> \< \; sequences \?
+		}
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
@@ -298,5 +290,63 @@ fn test_command_block() {
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
 
-	todo!()
+	let unquoted = ArgPart::Unquoted;
+	let single_quoted = |arg: &str| ArgPart::SingleQuoted(arg.as_bytes().into());
+	let double_quoted = |parts: &[ArgUnit]| ArgPart::DoubleQuoted(parts.to_vec().into());
+
+	let literal = |lit: &str| ArgUnit::Literal(lit.as_bytes().into());
+	let dollar = |ident: &str| ArgUnit::Dollar(interner.get(ident).expect("symbol not found"));
+
+	assert_matches!(
+		&tokens[..],
+		[
+			token!(TokenKind::Keyword(Keyword::Let)),
+			token!(TokenKind::Identifier(var)),
+			token!(TokenKind::Operator(Operator::Assign)),
+			token!(TokenKind::Command),
+			token!(TokenKind::Argument(args0)),
+			token!(TokenKind::Argument(args1)),
+			token!(TokenKind::Argument(args2)),
+			token!(TokenKind::Argument(args3)),
+			token!(TokenKind::Argument(args4)),
+			token!(TokenKind::CommandOperator(CommandOperator::OutputRedirection { overwrite: false})),
+			token!(TokenKind::Argument(args5)),
+			token!(TokenKind::CommandOperator(CommandOperator::Try)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::Argument(dollar1)),
+			token!(TokenKind::Argument(dollar2)),
+			token!(TokenKind::Argument(dollar3)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::Argument(args6)),
+			token!(TokenKind::Argument(args7)),
+			token!(TokenKind::Argument(gt)),
+			token!(TokenKind::Argument(lt)),
+			token!(TokenKind::Argument(semicolon)),
+			token!(TokenKind::Argument(args8)),
+			token!(TokenKind::Argument(question)),
+			token!(TokenKind::CloseCommand),
+		]
+			=> {
+				assert_symbol!(interner, var, "result");
+
+				assert_eq!(args0.as_ref(), &[unquoted(literal("here-is-some"))]);
+				assert_eq!(args1.as_ref(), &[unquoted(literal("1arg"))]);
+				assert_eq!(args2.as_ref(), &[double_quoted(&[literal("2arg")])]);
+				assert_eq!(args3.as_ref(), &[single_quoted("3arg")]);
+				assert_eq!(args4.as_ref(), &[unquoted(literal("4")), single_quoted("arg")]);
+				assert_eq!(args5.as_ref(), &[double_quoted(&[literal("5")]), unquoted(literal("arg"))]);
+
+				assert_eq!(dollar1.as_ref(), &[unquoted(dollar("dollars"))]);
+				assert_eq!(dollar2.as_ref(), &[unquoted(dollar("are"))]);
+				assert_eq!(dollar3.as_ref(), &[double_quoted(&[dollar("fun")])]);
+
+				assert_eq!(args6.as_ref(), &[unquoted(literal("so are"))]);
+				assert_eq!(args7.as_ref(), &[unquoted(literal("escape"))]);
+				assert_eq!(gt.as_ref(), &[unquoted(literal(">"))]);
+				assert_eq!(lt.as_ref(), &[unquoted(literal("<"))]);
+				assert_eq!(semicolon.as_ref(), &[unquoted(literal(";"))]);
+				assert_eq!(args8.as_ref(), &[unquoted(literal("sequences"))]);
+				assert_eq!(question.as_ref(), &[unquoted(literal("?"))]);
+			}
+	);
 }

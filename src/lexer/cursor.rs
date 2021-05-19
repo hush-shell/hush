@@ -1,32 +1,7 @@
-use std::fmt::{self, Display};
+use crate::source::Pos as SourcePos;
 
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SourcePos {
-	pub line: u32,
-	pub column: u32,
-}
-
-
-impl SourcePos {
-	pub fn visit(&mut self, input: u8) {
-		if input == b'\n' {
-			self.line += 1;
-			self.column = 0;
-		} else {
-			self.column += 1;
-		}
-	}
-}
-
-
-impl Display for SourcePos {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "line {}, column {}", self.line, self.column)
-	}
-}
-
-
+/// A cursor for the source code.
 #[derive(Debug, Clone)]
 pub struct Cursor<'a> {
 	input: &'a [u8],
