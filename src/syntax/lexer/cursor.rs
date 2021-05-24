@@ -45,11 +45,6 @@ pub struct Cursor<'a> {
 
 
 impl<'a> Cursor<'a> {
-	pub fn new(input: &'a [u8]) -> Self {
-		Self { input, offset: 0, pos: SourcePos::default() }
-	}
-
-
 	pub fn pos(&self) -> SourcePos {
 		self.pos
 	}
@@ -82,5 +77,16 @@ impl<'a> Cursor<'a> {
 
 		self.pos.visit(self.input[self.offset]);
 		self.offset += 1;
+	}
+}
+
+
+impl<'a> From<&'a [u8]> for Cursor<'a> {
+	fn from(input: &'a [u8]) -> Self {
+		Self {
+			input,
+			offset: 0,
+			pos: SourcePos::default()
+		}
 	}
 }

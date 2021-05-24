@@ -12,7 +12,7 @@ where
 	S: Into<State>,
 	State: From<Self>,
 {
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor) -> Transition {
 		match cursor.peek() {
 			// Newline marks the end of the comment.
 			Some(b'\n') => Transition::resume(self.0),

@@ -27,7 +27,7 @@ impl Symbol {
 	}
 
 
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor) -> Transition {
 		let unexpected = |input| Transition::resume_error(Root, Error::unexpected(input, self.pos));
 		let token = |token| Token { token, pos: self.pos };
 		let operator = |op| token(TokenKind::Operator(op));
@@ -88,7 +88,7 @@ impl CommandSymbol {
 	}
 
 
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor) -> Transition {
 		let token = |token| Token { token, pos: self.pos };
 		let operator = |op| token(TokenKind::CommandOperator(op));
 

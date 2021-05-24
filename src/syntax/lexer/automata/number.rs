@@ -33,7 +33,7 @@ impl NumberLiteral {
 	}
 
 
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
 		let error = |error| Transition::error(Root, Error { error, pos: self.pos });
 
 		match (&self, cursor.peek()) {
@@ -87,7 +87,7 @@ impl NumberLiteral {
 
 
 	/// Parse the consumed characters.
-	fn parse<'a>(&self, cursor: &Cursor<'a>) -> Result<Token, Error<'a>> {
+	fn parse(&self, cursor: &Cursor) -> Result<Token, Error> {
 		let number = &cursor.slice()[self.start_offset .. cursor.offset()];
 
 		let literal = |literal| Ok(Token { token: TokenKind::Literal(literal), pos: self.pos });

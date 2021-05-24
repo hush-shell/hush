@@ -12,7 +12,7 @@ use super::{
 	TokenKind,
 	Transition,
 };
-use crate::symbol;
+use crate::symbol::Symbol;
 
 
 /// The state context for the Word state.
@@ -20,7 +20,7 @@ use crate::symbol;
 /// is finished. Such previous state is the WordContext.
 pub(super) trait WordContext {
 	/// The transition to make when the argument has been consumed.
-	fn resume_produce<'a>(self, value: Vec<u8>) -> Transition<'a>;
+	fn resume_produce(self, value: Vec<u8>) -> Transition;
 	/// Check if a character should be consumed.
 	fn is_word(value: u8) -> bool;
 	/// Check if a character is a valid escape sequence, and return it's corresponding
@@ -46,7 +46,7 @@ where
 	C: WordContext,
 	State: From<Self>,
 {
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
 		match (&self, cursor.peek()) {
 			// Escaped character.
 			(&Self { escaping: Some((offset, pos)), .. }, Some(value)) => {
@@ -117,26 +117,26 @@ impl From<Word<DoubleQuoted>> for State {
 /// is finished. Such previous state is the DollarContext.
 pub(super) trait DollarContext {
 	/// The transition to make when the symbol has been consumed.
-	fn produce<'a>(self, symbol: symbol::Symbol) -> Transition<'a>;
+	fn produce(self, symbol: Symbol) -> Transition;
 	/// The transition to make when the symbol is invalid.
-	fn error<'a>(self, error: Error<'a>) -> Transition<'a>;
+	fn error(self, error: Error) -> Transition;
 	/// Non-consuming variant of produce.
-	fn resume<'a>(self, symbol: symbol::Symbol) -> Transition<'a>;
+	fn resume(self, symbol: Symbol) -> Transition;
 }
 
 
 impl DollarContext for Argument {
-	fn produce<'a>(mut self, symbol: symbol::Symbol) -> Transition<'a> {
+	fn produce(mut self, symbol: Symbol) -> Transition {
 		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar(symbol)));
 
 		Transition::step(self)
 	}
 
-	fn error<'a>(self, error: Error<'a>) -> Transition<'a> {
+	fn error(self, error: Error) -> Transition {
 		Transition::error(self, error)
 	}
 
-	fn resume<'a>(mut self, symbol: symbol::Symbol) -> Transition<'a> {
+	fn resume(mut self, symbol: Symbol) -> Transition {
 		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar(symbol)));
 
 		Transition::resume(self)
@@ -145,17 +145,17 @@ impl DollarContext for Argument {
 
 
 impl DollarContext for DoubleQuoted {
-	fn produce<'a>(mut self, symbol: symbol::Symbol) -> Transition<'a> {
+	fn produce(mut self, symbol: Symbol) -> Transition {
 		self.parts.push(ArgUnit::Dollar(symbol));
 
 		Transition::step(self)
 	}
 
-	fn error<'a>(self, error: Error<'a>) -> Transition<'a> {
+	fn error(self, error: Error) -> Transition {
 		Transition::error(self, error)
 	}
 
-	fn resume<'a>(mut self, symbol: symbol::Symbol) -> Transition<'a> {
+	fn resume(mut self, symbol: Symbol) -> Transition {
 		self.parts.push(ArgUnit::Dollar(symbol));
 
 		Transition::resume(self)
@@ -195,11 +195,7 @@ where
 	}
 
 
-	pub fn visit<'a>(
-		mut self,
-		cursor: &Cursor<'a>,
-		interner: &mut SymbolInterner,
-	) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor, interner: &mut SymbolInterner,) -> Transition {
 		macro_rules! produce {
 			($consume:expr) => {{
 				// If no characters have been read, the identifier is empty, which is an error.
@@ -300,7 +296,7 @@ pub(super) struct SingleQuoted {
 
 
 impl SingleQuoted {
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
 		match cursor.peek() {
 			// Closing quote.
 			Some(b'\'') => {
@@ -333,7 +329,7 @@ impl From<Argument> for SingleQuoted {
 
 
 impl WordContext for SingleQuoted {
-	fn resume_produce<'a>(mut self, value: Vec<u8>) -> Transition<'a> {
+	fn resume_produce(mut self, value: Vec<u8>) -> Transition {
 		self.value = value;
 		Transition::resume(self)
 	}
@@ -379,7 +375,7 @@ pub(super) struct DoubleQuoted {
 
 
 impl DoubleQuoted {
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
 		match cursor.peek() {
 			// Closing quote.
 			Some(b'\"') => {
@@ -416,7 +412,7 @@ impl From<Argument> for DoubleQuoted {
 
 
 impl WordContext for DoubleQuoted {
-	fn resume_produce<'a>(mut self, value: Vec<u8>) -> Transition<'a> {
+	fn resume_produce(mut self, value: Vec<u8>) -> Transition {
 		self.parts.push(ArgUnit::Literal(value.into_boxed_slice()));
 
 		Transition::resume(self)
@@ -474,7 +470,7 @@ impl Argument {
 	}
 
 
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor) -> Transition {
 		match cursor.peek() {
 			// Dollar.
 			Some(b'$') => Transition::step(Dollar::at(cursor, self)),
@@ -502,7 +498,7 @@ impl Argument {
 
 
 impl WordContext for Argument {
-	fn resume_produce<'a>(mut self, value: Vec<u8>) -> Transition<'a> {
+	fn resume_produce(mut self, value: Vec<u8>) -> Transition {
 		self.parts.push(ArgPart::Unquoted(ArgUnit::Literal(
 			value.into_boxed_slice(),
 		)));

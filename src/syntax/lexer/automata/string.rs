@@ -19,7 +19,7 @@ impl ByteLiteral {
 	}
 
 
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
 		match (&self, cursor.peek()) {
 			// EOF while scanning a literal is always an error.
 			(_, None) => Transition::error(Root, Error::unexpected_eof(cursor.pos())),
@@ -106,7 +106,7 @@ impl StringLiteral {
 	}
 
 
-	pub fn visit<'a>(mut self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
 		match (&self, cursor.peek()) {
 			// EOF while scanning a literal is always an error.
 			(_, None) => Transition::error(Root, Error::unexpected_eof(cursor.pos())),

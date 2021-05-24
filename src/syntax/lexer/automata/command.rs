@@ -19,7 +19,7 @@ pub(super) struct Command;
 
 
 impl Command {
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor) -> Transition {
 		match cursor.peek() {
 			// Whitespace.
 			Some(c) if c.is_ascii_whitespace() => Transition::step(self),

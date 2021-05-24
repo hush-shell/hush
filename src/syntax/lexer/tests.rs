@@ -34,7 +34,7 @@ fn test_simple_function() {
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
-	let mut interner = SymbolInterner::new();
+	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
@@ -93,7 +93,7 @@ fn test_invalid_tokens() {
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
-	let mut interner = SymbolInterner::new();
+	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
@@ -156,7 +156,7 @@ fn test_byte_literals() {
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
-	let mut interner = SymbolInterner::new();
+	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
@@ -210,7 +210,7 @@ fn test_string_literals() {
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
-	let mut interner = SymbolInterner::new();
+	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
@@ -244,7 +244,7 @@ fn test_number_literals() {
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
-	let mut interner = SymbolInterner::new();
+	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
@@ -285,7 +285,7 @@ fn test_command_block() {
 	"#;
 
 	let cursor = Cursor::new(input.as_bytes());
-	let mut interner = SymbolInterner::new();
+	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();

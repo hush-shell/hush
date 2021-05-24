@@ -27,7 +27,7 @@ impl Word {
 	}
 
 
-	pub fn visit<'a>(self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor, interner: &mut SymbolInterner) -> Transition {
 		// We don't need to check if the first character is a number here, because the Root
 		// state will only transition to this state if that is the case.
 		match cursor.peek() {

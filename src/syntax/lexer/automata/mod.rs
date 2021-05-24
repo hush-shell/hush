@@ -35,22 +35,22 @@ use crate::symbol::Interner as SymbolInterner;
 
 
 /// The automata may produce a token, or an error.
-type Output<'a> = Result<Token, Error<'a>>;
+type Output = Result<Token, Error>;
 
 
 /// The transition to be made after a character in the input has been visited.
 #[derive(Debug)]
-struct Transition<'a> {
+struct Transition {
 	/// The next state.
 	state: State,
 	/// Whether to consume the visited input character.
 	consume: bool,
 	/// The produced output, if any.
-	output: Option<Output<'a>>,
+	output: Option<Output>,
 }
 
 
-impl<'a> Transition<'a> {
+impl Transition {
 	/// Consume the character while updating the machine state, but not producing a token
 	/// yet.
 	pub fn step<S: Into<State>>(state: S) -> Self {
@@ -67,7 +67,7 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Consume the input character and produce an error.
-	pub fn error<S: Into<State>>(state: S, error: Error<'a>) -> Self {
+	pub fn error<S: Into<State>>(state: S, error: Error) -> Self {
 		Self {
 			state: state.into(),
 			consume: true,
@@ -90,7 +90,7 @@ impl<'a> Transition<'a> {
 	}
 
 	/// Don't consume the input character and produce an error.
-	pub fn resume_error<S: Into<State>>(state: S, error: Error<'a>) -> Self {
+	pub fn resume_error<S: Into<State>>(state: S, error: Error) -> Self {
 		Self {
 			state: state.into(),
 			consume: false,
@@ -135,7 +135,7 @@ impl Default for State {
 
 
 impl State {
-	pub fn visit<'a>(self, cursor: &Cursor<'a>, interner: &mut SymbolInterner) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor, interner: &mut SymbolInterner) -> Transition {
 		match self {
 			State::Root(state) => state.visit(cursor),
 			State::Comment(state) => state.visit(cursor),
@@ -178,9 +178,9 @@ impl<'a, 'b> Automata<'a, 'b> {
 
 
 impl<'a, 'b> Iterator for Automata<'a, 'b> {
-	type Item = Output<'a>;
+	type Item = Output;
 
-	fn next(&mut self) -> Option<Output<'a>> {
+	fn next(&mut self) -> Option<Output> {
 		loop {
 			// We must temporarily take the state so that we can consume it.
 			let state = std::mem::take(&mut self.state);

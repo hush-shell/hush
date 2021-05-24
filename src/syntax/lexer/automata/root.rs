@@ -23,7 +23,7 @@ pub(super) struct Root;
 
 
 impl Root {
-	pub fn visit<'a>(self, cursor: &Cursor<'a>) -> Transition<'a> {
+	pub fn visit(self, cursor: &Cursor) -> Transition {
 		match cursor.peek() {
 			// Whitespace.
 			Some(c) if c.is_ascii_whitespace() => Transition::step(self),
