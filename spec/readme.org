@@ -167,12 +167,12 @@
 
     Under the hood, the =for= loop translates to something like:
     #+begin_src bash
-      let _iter = expression
-      let arr = _iter()
+      let iter = expression
+      let arr = iter()
       while arr[0] do
         let identifier = arr[1]
         # body
-        arr = _iter()
+        arr = iter()
       end
     #+end_src
 

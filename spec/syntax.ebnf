@@ -83,6 +83,7 @@ expression = literal
            | prefixexp
            | expression binary_operator expression
            | unary_operator expression 
+           | 'if' expression 'then' block [ 'else' block ] 'end'
 
 (* Statements *)
 statement = 'let' ident [ '=' expression ]
@@ -90,7 +91,6 @@ statement = 'let' ident [ '=' expression ]
           | function_call
           | 'break'
           | 'while' expression 'do' block 'end'
-          | 'if' expression 'then' block [ 'else' block ] 'end'
           | 'for' ident 'in' expression 'do' block 'end'
           | 'function' ident function_body
 
