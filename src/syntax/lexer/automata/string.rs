@@ -79,7 +79,7 @@ impl ByteLiteral {
 
 impl From<ByteLiteral> for State {
 	fn from(state: ByteLiteral) -> State {
-		State::ByteLiteral(state)
+		Self::ByteLiteral(state)
 	}
 }
 
@@ -151,7 +151,7 @@ impl StringLiteral {
 
 impl From<StringLiteral> for State {
 	fn from(state: StringLiteral) -> State {
-		State::StringLiteral(state)
+		Self::StringLiteral(state)
 	}
 }
 

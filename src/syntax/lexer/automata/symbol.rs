@@ -69,7 +69,7 @@ impl Symbol {
 
 impl From<Symbol> for State {
 	fn from(state: Symbol) -> State {
-		State::Symbol(state)
+		Self::Symbol(state)
 	}
 }
 
@@ -120,7 +120,7 @@ impl CommandSymbol {
 
 impl From<CommandSymbol> for State {
 	fn from(state: CommandSymbol) -> State {
-		State::CommandSymbol(state)
+		Self::CommandSymbol(state)
 	}
 }
 

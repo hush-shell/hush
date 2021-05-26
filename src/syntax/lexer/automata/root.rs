@@ -68,6 +68,6 @@ impl Root {
 
 impl From<Root> for State {
 	fn from(state: Root) -> State {
-		State::Root(state)
+		Self::Root(state)
 	}
 }

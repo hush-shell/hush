@@ -58,6 +58,6 @@ impl Command {
 
 impl From<Command> for State {
 	fn from(state: Command) -> State {
-		State::Command(state)
+		Self::Command(state)
 	}
 }

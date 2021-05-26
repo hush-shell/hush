@@ -33,13 +33,13 @@ impl<S> From<S> for Comment<S> {
 
 impl From<Comment<Root>> for State {
 	fn from(state: Comment<Root>) -> State {
-		State::Comment(state)
+		Self::Comment(state)
 	}
 }
 
 
 impl From<Comment<Command>> for State {
 	fn from(state: Comment<Command>) -> State {
-		State::CommandComment(state)
+		Self::CommandComment(state)
 	}
 }

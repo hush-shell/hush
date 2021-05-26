@@ -30,13 +30,13 @@ impl Debug for ErrorKind {
 impl Display for ErrorKind {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			ErrorKind::UnexpectedEof => write!(f, "unexpected end of file")?,
+			Self::UnexpectedEof => write!(f, "unexpected end of file")?,
 
-			ErrorKind::Unexpected(value) => write!(f, "unexpected '{}'", *value as char)?,
+			Self::Unexpected(value) => write!(f, "unexpected '{}'", *value as char)?,
 
-			ErrorKind::EmptyByteLiteral => write!(f, "empty char literal")?,
+			Self::EmptyByteLiteral => write!(f, "empty char literal")?,
 
-			ErrorKind::InvalidEscapeSequence(sequence) => {
+			Self::InvalidEscapeSequence(sequence) => {
 				write!(
 					f,
 					"invalid escape sequence: {}",
@@ -44,11 +44,11 @@ impl Display for ErrorKind {
 				)?;
 			}
 
-			ErrorKind::InvalidNumber(number) => {
+			Self::InvalidNumber(number) => {
 				write!(f, "invalid number: {}", String::from_utf8_lossy(number))?;
 			}
 
-			ErrorKind::InvalidIdentifier(ident) => {
+			Self::InvalidIdentifier(ident) => {
 				write!(f, "invalid identifier: {}", String::from_utf8_lossy(ident))?;
 			}
 		};

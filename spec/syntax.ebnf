@@ -74,7 +74,7 @@ prefixexp = variable
           | command_block
 
 variable = ident
-         | prefixexp '.' ident 
+         | prefixexp '.' ident
          | prefixexp '[' expression ']'
 
 function_call = prefixexp parameters
@@ -82,7 +82,7 @@ function_call = prefixexp parameters
 expression = literal
            | prefixexp
            | expression binary_operator expression
-           | unary_operator expression 
+           | unary_operator expression
            | 'if' expression 'then' block [ 'else' block ] 'end'
 
 (* Statements *)

@@ -71,7 +71,7 @@ impl<'a> Cursor<'a> {
 
 
 	pub fn step(&mut self) {
-		if self.input.len() == self.offset {
+		if self.is_eof() {
 			return;
 		}
 

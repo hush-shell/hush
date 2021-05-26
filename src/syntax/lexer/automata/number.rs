@@ -119,6 +119,6 @@ impl NumberLiteral {
 
 impl From<NumberLiteral> for State {
 	fn from(state: NumberLiteral) -> State {
-		State::NumberLiteral(state)
+		Self::NumberLiteral(state)
 	}
 }

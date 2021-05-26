@@ -93,21 +93,21 @@ impl<C: WordContext> From<C> for Word<C> {
 
 impl From<Word<Argument>> for State {
 	fn from(state: Word<Argument>) -> State {
-		State::UnquotedWord(state)
+		Self::UnquotedWord(state)
 	}
 }
 
 
 impl From<Word<SingleQuoted>> for State {
 	fn from(state: Word<SingleQuoted>) -> State {
-		State::SingleQuotedWord(state)
+		Self::SingleQuotedWord(state)
 	}
 }
 
 
 impl From<Word<DoubleQuoted>> for State {
 	fn from(state: Word<DoubleQuoted>) -> State {
-		State::DoubleQuotedWord(state)
+		Self::DoubleQuotedWord(state)
 	}
 }
 
@@ -273,14 +273,14 @@ where
 
 impl From<Dollar<Argument>> for State {
 	fn from(state: Dollar<Argument>) -> State {
-		State::Dollar(state)
+		Self::Dollar(state)
 	}
 }
 
 
 impl From<Dollar<DoubleQuoted>> for State {
 	fn from(state: Dollar<DoubleQuoted>) -> State {
-		State::QuotedDollar(state)
+		Self::QuotedDollar(state)
 	}
 }
 
@@ -359,7 +359,7 @@ impl WordContext for SingleQuoted {
 
 impl From<SingleQuoted> for State {
 	fn from(state: SingleQuoted) -> State {
-		State::SingleQuoted(state)
+		Self::SingleQuoted(state)
 	}
 }
 
@@ -444,7 +444,7 @@ impl WordContext for DoubleQuoted {
 
 impl From<DoubleQuoted> for State {
 	fn from(state: DoubleQuoted) -> State {
-		State::DoubleQuoted(state)
+		Self::DoubleQuoted(state)
 	}
 }
 
@@ -541,6 +541,6 @@ impl WordContext for Argument {
 
 impl From<Argument> for State {
 	fn from(state: Argument) -> State {
-		State::Argument(state)
+		Self::Argument(state)
 	}
 }

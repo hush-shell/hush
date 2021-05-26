@@ -137,25 +137,25 @@ impl Default for State {
 impl State {
 	pub fn visit(self, cursor: &Cursor, interner: &mut SymbolInterner) -> Transition {
 		match self {
-			State::Root(state) => state.visit(cursor),
-			State::Comment(state) => state.visit(cursor),
-			State::NumberLiteral(state) => state.visit(cursor),
-			State::ByteLiteral(state) => state.visit(cursor),
-			State::StringLiteral(state) => state.visit(cursor),
-			State::Word(state) => state.visit(cursor, interner),
-			State::Symbol(state) => state.visit(cursor),
+			Self::Root(state) => state.visit(cursor),
+			Self::Comment(state) => state.visit(cursor),
+			Self::NumberLiteral(state) => state.visit(cursor),
+			Self::ByteLiteral(state) => state.visit(cursor),
+			Self::StringLiteral(state) => state.visit(cursor),
+			Self::Word(state) => state.visit(cursor, interner),
+			Self::Symbol(state) => state.visit(cursor),
 
-			State::Command(state) => state.visit(cursor),
-			State::CommandComment(state) => state.visit(cursor),
-			State::Argument(state) => state.visit(cursor),
-			State::SingleQuoted(state) => state.visit(cursor),
-			State::DoubleQuoted(state) => state.visit(cursor),
-			State::UnquotedWord(state) => state.visit(cursor),
-			State::SingleQuotedWord(state) => state.visit(cursor),
-			State::DoubleQuotedWord(state) => state.visit(cursor),
-			State::Dollar(state) => state.visit(cursor, interner),
-			State::QuotedDollar(state) => state.visit(cursor, interner),
-			State::CommandSymbol(state) => state.visit(cursor),
+			Self::Command(state) => state.visit(cursor),
+			Self::CommandComment(state) => state.visit(cursor),
+			Self::Argument(state) => state.visit(cursor),
+			Self::SingleQuoted(state) => state.visit(cursor),
+			Self::DoubleQuoted(state) => state.visit(cursor),
+			Self::UnquotedWord(state) => state.visit(cursor),
+			Self::SingleQuotedWord(state) => state.visit(cursor),
+			Self::DoubleQuotedWord(state) => state.visit(cursor),
+			Self::Dollar(state) => state.visit(cursor, interner),
+			Self::QuotedDollar(state) => state.visit(cursor, interner),
+			Self::CommandSymbol(state) => state.visit(cursor),
 		}
 	}
 }
