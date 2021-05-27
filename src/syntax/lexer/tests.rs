@@ -33,11 +33,11 @@ fn test_simple_function() {
 		end
 	"#;
 
-	let cursor = Cursor::new(input.as_bytes());
+	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
-	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
 
 	assert_matches!(
 		&tokens[..],
@@ -92,11 +92,11 @@ fn test_invalid_tokens() {
 		end
 	"#;
 
-	let cursor = Cursor::new(input.as_bytes());
+	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
-	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
 
 	assert_matches!(
 		&tokens[..],
@@ -155,11 +155,11 @@ fn test_byte_literals() {
 		var = '\1a'  # invalid escape sequence followed by character
 	"#;
 
-	let cursor = Cursor::new(input.as_bytes());
+	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
-	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
 
 	assert_matches!(
 		&tokens[..],
@@ -175,7 +175,7 @@ fn test_byte_literals() {
 
 			token!(TokenKind::Identifier(_)),
 			token!(TokenKind::Operator(Operator::Assign)),
-			error!(ErrorKind::InvalidEscapeSequence(b"\\?")),
+			error!(ErrorKind::InvalidEscapeSequence(e1)),
 			token!(TokenKind::Literal(Literal::Byte(_))),
 
 			token!(TokenKind::Identifier(_)),
@@ -191,13 +191,15 @@ fn test_byte_literals() {
 
 			token!(TokenKind::Identifier(_)),
 			token!(TokenKind::Operator(Operator::Assign)),
-			error!(ErrorKind::InvalidEscapeSequence(b"\\1")),
+			error!(ErrorKind::InvalidEscapeSequence(e2)),
 			error!(ErrorKind::Unexpected(b'a')),
 			token!(TokenKind::Literal(Literal::Byte(_))),
 		]
 			=> {
 				assert_symbol!(interner, var, "var");
 				assert_eq!(interner.len(), 1);
+				assert_eq!(e1.as_ref(), b"\\?");
+				assert_eq!(e2.as_ref(), b"\\1");
 			}
 	);
 }
@@ -209,11 +211,11 @@ fn test_string_literals() {
 		let var = "hello world" ++ "escape \n sequences \" are \0 cool" ++ ""
 	"#;
 
-	let cursor = Cursor::new(input.as_bytes());
+	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
-	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
 
 	assert_matches!(
 		&tokens[..],
@@ -243,11 +245,11 @@ fn test_number_literals() {
 		let var = 123 + 456.7 + 89e10 + 1.2e3
 	"#;
 
-	let cursor = Cursor::new(input.as_bytes());
+	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
-	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
 
 	assert_matches!(
 		&tokens[..],
@@ -284,11 +286,11 @@ fn test_command_block() {
 		}
 	"#;
 
-	let cursor = Cursor::new(input.as_bytes());
+	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
 	let lexer = Lexer::new(cursor, &mut interner);
 
-	let tokens: Vec<Result<Token, Error<'_>>> = lexer.collect();
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
 
 	let unquoted = ArgPart::Unquoted;
 	let single_quoted = |arg: &str| ArgPart::SingleQuoted(arg.as_bytes().into());
