@@ -241,205 +241,42 @@ where
 
 
 	/// Parse a single expression.
+
 	fn parse_expression(&mut self) -> Result<ast::Expr, Error> {
 		// TODO: Function call and subscript operator
 		// TODO: dot access
-		self.parse_or()
+		// self.parse_or()
+
+		let parse_factor     = move |parser: &mut Self| parser.parse_binop(Self::parse_unop, Operator::is_factor);
+		let parse_term       = move |parser: &mut Self| parser.parse_binop(parse_factor, Operator::is_term);
+		let parse_concat     = move |parser: &mut Self| parser.parse_binop(parse_term, |&op| op == Operator::Concat);
+		let parse_comparison = move |parser: &mut Self| parser.parse_binop(parse_concat, Operator::is_comparison);
+		let parse_equality   = move |parser: &mut Self| parser.parse_binop(parse_comparison, Operator::is_equality);
+		let parse_and        = move |parser: &mut Self| parser.parse_binop(parse_equality, |&op| op == Operator::And);
+		let parse_or         = move |parser: &mut Self| parser.parse_binop(parse_and, |&op| op == Operator::Or);
+
+		parse_or(self)
 	}
 
 
 	/// Parse a higher precedence expression, optionally ending as a logical OR.
-	fn parse_or(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_and()?;
+	fn parse_binop<P, F>(
+		&mut self,
+		mut parse_higher_prec_op: P,
+		mut check: F
+	) -> Result<ast::Expr, Error>
+	where
+		P: FnMut(&mut Self) -> Result<ast::Expr, Error>,
+		F: FnMut(&Operator) -> bool,
+	{
+		let mut expr = parse_higher_prec_op(self)?;
 
 		loop {
 			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op == Operator::Or => {
+				Some(Token { token: TokenKind::Operator(op), pos }) if check(&op) => {
 					self.step();
 
-					let right = self.parse_and()?;
-
-					expr = ast::Expr::BinaryOp {
-						left: expr.into(),
-						op: op.into(),
-						right: right.into(),
-						pos: pos.into(),
-					};
-				},
-
-				token => {
-					self.token = token;
-					break;
-				},
-			}
-		}
-
-		Ok(expr)
-	}
-
-
-	/// Parse a higher precedence expression, optionally ending as a logical AND.
-	fn parse_and(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_equality()?;
-
-		loop {
-			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op == Operator::And => {
-					self.step();
-
-					let right = self.parse_equality()?;
-
-					expr = ast::Expr::BinaryOp {
-						left: expr.into(),
-						op: op.into(),
-						right: right.into(),
-						pos: pos.into(),
-					};
-				},
-
-				token => {
-					self.token = token;
-					break;
-				},
-			}
-		}
-
-		Ok(expr)
-	}
-
-
-	/// Parse a higher precedence expression, optionally ending as a logical equality.
-	fn parse_equality(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_comparison()?;
-
-		loop {
-			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op.is_equality() => {
-					self.step();
-
-					let right = self.parse_comparison()?;
-
-					expr = ast::Expr::BinaryOp {
-						left: expr.into(),
-						op: op.into(),
-						right: right.into(),
-						pos: pos.into(),
-					};
-				},
-
-				token => {
-					self.token = token;
-					break;
-				},
-			}
-		}
-
-		Ok(expr)
-	}
-
-
-	/// Parse a higher precedence expression, optionally ending as a logical comparison.
-	fn parse_comparison(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_concat()?;
-
-		loop {
-			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op.is_comparison() => {
-					self.step();
-
-					let right = self.parse_concat()?;
-
-					expr = ast::Expr::BinaryOp {
-						left: expr.into(),
-						op: op.into(),
-						right: right.into(),
-						pos: pos.into(),
-					};
-				},
-
-				token => {
-					self.token = token;
-					break;
-				},
-			}
-		}
-
-		Ok(expr)
-	}
-
-
-	/// Parse a higher precedence expression, optionally ending as a string concat.
-	fn parse_concat(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_term()?;
-
-		loop {
-			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op == Operator::Concat => {
-					self.step();
-
-					let right = self.parse_term()?;
-
-					expr = ast::Expr::BinaryOp {
-						left: expr.into(),
-						op: op.into(),
-						right: right.into(),
-						pos: pos.into(),
-					};
-				},
-
-				token => {
-					self.token = token;
-					break;
-				},
-			}
-		}
-
-		Ok(expr)
-	}
-
-
-	/// Parse a higher precedence expression, optionally ending as a additive arithmetic
-	/// expression.
-	fn parse_term(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_factor()?;
-
-		loop {
-			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op.is_term() => {
-					self.step();
-
-					let right = self.parse_factor()?;
-
-					expr = ast::Expr::BinaryOp {
-						left: expr.into(),
-						op: op.into(),
-						right: right.into(),
-						pos: pos.into(),
-					};
-				},
-
-				token => {
-					self.token = token;
-					break;
-				},
-			}
-		}
-
-		Ok(expr)
-	}
-
-
-	/// Parse a higher precedence expression, optionally ending as a multiplicative
-	/// arithmetic expression.
-	fn parse_factor(&mut self) -> Result<ast::Expr, Error> {
-		let mut expr = self.parse_unary()?;
-
-		loop {
-			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if op.is_factor() => {
-					self.step();
-
-					let right = self.parse_unary()?;
+					let right = parse_higher_prec_op(self)?;
 
 					expr = ast::Expr::BinaryOp {
 						left: expr.into(),
@@ -461,12 +298,12 @@ where
 
 
 	/// Parse a higher precedence expression, optionally starting with a unary operator.
-	fn parse_unary(&mut self) -> Result<ast::Expr, Error> {
+	fn parse_unop(&mut self) -> Result<ast::Expr, Error> {
 		match self.token.take() {
 			Some(Token { token: TokenKind::Operator(op), pos }) if op.is_unary() => {
 				self.step();
 
-				let operand = self.parse_unary()?;
+				let operand = self.parse_unop()?;
 
 				Ok(
 					ast::Expr::UnaryOp {
