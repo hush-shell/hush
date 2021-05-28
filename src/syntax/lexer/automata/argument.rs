@@ -195,7 +195,7 @@ where
 	}
 
 
-	pub fn visit(mut self, cursor: &Cursor, interner: &mut SymbolInterner,) -> Transition {
+	pub fn visit(mut self, cursor: &Cursor, interner: &mut SymbolInterner) -> Transition {
 		macro_rules! produce {
 			($consume:expr) => {{
 				// If no characters have been read, the identifier is empty, which is an error.

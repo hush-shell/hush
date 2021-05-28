@@ -3,9 +3,9 @@ mod debug;
 
 use std::{collections::HashMap, path::Path};
 
-pub use crate::symbol::Symbol;
 use super::{lexer, SourcePos};
-use command::{CommandBlockKind, Command};
+pub use crate::symbol::Symbol;
+use command::{Command, CommandBlockKind};
 
 
 /// A block is a list of statements, constituting a new scope.
@@ -57,7 +57,7 @@ impl From<lexer::Literal> for Literal {
 /// Unary operators.
 pub enum UnaryOp {
 	Minus, // -
-	Not, // not
+	Not,   // not
 }
 
 
@@ -131,7 +131,7 @@ pub enum Expr {
 		identifier: Symbol,
 		pos: SourcePos,
 	},
-	Literal{
+	Literal {
 		literal: Literal,
 		pos: SourcePos,
 	},
@@ -198,7 +198,7 @@ pub enum Statement {
 		pos: SourcePos,
 	},
 	/// For loop. Also introduces an identifier.
-	For { // Should we unify the identifier introduction with Let? I don't think so.
+	For {
 		identifier: Symbol,
 		expr: Expr,
 		block: Block,

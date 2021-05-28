@@ -83,10 +83,6 @@ impl<'a> Cursor<'a> {
 
 impl<'a> From<&'a [u8]> for Cursor<'a> {
 	fn from(input: &'a [u8]) -> Self {
-		Self {
-			input,
-			offset: 0,
-			pos: SourcePos::default()
-		}
+		Self { input, offset: 0, pos: SourcePos::default() }
 	}
 }

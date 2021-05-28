@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug};
 
+use super::{ArgPart, ArgUnit, CommandOperator, Keyword, Literal, Operator, Token, TokenKind};
 use crate::symbol::SymbolExt;
-use super::{Keyword, Literal, Operator, ArgUnit, ArgPart, CommandOperator, TokenKind, Token};
 
 
 impl Debug for Keyword {

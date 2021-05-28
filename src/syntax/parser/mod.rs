@@ -2,8 +2,8 @@ mod error;
 #[cfg(test)]
 mod tests;
 
+use super::lexer::{Keyword, Token, TokenKind};
 use super::{ast, lexer::Operator};
-use super::lexer::{Token, TokenKind, Keyword};
 pub use error::Error;
 
 
@@ -28,7 +28,7 @@ where
 #[derive(Debug)]
 pub struct Parser<I, E>
 where
-	I: Iterator<Item = Token>
+	I: Iterator<Item = Token>,
 {
 	// We don't use a std::iter::Peekable instead of a (Iterator, Option<Token>) pair
 	// because we must be able to move from `token`, but Peekable only returns a reference.
@@ -47,11 +47,7 @@ where
 	pub fn new(mut cursor: I, error_reporter: E) -> Self {
 		let token = cursor.next();
 
-		Self {
-			cursor,
-			token,
-			error_reporter
-		}
+		Self { cursor, token, error_reporter }
 	}
 
 
@@ -75,16 +71,18 @@ where
 	/// Try and eat a token.
 	fn eat<F, T>(&mut self, eat: F) -> Result<T, Error>
 	where
-		F: FnOnce(Token) -> Result<T, (Error, Token)>
+		F: FnOnce(Token) -> Result<T, (Error, Token)>,
 	{
 		if let Some(token) = self.token.take() {
 			match eat(token) {
-				Ok(value) => { // Token successfully consumed.
+				Ok(value) => {
+					// Token successfully consumed.
 					self.step();
 					Ok(value)
-				},
+				}
 
-				Err((error, token)) => { // Fail, rollback the token and produce an error.
+				Err((error, token)) => {
+					// Fail, rollback the token and produce an error.
 					self.token = Some(token);
 					Err(error)
 				}
@@ -97,12 +95,10 @@ where
 
 	/// Consume the expected token, or produce an error.
 	fn expect(&mut self, expected: TokenKind) -> Result<TokenKind, Error> {
-		self.eat(
-			|token| match token {
-				Token { token, .. } if token == expected => Ok(token),
-				token => Err((Error::unexpected(token.clone(), expected), token)),
-			}
-		)
+		self.eat(|token| match token {
+			Token { token, .. } if token == expected => Ok(token),
+			token => Err((Error::unexpected(token.clone(), expected), token)),
+		})
 	}
 
 
@@ -126,16 +122,14 @@ where
 						// There may be no statements following a return in a block.
 						break;
 					}
-				},
+				}
 
 				// Break on eof.
 				None => break,
 			}
 		}
 
-		Ok(
-			block.into_boxed_slice().into()
-		)
+		Ok(block.into_boxed_slice().into())
 	}
 
 
@@ -148,13 +142,8 @@ where
 
 				let identifier = self.parse_identifier()?;
 
-				Ok(
-					ast::Statement::Let {
-						identifier,
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Statement::Let { identifier, pos: pos.into() })
+			}
 
 			// TODO: assignment.
 			// TODO: let function
@@ -165,24 +154,15 @@ where
 
 				let expr = self.parse_expression()?;
 
-				Ok(
-					ast::Statement::Return {
-						expr,
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Statement::Return { expr, pos: pos.into() })
+			}
 
 			// Break.
 			Some(Token { token: TokenKind::Keyword(Keyword::Break), pos }) => {
 				self.step();
 
-				Ok(
-					ast::Statement::Break {
-						pos: pos.into()
-					}
-				)
-			},
+				Ok(ast::Statement::Break { pos: pos.into() })
+			}
 
 			// While.
 			Some(Token { token: TokenKind::Keyword(Keyword::While), pos }) => {
@@ -193,14 +173,8 @@ where
 				let block = self.parse_block()?;
 				self.expect(TokenKind::Keyword(Keyword::End))?;
 
-				Ok(
-					ast::Statement::While {
-						condition,
-						block,
-						pos: pos.into()
-					}
-				)
-			},
+				Ok(ast::Statement::While { condition, block, pos: pos.into() })
+			}
 
 			// For.
 			Some(Token { token: TokenKind::Keyword(Keyword::For), pos }) => {
@@ -213,15 +187,8 @@ where
 				let block = self.parse_block()?;
 				self.expect(TokenKind::Keyword(Keyword::End))?;
 
-				Ok(
-					ast::Statement::For {
-						identifier,
-						expr,
-						block,
-						pos: pos.into()
-					}
-				)
-			},
+				Ok(ast::Statement::For { identifier, expr, block, pos: pos.into() })
+			}
 
 			// Expr.
 			Some(token) => {
@@ -229,10 +196,8 @@ where
 
 				let expr = self.parse_expression()?;
 
-				Ok(
-					ast::Statement::Expr(expr)
-				)
-			},
+				Ok(ast::Statement::Expr(expr))
+			}
 
 			// EOF.
 			None => Err(Error::unexpected_eof()),
@@ -245,15 +210,27 @@ where
 	fn parse_expression(&mut self) -> Result<ast::Expr, Error> {
 		// TODO: Function call and subscript operator
 		// TODO: dot access
-		// self.parse_or()
 
-		let parse_factor     = move |parser: &mut Self| parser.parse_binop(Self::parse_unop, Operator::is_factor);
-		let parse_term       = move |parser: &mut Self| parser.parse_binop(parse_factor, Operator::is_term);
-		let parse_concat     = move |parser: &mut Self| parser.parse_binop(parse_term, |&op| op == Operator::Concat);
-		let parse_comparison = move |parser: &mut Self| parser.parse_binop(parse_concat, Operator::is_comparison);
-		let parse_equality   = move |parser: &mut Self| parser.parse_binop(parse_comparison, Operator::is_equality);
-		let parse_and        = move |parser: &mut Self| parser.parse_binop(parse_equality, |&op| op == Operator::And);
-		let parse_or         = move |parser: &mut Self| parser.parse_binop(parse_and, |&op| op == Operator::Or);
+		let parse_factor =
+			move |parser: &mut Self| parser.parse_binop(Self::parse_unop, Operator::is_factor);
+
+		let parse_term =
+			move |parser: &mut Self| parser.parse_binop(parse_factor, Operator::is_term);
+
+		let parse_concat =
+			move |parser: &mut Self| parser.parse_binop(parse_term, |&op| op == Operator::Concat);
+
+		let parse_comparison =
+			move |parser: &mut Self| parser.parse_binop(parse_concat, Operator::is_comparison);
+
+		let parse_equality =
+			move |parser: &mut Self| parser.parse_binop(parse_comparison, Operator::is_equality);
+
+		let parse_and =
+			move |parser: &mut Self| parser.parse_binop(parse_equality, |&op| op == Operator::And);
+
+		let parse_or =
+			move |parser: &mut Self| parser.parse_binop(parse_and, |&op| op == Operator::Or);
 
 		parse_or(self)
 	}
@@ -263,7 +240,7 @@ where
 	fn parse_binop<P, F>(
 		&mut self,
 		mut parse_higher_prec_op: P,
-		mut check: F
+		mut check: F,
 	) -> Result<ast::Expr, Error>
 	where
 		P: FnMut(&mut Self) -> Result<ast::Expr, Error>,
@@ -284,12 +261,12 @@ where
 						right: right.into(),
 						pos: pos.into(),
 					};
-				},
+				}
 
 				token => {
 					self.token = token;
 					break;
-				},
+				}
 			}
 		}
 
@@ -305,19 +282,17 @@ where
 
 				let operand = self.parse_unop()?;
 
-				Ok(
-					ast::Expr::UnaryOp {
-						op: op.into(),
-						operand: operand.into(),
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Expr::UnaryOp {
+					op: op.into(),
+					operand: operand.into(),
+					pos: pos.into(),
+				})
+			}
 
 			token => {
 				self.token = token;
 				self.parse_primary()
-			},
+			}
 		}
 	}
 
@@ -329,36 +304,22 @@ where
 			Some(Token { token: TokenKind::Identifier(identifier), pos }) => {
 				self.step();
 
-				Ok(
-					ast::Expr::Identifier {
-						identifier,
-						pos: pos.into(),
-					}
-				)
+				Ok(ast::Expr::Identifier { identifier, pos: pos.into() })
 			}
 
 			// Self.
 			Some(Token { token: TokenKind::Keyword(Keyword::Self_), pos }) => {
 				self.step();
 
-				Ok(
-					ast::Expr::Self_ {
-						pos: pos.into(),
-					}
-				)
+				Ok(ast::Expr::Self_ { pos: pos.into() })
 			}
 
 			// Basic literal.
 			Some(Token { token: TokenKind::Literal(literal), pos }) => {
 				self.step();
 
-				Ok(
-					ast::Expr::Literal {
-						literal: literal.into(),
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Expr::Literal { literal: literal.into(), pos: pos.into() })
+			}
 
 			// Array literal.
 			Some(Token { token: TokenKind::OpenBracket, pos }) => {
@@ -367,27 +328,23 @@ where
 				let items = self.comma_sep(Self::parse_expression)?;
 				self.expect(TokenKind::CloseBracket)?;
 
-				Ok(
-					ast::Expr::Literal {
-						literal: ast::Literal::Array(items.into()),
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Expr::Literal {
+					literal: ast::Literal::Array(items.into()),
+					pos: pos.into(),
+				})
+			}
 
 			// Dict literal.
 			Some(Token { token: TokenKind::OpenDict, pos }) => {
 				self.step();
 
-				let items = self.comma_sep(
-					|parser| {
-						let key = parser.parse_identifier()?;
-						parser.expect(TokenKind::Colon)?;
-						let value = parser.parse_expression()?;
+				let items = self.comma_sep(|parser| {
+					let key = parser.parse_identifier()?;
+					parser.expect(TokenKind::Colon)?;
+					let value = parser.parse_expression()?;
 
-						Ok((key, value))
-					}
-				)?;
+					Ok((key, value))
+				})?;
 				self.expect(TokenKind::CloseBracket)?;
 
 				// TODO: warn on duplicate item.
@@ -396,26 +353,16 @@ where
 					.into_iter()
 					.collect();
 
-				Ok(
-					ast::Expr::Literal {
-						literal: ast::Literal::Dict(dict),
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Expr::Literal { literal: ast::Literal::Dict(dict), pos: pos.into() })
+			}
 
 			// Function literal.
 			Some(Token { token: TokenKind::Keyword(Keyword::Function), pos }) => {
 				self.step();
 				let function = self.parse_function()?;
 
-				Ok(
-					ast::Expr::Literal {
-						literal: function,
-						pos: pos.into(),
-					}
-				)
-			},
+				Ok(ast::Expr::Literal { literal: function, pos: pos.into() })
+			}
 
 			// TODO: command block
 
@@ -427,13 +374,11 @@ where
 				self.expect(TokenKind::Keyword(Keyword::Then))?;
 				let then = self.parse_block()?;
 				let otherwise = {
-					let has_else = self.eat(
-						|token| match token {
-							Token { token: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
-							Token { token: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
-							token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
-						}
-					)?;
+					let has_else = self.eat(|token| match token {
+						Token { token: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
+						Token { token: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
+						token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
+					})?;
 
 					if has_else {
 						let block = self.parse_block()?;
@@ -444,14 +389,12 @@ where
 					}
 				};
 
-				Ok(
-					ast::Expr::If {
-						condition: condition.into(),
-						then,
-						otherwise,
-						pos: pos.into(),
-					}
-				)
+				Ok(ast::Expr::If {
+					condition: condition.into(),
+					then,
+					otherwise,
+					pos: pos.into(),
+				})
 			}
 
 			// Parenthesis.
@@ -469,7 +412,7 @@ where
 				// We need to restore the token because it may be some delimiter.
 				self.token = Some(token.clone());
 				Err(Error::unexpected_msg(token, "expression"))
-			},
+			}
 
 			None => Err(Error::unexpected_eof()),
 		}
@@ -478,12 +421,10 @@ where
 
 	/// Parse a identifier.
 	fn parse_identifier(&mut self) -> Result<ast::Symbol, Error> {
-		self.eat(
-			|token| match token {
-				Token { token: TokenKind::Identifier(symbol), .. } => Ok(symbol),
-				token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
-			}
-		)
+		self.eat(|token| match token {
+			Token { token: TokenKind::Identifier(symbol), .. } => Ok(symbol),
+			token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
+		})
 	}
 
 
@@ -495,9 +436,7 @@ where
 		let body = self.parse_block()?;
 		self.expect(TokenKind::Keyword(Keyword::End))?;
 
-		Ok(
-			ast::Literal::Function { args, body }
-		)
+		Ok(ast::Literal::Function { args, body })
 	}
 
 

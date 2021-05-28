@@ -1,17 +1,17 @@
 pub mod ast;
+pub mod error;
 pub mod lexer;
 pub mod parser;
-pub mod error;
 mod source;
 
 use std::cell::RefCell;
 
+use crate::symbol;
 pub use ast::Ast;
-pub use source::{Source, SourcePos};
 pub use error::Error;
 use lexer::Lexer;
 use parser::Parser;
-use crate::symbol;
+pub use source::{Source, SourcePos};
 
 
 #[derive(Debug)]
@@ -34,28 +34,22 @@ impl Analysis {
 		// iteration (producing a token or an error) before yielding to the parser.
 		let errors = RefCell::new(Vec::new());
 
-		let tokens = lexer.filter_map(
-			|result| match result {
-				Ok(token) => Some(token),
-				Err(error) => {
-					errors.borrow_mut().push(Error::Lexer(error));
-					None
-				},
+		let tokens = lexer.filter_map(|result| match result {
+			Ok(token) => Some(token),
+			Err(error) => {
+				errors.borrow_mut().push(Error::Lexer(error));
+				None
 			}
-		);
+		});
 
-		let parser = Parser::new(
-			tokens,
-			|error| errors.borrow_mut().push(Error::Parser(error))
-		);
+		let parser = Parser::new(tokens, |error| {
+			errors.borrow_mut().push(Error::Parser(error))
+		});
 
 		let statements = parser.parse();
 
 		Analysis {
-			ast: Ast {
-				path: source.path,
-				statements,
-			},
+			ast: Ast { path: source.path, statements },
 			errors: errors.into_inner().into(),
 		}
 	}

@@ -67,11 +67,7 @@ pub enum Operator {
 impl Operator {
 	/// Strict equality operators (==, !=).
 	pub fn is_equality(&self) -> bool {
-		matches!(
-			self,
-			Self::Equals
-				| Self::NotEquals
-		)
+		matches!(self, Self::Equals | Self::NotEquals)
 	}
 
 
@@ -79,42 +75,26 @@ impl Operator {
 	pub fn is_comparison(&self) -> bool {
 		matches!(
 			self,
-			Self::Lower
-				| Self::LowerEquals
-				| Self::Greater
-				| Self::GreaterEquals
+			Self::Lower | Self::LowerEquals | Self::Greater | Self::GreaterEquals
 		)
 	}
 
 
 	/// Additive arithmetic operators (+, -).
 	pub fn is_term(&self) -> bool {
-		matches!(
-			self,
-			Self::Plus
-				| Self::Minus
-		)
+		matches!(self, Self::Plus | Self::Minus)
 	}
 
 
 	/// Multiplicative arithmetic operators (*, /, %).
 	pub fn is_factor(&self) -> bool {
-		matches!(
-			self,
-			Self::Times
-				| Self::Div
-				| Self::Mod
-		)
+		matches!(self, Self::Times | Self::Div | Self::Mod)
 	}
 
 
 	/// Unary operators (-, not)
 	pub fn is_unary(&self) -> bool {
-		matches!(
-			self,
-			Self::Not
-				| Self::Minus
-		)
+		matches!(self, Self::Not | Self::Minus)
 	}
 }
 

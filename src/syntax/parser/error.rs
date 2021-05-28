@@ -24,10 +24,7 @@ impl Display for Expected {
 #[derive(Debug)]
 pub enum Error {
 	UnexpectedEof,
-	Unexpected {
-		token: Token,
-		expected: Expected,
-	},
+	Unexpected { token: Token, expected: Expected },
 }
 
 
@@ -38,18 +35,12 @@ impl Error {
 
 
 	pub fn unexpected(token: Token, expected: TokenKind) -> Self {
-		Self::Unexpected {
-			token,
-			expected: Expected::Token(expected)
-		}
+		Self::Unexpected { token, expected: Expected::Token(expected) }
 	}
 
 
 	pub fn unexpected_msg(token: Token, message: &'static str) -> Self {
-		Self::Unexpected {
-			token,
-			expected: Expected::Message(message)
-		}
+		Self::Unexpected { token, expected: Expected::Message(message) }
 	}
 }
 
@@ -59,11 +50,15 @@ impl Display for Error {
 		match self {
 			Self::UnexpectedEof => write!(f, "Error: unexpected end of file"),
 			Self::Unexpected { token: Token { token, pos }, expected } => {
-				write!(f, "Error at {}: unexpected '{:?}', expected {}", pos, token, expected)
-			},
+				write!(
+					f,
+					"Error at {}: unexpected '{:?}', expected {}",
+					pos, token, expected
+				)
+			}
 		}
 	}
 }
 
 
-impl std::error::Error for Error { }
+impl std::error::Error for Error {}

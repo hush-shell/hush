@@ -73,7 +73,7 @@ impl Display for Error {
 }
 
 
-impl std::error::Error for Error { }
+impl std::error::Error for Error {}
 
 
 impl Error {
@@ -97,10 +97,16 @@ impl Error {
 	}
 
 	pub fn invalid_number(number: &[u8], pos: SourcePos) -> Self {
-		Self { error: ErrorKind::InvalidNumber(number.into()), pos }
+		Self {
+			error: ErrorKind::InvalidNumber(number.into()),
+			pos,
+		}
 	}
 
 	pub fn invalid_identifier(ident: &[u8], pos: SourcePos) -> Self {
-		Self { error: ErrorKind::InvalidIdentifier(ident.into()), pos }
+		Self {
+			error: ErrorKind::InvalidIdentifier(ident.into()),
+			pos,
+		}
 	}
 }

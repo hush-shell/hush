@@ -1,7 +1,7 @@
 use std::{
 	fmt::{self, Display},
 	fs::File,
-	path::Path
+	path::Path,
 };
 
 use super::lexer;
@@ -40,12 +40,7 @@ impl Source {
 		let mut contents = Vec::with_capacity(512); // Expect a few characters.
 		reader.read_to_end(&mut contents)?;
 
-		Ok(
-			Self {
-				path,
-				contents: contents.into(),
-			}
-		)
+		Ok(Self { path, contents: contents.into() })
 	}
 }
 
@@ -67,9 +62,6 @@ impl Display for SourcePos {
 
 impl From<lexer::SourcePos> for SourcePos {
 	fn from(pos: lexer::SourcePos) -> Self {
-		Self {
-			line: pos.line,
-			column: pos.column,
-		}
+		Self { line: pos.line, column: pos.column }
 	}
 }

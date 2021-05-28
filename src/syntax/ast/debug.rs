@@ -1,24 +1,13 @@
 use std::fmt::{self, Debug};
 
+use super::{Ast, BinaryOp, Block, CommandBlockKind, Expr, Literal, Statement, UnaryOp};
 use crate::symbol::SymbolExt;
-use super::{
-	Ast,
-	BinaryOp,
-	Block,
-	CommandBlockKind,
-	Expr,
-	Literal,
-	Statement,
-	UnaryOp,
-};
 
 
 impl Debug for Block {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if f.alternate() {
-			f.debug_set()
-				.entries(self.0.iter())
-				.finish()?;
+			f.debug_set().entries(self.0.iter()).finish()?;
 		} else {
 			for statement in self.0.iter() {
 				write!(f, "{:?}; ", statement)?;
@@ -39,16 +28,8 @@ impl Debug for Literal {
 			Self::Float(n) => write!(f, "{}", *n),
 			Self::Byte(c) => write!(f, "'{}'", *c as char),
 			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s)),
-			Self::Array(arr) => {
-				f.debug_list()
-					.entries(arr.iter())
-					.finish()
-			}
-			Self::Dict(dict) => {
-				f.debug_map()
-					.entries(dict.iter())
-					.finish()
-			}
+			Self::Array(arr) => f.debug_list().entries(arr.iter()).finish(),
+			Self::Dict(dict) => f.debug_map().entries(dict.iter()).finish(),
 			Self::Function { args, body } => {
 				write!(f, "function (")?;
 
@@ -104,18 +85,26 @@ impl Debug for Expr {
 		match self {
 			Self::Self_ { .. } => write!(f, "self"),
 			Self::Identifier { identifier, .. } => write!(f, "id#{}", identifier.to_usize()),
-			Self::Literal { literal, .. } => if f.alternate() {
-				write!(f, "{:#?}", literal)
-			} else {
-				write!(f, "{:?}", literal)
-			},
+			Self::Literal { literal, .. } => {
+				if f.alternate() {
+					write!(f, "{:#?}", literal)
+				} else {
+					write!(f, "{:?}", literal)
+				}
+			}
 			Self::UnaryOp { op, operand, .. } => write!(f, "({:?} {:?})", op, operand),
-			Self::BinaryOp { left, op, right, .. } => write!(f, "({:?} {:?} {:?})", left, op, right),
+			Self::BinaryOp { left, op, right, .. } => {
+				write!(f, "({:?} {:?} {:?})", left, op, right)
+			}
 			Self::If { condition, then, otherwise, .. } => {
 				if f.alternate() {
 					write!(f, "if {:?} {:#?} else {:#?}", condition, then, otherwise)
 				} else {
-					write!(f, "if {:?} then {:?} else {:?} end", condition, then, otherwise)
+					write!(
+						f,
+						"if {:?} then {:?} else {:?} end",
+						condition, then, otherwise
+					)
 				}
 			}
 			Self::Access { object, field, .. } => write!(f, "{:?}[{:?}]", object, field),
@@ -135,9 +124,7 @@ impl Debug for Expr {
 					CommandBlockKind::Capture => write!(f, "$")?,
 				}
 
-				f.debug_set()
-					.entries(commands.iter())
-					.finish()
+				f.debug_set().entries(commands.iter()).finish()
 			}
 		}
 	}
@@ -149,21 +136,21 @@ impl Debug for Statement {
 		match self {
 			Statement::Let { identifier, .. } => {
 				write!(f, "let id#{}", identifier.to_usize())
-			},
+			}
 			Statement::Assign { left, right, .. } => {
 				if f.alternate() {
 					write!(f, "{:?} = {:#?}", left, right)
 				} else {
 					write!(f, "{:?} = {:?}", left, right)
 				}
-			},
+			}
 			Statement::Return { expr, .. } => {
 				if f.alternate() {
 					write!(f, "return {:#?}", expr)
 				} else {
 					write!(f, "return {:?}", expr)
 				}
-			},
+			}
 			Statement::Break { .. } => write!(f, "break"),
 			Statement::While { condition, block, .. } => {
 				if f.alternate() {
@@ -171,21 +158,33 @@ impl Debug for Statement {
 				} else {
 					write!(f, "while {:?} do {:?} end", condition, block)
 				}
-			},
+			}
 			Statement::For { identifier, expr, block, .. } => {
 				if f.alternate() {
-					write!(f, "for id#{} in {:?} do {:#?}", identifier.to_usize(), expr, block)
+					write!(
+						f,
+						"for id#{} in {:?} do {:#?}",
+						identifier.to_usize(),
+						expr,
+						block
+					)
 				} else {
-					write!(f, "for id#{} in {:?} do {:?} end", identifier.to_usize(), expr, block)
+					write!(
+						f,
+						"for id#{} in {:?} do {:?} end",
+						identifier.to_usize(),
+						expr,
+						block
+					)
 				}
-			},
+			}
 			Statement::Expr(expr) => {
 				if f.alternate() {
 					write!(f, "{:#?}", expr)
 				} else {
 					write!(f, "{:?}", expr)
 				}
-			},
+			}
 		}
 	}
 }

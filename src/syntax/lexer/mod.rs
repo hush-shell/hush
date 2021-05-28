@@ -9,16 +9,7 @@ use crate::symbol;
 use automata::Automata;
 pub use cursor::{Cursor, SourcePos};
 pub use error::{Error, ErrorKind};
-pub use token::{
-	ArgPart,
-	ArgUnit,
-	CommandOperator,
-	Keyword,
-	Literal,
-	Operator,
-	Token,
-	TokenKind
-};
+pub use token::{ArgPart, ArgUnit, CommandOperator, Keyword, Literal, Operator, Token, TokenKind};
 
 
 /// The lexer for Hush source code.

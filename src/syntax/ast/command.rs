@@ -1,7 +1,4 @@
-use crate::{
-	io::FileDescriptor,
-	symbol::Symbol,
-};
+use crate::{io::FileDescriptor, symbol::Symbol};
 
 
 /// The most basic part of an argument.
@@ -65,7 +62,7 @@ pub struct Command(Box<[BasicCommand]>);
 /// The kinds of command blocks.
 #[derive(Debug)]
 pub enum CommandBlockKind {
-	Synchronous, // {}
+	Synchronous,  // {}
 	Asynchronous, // &{}
-	Capture, // ${}
+	Capture,      // ${}
 }

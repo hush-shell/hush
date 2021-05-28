@@ -9,10 +9,7 @@ use std::path::Path;
 
 
 fn main() -> std::io::Result<()> {
-	let source = syntax::Source::from_reader(
-		Path::new("<stdin>"),
-		std::io::stdin().lock()
-	)?;
+	let source = syntax::Source::from_reader(Path::new("<stdin>"), std::io::stdin().lock())?;
 
 	syntax(source);
 
