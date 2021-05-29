@@ -23,11 +23,7 @@ fn syntax(source: syntax::Source) {
 	let mut interner = symbol::Interner::new();
 	let analysis = Analysis::analyze(source, &mut interner);
 
-	for error in analysis.errors.iter() {
-		eprintln!("{}", error);
-	}
-
-	println!("{:#?}", analysis.ast);
+	println!("{:#?}", analysis);
 }
 
 

@@ -10,7 +10,7 @@ use command::{Command, CommandBlockKind};
 
 /// A block is a list of statements, constituting a new scope.
 #[derive(Default)]
-pub struct Block(Box<[Statement]>);
+pub struct Block(pub Box<[Statement]>);
 
 
 impl From<Box<[Statement]>> for Block {
@@ -36,6 +36,10 @@ pub enum Literal {
 		args: Box<[Symbol]>,
 		body: Block,
 	},
+	/// For the dot access operator, we want to be able to have identifiers as literal
+	/// strings instead of names for variables. This variant should only be used in such
+	/// case.
+	Identifier(Symbol),
 }
 
 
@@ -159,7 +163,7 @@ pub enum Expr {
 		field: Box<Expr>,
 		pos: SourcePos,
 	},
-	FunctionCall {
+	Call {
 		function: Box<Expr>,
 		params: Box<[Expr]>,
 		pos: SourcePos,
@@ -177,12 +181,12 @@ pub enum Statement {
 	/// Introduces an identifier.
 	Let {
 		identifier: Symbol,
+		init: Expr,
 		pos: SourcePos,
 	},
 	Assign {
 		left: Expr,
 		right: Expr,
-		pos: SourcePos,
 	},
 	Return {
 		expr: Expr,

@@ -1,8 +1,6 @@
 mod error;
-#[cfg(test)]
-mod tests;
 
-use super::lexer::{Keyword, Token, TokenKind};
+use super::{SourcePos, lexer::{Keyword, Token, TokenKind}};
 use super::{ast, lexer::Operator};
 pub use error::Error;
 
@@ -110,6 +108,7 @@ where
 		loop {
 			match &self.token {
 				// Break on end of block.
+				Some(Token { token: TokenKind::Keyword(Keyword::Else), .. }) => break,
 				Some(Token { token: TokenKind::Keyword(Keyword::End), .. }) => break,
 
 				Some(_) => {
@@ -140,13 +139,23 @@ where
 			Some(Token { token: TokenKind::Keyword(Keyword::Let), pos }) => {
 				self.step();
 
-				let identifier = self.parse_identifier()?;
+				let (identifier, _) = self.parse_identifier()?;
+				let init;
+				if matches!(self.token, Some(Token { token: TokenKind::Operator(Operator::Assign), .. })) {
+					self.step();
 
-				Ok(ast::Statement::Let { identifier, pos: pos.into() })
+					init = self.parse_expression()?;
+				} else {
+					init = ast::Expr::Literal {
+						literal: ast::Literal::Nil,
+						pos: pos.into(),
+					};
+				}
+
+				Ok(ast::Statement::Let { identifier, init, pos: pos.into() })
 			}
 
-			// TODO: assignment.
-			// TODO: let function
+			// TODO: let function (will this require a single token lookahead?)
 
 			// Return.
 			Some(Token { token: TokenKind::Keyword(Keyword::Return), pos }) => {
@@ -180,7 +189,7 @@ where
 			Some(Token { token: TokenKind::Keyword(Keyword::For), pos }) => {
 				self.step();
 
-				let identifier = self.parse_identifier()?;
+				let (identifier, _) = self.parse_identifier()?;
 				self.expect(TokenKind::Keyword(Keyword::In))?;
 				let expr = self.parse_expression()?;
 				self.expect(TokenKind::Keyword(Keyword::Do))?;
@@ -196,7 +205,17 @@ where
 
 				let expr = self.parse_expression()?;
 
-				Ok(ast::Statement::Expr(expr))
+				if matches!(self.token, Some(Token { token: TokenKind::Operator(Operator::Assign), .. })) {
+					self.step();
+
+					let right = self.parse_expression()?;
+
+					Ok(
+						ast::Statement::Assign { left: expr, right }
+					)
+				} else {
+					Ok(ast::Statement::Expr(expr))
+				}
 			}
 
 			// EOF.
@@ -206,31 +225,20 @@ where
 
 
 	/// Parse a single expression.
-
 	fn parse_expression(&mut self) -> Result<ast::Expr, Error> {
-		// TODO: Function call and subscript operator
-		// TODO: dot access
+		macro_rules! binop {
+			($parse_higher_prec:expr, $check:expr) => {
+				move |parser: &mut Self| parser.parse_binop($parse_higher_prec, $check)
+			}
+		}
 
-		let parse_factor =
-			move |parser: &mut Self| parser.parse_binop(Self::parse_unop, Operator::is_factor);
-
-		let parse_term =
-			move |parser: &mut Self| parser.parse_binop(parse_factor, Operator::is_term);
-
-		let parse_concat =
-			move |parser: &mut Self| parser.parse_binop(parse_term, |&op| op == Operator::Concat);
-
-		let parse_comparison =
-			move |parser: &mut Self| parser.parse_binop(parse_concat, Operator::is_comparison);
-
-		let parse_equality =
-			move |parser: &mut Self| parser.parse_binop(parse_comparison, Operator::is_equality);
-
-		let parse_and =
-			move |parser: &mut Self| parser.parse_binop(parse_equality, |&op| op == Operator::And);
-
-		let parse_or =
-			move |parser: &mut Self| parser.parse_binop(parse_and, |&op| op == Operator::Or);
+		let parse_factor     = binop!(Self::parse_unop, Operator::is_factor);
+		let parse_term       = binop!(parse_factor,     Operator::is_term);
+		let parse_concat     = binop!(parse_term,       |&op| op == Operator::Concat);
+		let parse_comparison = binop!(parse_concat,     Operator::is_comparison);
+		let parse_equality   = binop!(parse_comparison, Operator::is_equality);
+		let parse_and        = binop!(parse_equality,   |&op| op == Operator::And);
+		let parse_or         = binop!(parse_and,        |&op| op == Operator::Or);
 
 		parse_or(self)
 	}
@@ -291,9 +299,72 @@ where
 
 			token => {
 				self.token = token;
-				self.parse_primary()
+				self.parse_suffix()
 			}
 		}
+	}
+
+
+	fn parse_suffix(&mut self) -> Result<ast::Expr, Error> {
+		let mut expr = self.parse_primary()?;
+
+		loop {
+			match self.token.take() {
+				// Function call.
+				Some(Token { token: TokenKind::OpenParens, pos }) => {
+					self.step();
+
+					let params = self.comma_sep(Self::parse_expression)?;
+					self.expect(TokenKind::CloseParens)?;
+
+					expr = ast::Expr::Call {
+						function: expr.into(),
+						params: params.into(),
+						pos: pos.into(),
+					}
+				},
+
+				// Subscript operator.
+				Some(Token { token: TokenKind::OpenBracket, pos }) => {
+					self.step();
+
+					let field = self.parse_expression()?;
+					self.expect(TokenKind::CloseBracket)?;
+
+					expr = ast::Expr::Access {
+						object: expr.into(),
+						field: field.into(),
+						pos: pos.into(),
+					}
+				},
+
+				// Dot access operator.
+				Some(Token { token: TokenKind::Operator(Operator::Dot), pos }) => {
+					self.step();
+
+					// Here, the identifier is a literal, and not a variable name. Hence, `var.id`
+					// is equivalent to `var["id"]`, and not from `var[id]`.
+					let (identifier, id_pos) = self.parse_identifier()?;
+					let field = ast::Expr::Literal {
+						literal: ast::Literal::Identifier(identifier),
+						pos: id_pos,
+					};
+
+					expr = ast::Expr::Access {
+						object: expr.into(),
+						field: field.into(),
+						pos: pos.into(),
+					}
+				},
+
+				token => {
+					self.token = token;
+					break;
+				}
+			}
+		}
+
+		Ok(expr)
 	}
 
 
@@ -339,7 +410,7 @@ where
 				self.step();
 
 				let items = self.comma_sep(|parser| {
-					let key = parser.parse_identifier()?;
+					let (key, _) = parser.parse_identifier()?;
 					parser.expect(TokenKind::Colon)?;
 					let value = parser.parse_expression()?;
 
@@ -420,9 +491,9 @@ where
 
 
 	/// Parse a identifier.
-	fn parse_identifier(&mut self) -> Result<ast::Symbol, Error> {
+	fn parse_identifier(&mut self) -> Result<(ast::Symbol, SourcePos), Error> {
 		self.eat(|token| match token {
-			Token { token: TokenKind::Identifier(symbol), .. } => Ok(symbol),
+			Token { token: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos.into())),
 			token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
 		})
 	}
@@ -431,7 +502,10 @@ where
 	/// Parse a function literal after the function keyword.
 	fn parse_function(&mut self) -> Result<ast::Literal, Error> {
 		self.expect(TokenKind::OpenParens)?;
-		let args = self.comma_sep(Self::parse_identifier)?;
+		let args = self.comma_sep(|parser| {
+			let (id, _) = parser.parse_identifier()?;
+			Ok(id)
+		})?;
 		self.expect(TokenKind::CloseParens)?;
 		let body = self.parse_block()?;
 		self.expect(TokenKind::Keyword(Keyword::End))?;

@@ -43,6 +43,7 @@ impl Debug for Literal {
 					write!(f, ") {:?} end", body)
 				}
 			}
+			Self::Identifier(identifier) => write!(f, "\"id#{}\"", identifier.to_usize()),
 		}
 	}
 }
@@ -108,7 +109,7 @@ impl Debug for Expr {
 				}
 			}
 			Self::Access { object, field, .. } => write!(f, "{:?}[{:?}]", object, field),
-			Self::FunctionCall { function, params, .. } => {
+			Self::Call { function, params, .. } => {
 				write!(f, "{:?}(", function)?;
 
 				for param in params.iter() {
@@ -134,8 +135,12 @@ impl Debug for Expr {
 impl Debug for Statement {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Statement::Let { identifier, .. } => {
-				write!(f, "let id#{}", identifier.to_usize())
+			Statement::Let { identifier, init, .. } => {
+				if f.alternate() {
+					write!(f, "let id#{} = {:#?}", identifier.to_usize(), init)
+				} else {
+					write!(f, "let id#{} = {:?}", identifier.to_usize(), init)
+				}
 			}
 			Statement::Assign { left, right, .. } => {
 				if f.alternate() {

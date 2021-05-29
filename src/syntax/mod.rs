@@ -3,8 +3,10 @@ pub mod error;
 pub mod lexer;
 pub mod parser;
 mod source;
+#[cfg(test)]
+mod tests;
 
-use std::cell::RefCell;
+use std::{cell::RefCell, fmt::{self, Debug}};
 
 use crate::symbol;
 pub use ast::Ast;
@@ -14,7 +16,6 @@ use parser::Parser;
 pub use source::{Source, SourcePos};
 
 
-#[derive(Debug)]
 pub struct Analysis {
 	/// The produced AST, possibly partial if there were errors.
 	pub ast: Ast,
@@ -51,6 +52,23 @@ impl Analysis {
 		Analysis {
 			ast: Ast { path: source.path, statements },
 			errors: errors.into_inner().into(),
+		}
+	}
+}
+
+
+impl Debug for Analysis {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		writeln!(f, "Analysis for {}", self.ast.path.display())?;
+
+		for error in self.errors.iter() {
+			writeln!(f, "{}", error)?;
+		}
+
+		if f.alternate() {
+			writeln!(f, "{:#?}", self.ast.statements)
+		} else {
+			writeln!(f, "{:?}", self.ast.statements)
 		}
 	}
 }
