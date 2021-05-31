@@ -301,13 +301,13 @@ where
 
 			token => {
 				self.token = token;
-				self.parse_suffix()
+				self.parse_postfix()
 			}
 		}
 	}
 
 
-	fn parse_suffix(&mut self) -> Result<ast::Expr, Error> {
+	fn parse_postfix(&mut self) -> Result<ast::Expr, Error> {
 		let mut expr = self.parse_primary()?;
 
 		loop {
