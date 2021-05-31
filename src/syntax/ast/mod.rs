@@ -5,7 +5,15 @@ use std::{collections::HashMap, path::Path};
 
 use super::{lexer, SourcePos};
 pub use crate::symbol::Symbol;
-use command::{Command, CommandBlockKind};
+pub use command::{
+	Command,
+	CommandBlockKind,
+	ArgumentPart,
+	Argument,
+	RedirectionTarget,
+	Redirection,
+	BasicCommand
+};
 
 
 /// A block is a list of statements, constituting a new scope.

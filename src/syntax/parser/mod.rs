@@ -1,9 +1,13 @@
+mod command;
 mod error;
 
 use std::collections::HashMap;
 
-use super::{SourcePos, lexer::{Keyword, Token, TokenKind}};
-use super::{ast, lexer::Operator};
+use super::{
+	SourcePos,
+	ast::{self, CommandBlockKind},
+	lexer::{Keyword, Token, TokenKind, Operator, CommandOperator}
+};
 pub use error::Error;
 
 
@@ -439,7 +443,21 @@ where
 				Ok(ast::Expr::Literal { literal: function, pos })
 			}
 
-			// TODO: command block
+			// Command blocks.
+			Some(Token { token, pos }) if CommandBlockKind::from_token(&token).is_some() => {
+				self.step();
+
+				let commands = self.parse_command_block()?;
+
+				Ok(
+					ast::Expr::CommandBlock {
+						// TODO: refactor this expect as a if-let guard when stabilized.
+						kind: CommandBlockKind::from_token(&token).expect("invalid command token"),
+						commands,
+						pos
+					}
+				)
+			}
 
 			// If conditional.
 			Some(Token { token: TokenKind::Keyword(Keyword::If), pos }) => {
@@ -519,17 +537,28 @@ where
 
 
 	/// Comma-separated items.
-	fn comma_sep<P, R>(&mut self, mut parse: P) -> Result<Box<[R]>, Error>
+	fn comma_sep<P, R>(&mut self, parse: P) -> Result<Box<[R]>, Error>
 	where
 		P: FnMut(&mut Self) -> Result<R, Error>,
+	{
+		self.sep_by(parse, |token| *token == TokenKind::Comma)
+	}
+
+
+	/// Items divided by a separator.
+	/// A ending trailing separator is optional.
+	fn sep_by<P, R, S>(&mut self, mut parse: P, mut sep: S) -> Result<Box<[R]>, Error>
+	where
+		P: FnMut(&mut Self) -> Result<R, Error>,
+		S: FnMut(&TokenKind) -> bool,
 	{
 		let mut items = Vec::new();
 
 		while let Ok(item) = parse(self) {
 			items.push(item);
 
-			match self.token {
-				Some(Token { token: TokenKind::Comma, .. }) => self.step(),
+			match &self.token {
+				Some(Token { token, .. }) if sep(token) => self.step(),
 				_ => break,
 			}
 		}

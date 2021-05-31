@@ -145,8 +145,8 @@ pub enum TokenKind {
 
 	// Command block tokens
 	Command,        // {
-	CaptureCommand, // ${
 	AsyncCommand,   // &{
+	CaptureCommand, // ${
 	CloseCommand,   // }
 
 	// A single argument may be composed of many parts.
@@ -156,6 +156,16 @@ pub enum TokenKind {
 	// commands, instead of being attributed to a single command.
 	Semicolon, // ;
 	Pipe,      // |
+}
+
+
+impl TokenKind {
+	pub fn is_basic_command_end(&self) -> bool {
+		matches!(
+			self,
+			TokenKind::Semicolon | TokenKind::Pipe | TokenKind::CloseCommand
+		)
+	}
 }
 
 

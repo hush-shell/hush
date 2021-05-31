@@ -1,6 +1,21 @@
 use std::fmt::{self, Debug};
 
-use super::{Ast, BinaryOp, Block, CommandBlockKind, Expr, Literal, Statement, UnaryOp};
+use super::{
+	BasicCommand,
+	Command,
+	RedirectionTarget,
+	Redirection,
+	ArgumentPart,
+	Argument,
+	Ast,
+	BinaryOp,
+	Block,
+	CommandBlockKind,
+	Expr,
+	Literal,
+	Statement,
+	UnaryOp,
+};
 use crate::symbol::SymbolExt;
 
 
@@ -191,6 +206,89 @@ impl Debug for Statement {
 				}
 			}
 		}
+	}
+}
+
+
+impl Debug for ArgumentPart {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Self::Literal(lit) => write!(f, "{}", String::from_utf8_lossy(lit)),
+			Self::Dollar(identifier) => write!(f, "${{id#{}}}", identifier.to_usize()),
+		}
+	}
+}
+
+
+impl Debug for Argument {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "\"")?;
+
+		for part in self.parts.iter() {
+			write!(f, "{:?}", part)?;
+		}
+
+		write!(f, "\"")
+	}
+}
+
+
+impl Debug for RedirectionTarget {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Self::Fd(fd) => write!(f, "{}", fd),
+			Self::File(arg) => write!(f, "{:?}", arg),
+		}
+	}
+}
+
+
+impl Debug for Redirection {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Self::Output { source, target } => write!(f, "{}> {:?}", source, target),
+			Self::OutputAppend { source, target } => write!(f, "{}>> {:?}", source, target),
+			Self::Input { literal: true, source } => write!(f, "< {:?}", source),
+			Self::Input { literal: false, source } => write!(f, "<< {:?}", source),
+		}
+	}
+}
+
+
+impl Debug for BasicCommand {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{:?}", self.command)?;
+
+		for arg in self.arguments.iter() {
+			write!(f, " {:?}", arg)?;
+		}
+
+		if !self.redirections.is_empty() {
+			write!(f, " {:?}", self.redirections)?;
+		}
+
+		if self.abort_on_error {
+			write!(f, " ?")?;
+		}
+
+		Ok(())
+	}
+}
+
+
+impl Debug for Command {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let mut commands = self.0.iter();
+
+		let command = commands.next().expect("empty command");
+
+		write!(f, "{:?}", command)?;
+
+		for command in commands {
+			write!(f, " | {:?}", command)?;
+		}
+
+		Ok(())
 	}
 }
 
