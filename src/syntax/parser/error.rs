@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use super::{Token, TokenKind};
+use super::{Token, TokenKind, SourcePos};
 
 
 /// What kind of token the parser was expecting.
@@ -25,6 +25,7 @@ impl Display for Expected {
 pub enum Error {
 	UnexpectedEof,
 	Unexpected { token: Token, expected: Expected },
+	DuplicateKeys { pos: SourcePos },
 }
 
 
@@ -42,6 +43,11 @@ impl Error {
 	pub fn unexpected_msg(token: Token, message: &'static str) -> Self {
 		Self::Unexpected { token, expected: Expected::Message(message) }
 	}
+
+
+	pub fn duplicate_keys(pos: SourcePos) -> Self {
+		Self::DuplicateKeys { pos }
+	}
 }
 
 
@@ -55,6 +61,9 @@ impl Display for Error {
 					"Error at {}: unexpected '{:?}', expected {}",
 					pos, token, expected
 				)
+			},
+			Self::DuplicateKeys { pos } => {
+				write!(f, "Error at {}: duplicate keys in dict literal", pos)
 			}
 		}
 	}

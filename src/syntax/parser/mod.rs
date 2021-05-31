@@ -1,5 +1,7 @@
 mod error;
 
+use std::collections::HashMap;
+
 use super::{SourcePos, lexer::{Keyword, Token, TokenKind}};
 use super::{ast, lexer::Operator};
 pub use error::Error;
@@ -418,11 +420,13 @@ where
 				})?;
 				self.expect(TokenKind::CloseBracket)?;
 
-				// TODO: warn on duplicate item.
-				let dict = items
-					.into_vec() // Slice has no owned iterator.
-					.into_iter()
-					.collect();
+				let mut dict = HashMap::new();
+
+				for (id, value) in items.into_vec() { // Use vec's owned iterator.
+					if dict.insert(id, value).is_some() { // Key already in dict.
+						return Err(Error::duplicate_keys(pos))
+					}
+				}
 
 				Ok(ast::Expr::Literal { literal: ast::Literal::Dict(dict), pos })
 			}
