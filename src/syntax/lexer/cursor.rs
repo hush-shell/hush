@@ -1,38 +1,4 @@
-use std::fmt::{self, Display};
-
-
-/// A human readable position in the source code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SourcePos {
-	pub line: u32,
-	pub column: u32,
-}
-
-
-impl SourcePos {
-	pub fn visit(&mut self, input: u8) {
-		if input == b'\n' {
-			self.line += 1;
-			self.column = 0;
-		} else {
-			self.column += 1;
-		}
-	}
-}
-
-
-impl Default for SourcePos {
-	fn default() -> Self {
-		Self { line: 1, column: 0 }
-	}
-}
-
-
-impl Display for SourcePos {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "line {}, column {}", self.line, self.column)
-	}
-}
+use super::SourcePos;
 
 
 /// A cursor for the source code.
@@ -75,7 +41,13 @@ impl<'a> Cursor<'a> {
 			return;
 		}
 
-		self.pos.visit(self.input[self.offset]);
+		if self.input[self.offset] == b'\n' {
+			self.pos.line += 1;
+			self.pos.column = 0;
+		} else {
+			self.pos.column += 1;
+		}
+
 		self.offset += 1;
 	}
 }
@@ -83,6 +55,10 @@ impl<'a> Cursor<'a> {
 
 impl<'a> From<&'a [u8]> for Cursor<'a> {
 	fn from(input: &'a [u8]) -> Self {
-		Self { input, offset: 0, pos: SourcePos::default() }
+		Self {
+			input,
+			offset: 0,
+			pos: SourcePos { line: 1, column: 0 }
+		}
 	}
 }

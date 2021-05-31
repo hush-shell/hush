@@ -4,8 +4,6 @@ use std::{
 	path::Path,
 };
 
-use super::lexer;
-
 
 /// Hush source code.
 #[derive(Debug)]
@@ -56,12 +54,5 @@ pub struct SourcePos {
 impl Display for SourcePos {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "line {}, column {}", self.line, self.column)
-	}
-}
-
-
-impl From<lexer::SourcePos> for SourcePos {
-	fn from(pos: lexer::SourcePos) -> Self {
-		Self { line: pos.line, column: pos.column }
 	}
 }

@@ -148,11 +148,11 @@ where
 				} else {
 					init = ast::Expr::Literal {
 						literal: ast::Literal::Nil,
-						pos: pos.into(),
+						pos,
 					};
 				}
 
-				Ok(ast::Statement::Let { identifier, init, pos: pos.into() })
+				Ok(ast::Statement::Let { identifier, init, pos })
 			}
 
 			// TODO: let function (will this require a single token lookahead?)
@@ -163,14 +163,14 @@ where
 
 				let expr = self.parse_expression()?;
 
-				Ok(ast::Statement::Return { expr, pos: pos.into() })
+				Ok(ast::Statement::Return { expr, pos })
 			}
 
 			// Break.
 			Some(Token { token: TokenKind::Keyword(Keyword::Break), pos }) => {
 				self.step();
 
-				Ok(ast::Statement::Break { pos: pos.into() })
+				Ok(ast::Statement::Break { pos })
 			}
 
 			// While.
@@ -182,7 +182,7 @@ where
 				let block = self.parse_block()?;
 				self.expect(TokenKind::Keyword(Keyword::End))?;
 
-				Ok(ast::Statement::While { condition, block, pos: pos.into() })
+				Ok(ast::Statement::While { condition, block, pos })
 			}
 
 			// For.
@@ -196,7 +196,7 @@ where
 				let block = self.parse_block()?;
 				self.expect(TokenKind::Keyword(Keyword::End))?;
 
-				Ok(ast::Statement::For { identifier, expr, block, pos: pos.into() })
+				Ok(ast::Statement::For { identifier, expr, block, pos })
 			}
 
 			// Expr.
@@ -267,7 +267,7 @@ where
 						left: expr.into(),
 						op: op.into(),
 						right: right.into(),
-						pos: pos.into(),
+						pos,
 					};
 				}
 
@@ -293,7 +293,7 @@ where
 				Ok(ast::Expr::UnaryOp {
 					op: op.into(),
 					operand: operand.into(),
-					pos: pos.into(),
+					pos,
 				})
 			}
 
@@ -320,7 +320,7 @@ where
 					expr = ast::Expr::Call {
 						function: expr.into(),
 						params: params.into(),
-						pos: pos.into(),
+						pos,
 					}
 				},
 
@@ -334,7 +334,7 @@ where
 					expr = ast::Expr::Access {
 						object: expr.into(),
 						field: field.into(),
-						pos: pos.into(),
+						pos,
 					}
 				},
 
@@ -353,7 +353,7 @@ where
 					expr = ast::Expr::Access {
 						object: expr.into(),
 						field: field.into(),
-						pos: pos.into(),
+						pos,
 					}
 				},
 
@@ -375,21 +375,21 @@ where
 			Some(Token { token: TokenKind::Identifier(identifier), pos }) => {
 				self.step();
 
-				Ok(ast::Expr::Identifier { identifier, pos: pos.into() })
+				Ok(ast::Expr::Identifier { identifier, pos })
 			}
 
 			// Self.
 			Some(Token { token: TokenKind::Keyword(Keyword::Self_), pos }) => {
 				self.step();
 
-				Ok(ast::Expr::Self_ { pos: pos.into() })
+				Ok(ast::Expr::Self_ { pos })
 			}
 
 			// Basic literal.
 			Some(Token { token: TokenKind::Literal(literal), pos }) => {
 				self.step();
 
-				Ok(ast::Expr::Literal { literal: literal.into(), pos: pos.into() })
+				Ok(ast::Expr::Literal { literal: literal.into(), pos })
 			}
 
 			// Array literal.
@@ -401,7 +401,7 @@ where
 
 				Ok(ast::Expr::Literal {
 					literal: ast::Literal::Array(items.into()),
-					pos: pos.into(),
+					pos,
 				})
 			}
 
@@ -424,7 +424,7 @@ where
 					.into_iter()
 					.collect();
 
-				Ok(ast::Expr::Literal { literal: ast::Literal::Dict(dict), pos: pos.into() })
+				Ok(ast::Expr::Literal { literal: ast::Literal::Dict(dict), pos })
 			}
 
 			// Function literal.
@@ -432,7 +432,7 @@ where
 				self.step();
 				let function = self.parse_function()?;
 
-				Ok(ast::Expr::Literal { literal: function, pos: pos.into() })
+				Ok(ast::Expr::Literal { literal: function, pos })
 			}
 
 			// TODO: command block
@@ -464,7 +464,7 @@ where
 					condition: condition.into(),
 					then,
 					otherwise,
-					pos: pos.into(),
+					pos,
 				})
 			}
 
@@ -493,7 +493,7 @@ where
 	/// Parse a identifier.
 	fn parse_identifier(&mut self) -> Result<(ast::Symbol, SourcePos), Error> {
 		self.eat(|token| match token {
-			Token { token: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos.into())),
+			Token { token: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos)),
 			token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
 		})
 	}
