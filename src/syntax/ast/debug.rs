@@ -1,18 +1,19 @@
 use std::fmt::{self, Debug};
 
 use super::{
-	BasicCommand,
-	Command,
-	RedirectionTarget,
-	Redirection,
-	ArgumentPart,
+	ArgPart,
+	ArgUnit,
 	Argument,
 	Ast,
+	BasicCommand,
 	BinaryOp,
 	Block,
+	Command,
 	CommandBlockKind,
 	Expr,
 	Literal,
+	Redirection,
+	RedirectionTarget,
 	Statement,
 	UnaryOp,
 };
@@ -210,11 +211,26 @@ impl Debug for Statement {
 }
 
 
-impl Debug for ArgumentPart {
+impl Debug for ArgUnit {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			Self::Literal(lit) => write!(f, "{}", String::from_utf8_lossy(lit)),
 			Self::Dollar(identifier) => write!(f, "${{id#{}}}", identifier.to_usize()),
+		}
+	}
+}
+
+
+impl Debug for ArgPart {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Self::Unit(unit) => write!(f, "{:?}", unit),
+			Self::Home => write!(f, "~/"),
+			Self::Range(start, end) => write!(f, "{{{}..{}}}", start, end),
+			Self::Collection(items) => f.debug_set().entries(items.iter()).finish(),
+			Self::Star => write!(f, "*"),
+			Self::Question => write!(f, "?"),
+			Self::CharClass(chars) => write!(f, "[{}]", String::from_utf8_lossy(chars)),
 		}
 	}
 }
@@ -236,8 +252,9 @@ impl Debug for Argument {
 impl Debug for RedirectionTarget {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::Fd(fd) => write!(f, "{}", fd),
-			Self::File(arg) => write!(f, "{:?}", arg),
+			Self::Fd(fd) => write!(f, ">{}", fd),
+			Self::Overwrite(arg) => write!(f, ">{:?}", arg),
+			Self::Append(arg) => write!(f, ">>{:?}", arg),
 		}
 	}
 }
@@ -246,10 +263,9 @@ impl Debug for RedirectionTarget {
 impl Debug for Redirection {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::Output { source, target } => write!(f, "{}> {:?}", source, target),
-			Self::OutputAppend { source, target } => write!(f, "{}>> {:?}", source, target),
-			Self::Input { literal: true, source } => write!(f, "< {:?}", source),
-			Self::Input { literal: false, source } => write!(f, "<< {:?}", source),
+			Self::Output { source, target } => write!(f, "{}{:?}", source, target),
+			Self::Input { literal: false, source } => write!(f, "<{:?}", source),
+			Self::Input { literal: true, source } => write!(f, "<<{:?}", source),
 		}
 	}
 }
@@ -263,8 +279,8 @@ impl Debug for BasicCommand {
 			write!(f, " {:?}", arg)?;
 		}
 
-		if !self.redirections.is_empty() {
-			write!(f, " {:?}", self.redirections)?;
+		for redirection in self.redirections.iter() {
+			write!(f, " {:?}", redirection)?;
 		}
 
 		if self.abort_on_error {

@@ -90,23 +90,23 @@ impl CommandSymbol {
 
 	pub fn visit(self, cursor: &Cursor) -> Transition {
 		let token = |token| Token { token, pos: self.pos };
-		let operator = |op| token(TokenKind::CommandOperator(op));
+		let operator = |op| token(TokenKind::CmdOperator(op));
 
 		let produce = |token| Transition::produce(Command, token);
 		let skip_produce = |output| Transition::resume_produce(Command, output);
 
 		match (self.first, cursor.peek()) {
-			(b'>', Some(b'>')) => produce(operator(CommandOperator::OutputRedirection {
-				overwrite: false,
+			(b'>', Some(b'>')) => produce(operator(CommandOperator::Output {
+				append: true,
 			})),
-			(b'>', _) => skip_produce(operator(CommandOperator::OutputRedirection {
-				overwrite: true,
+			(b'>', _) => skip_produce(operator(CommandOperator::Output {
+				append: false,
 			})),
 
-			(b'<', Some(b'<')) => produce(operator(CommandOperator::InputRedirection {
+			(b'<', Some(b'<')) => produce(operator(CommandOperator::Input {
 				literal: true,
 			})),
-			(b'<', _) => skip_produce(operator(CommandOperator::InputRedirection {
+			(b'<', _) => skip_produce(operator(CommandOperator::Input {
 				literal: false,
 			})),
 
@@ -188,7 +188,7 @@ pub enum CommandSymbolChar {
 impl CommandSymbolChar {
 	pub fn from_first(first: u8) -> Self {
 		let token = |token| Self::Single(token);
-		let operator = |op| token(TokenKind::CommandOperator(op));
+		let operator = |op| token(TokenKind::CmdOperator(op));
 		let double = |c| Self::Double { first: c };
 
 		match first {

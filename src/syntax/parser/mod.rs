@@ -1,12 +1,15 @@
 mod command;
 mod error;
 
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	iter::Peekable,
+};
 
 use super::{
 	SourcePos,
 	ast::{self, CommandBlockKind},
-	lexer::{Keyword, Token, TokenKind, Operator, CommandOperator}
+	lexer::{ArgPart, ArgUnit, Keyword, Token, TokenKind, Operator, CommandOperator}
 };
 pub use error::Error;
 
@@ -36,7 +39,7 @@ where
 {
 	// We don't use a std::iter::Peekable instead of a (Iterator, Option<Token>) pair
 	// because we must be able to move from `token`, but Peekable only returns a reference.
-	cursor: I,
+	cursor: Peekable<I>,
 	token: Option<Token>,
 	error_reporter: E,
 }
@@ -51,7 +54,7 @@ where
 	pub fn new(mut cursor: I, error_reporter: E) -> Self {
 		let token = cursor.next();
 
-		Self { cursor, token, error_reporter }
+		Self { cursor: cursor.peekable(), token, error_reporter }
 	}
 
 
@@ -63,6 +66,12 @@ where
 				Err(error) => self.error_reporter.report(error),
 			};
 		}
+	}
+
+
+	/// Peek the next token.
+	fn peek(&mut self) -> Option<&Token> {
+		self.cursor.peek()
 	}
 
 
@@ -161,7 +170,22 @@ where
 				Ok(ast::Statement::Let { identifier, init, pos })
 			}
 
-			// TODO: let function (will this require a single token lookahead?)
+			// Let function.
+			Some(Token { token: TokenKind::Keyword(Keyword::Function), pos })
+				if matches!(self.peek(), Some(Token { token: TokenKind::Identifier(_), .. })) => {
+					self.step();
+
+					let (identifier, id_pos) = self.parse_identifier()?;
+					let (args, body) = self.parse_function()?;
+
+					Ok(
+						ast::Statement::Let {
+							identifier,
+							init: ast::Expr::Literal { literal: ast::Literal::Function { args, body }, pos },
+							pos: id_pos,
+						}
+					)
+				}
 
 			// Return.
 			Some(Token { token: TokenKind::Keyword(Keyword::Return), pos }) => {
@@ -438,9 +462,9 @@ where
 			// Function literal.
 			Some(Token { token: TokenKind::Keyword(Keyword::Function), pos }) => {
 				self.step();
-				let function = self.parse_function()?;
+				let (args, body) = self.parse_function()?;
 
-				Ok(ast::Expr::Literal { literal: function, pos })
+				Ok(ast::Expr::Literal { literal: ast::Literal::Function { args, body }, pos })
 			}
 
 			// Command blocks.
@@ -522,7 +546,8 @@ where
 
 
 	/// Parse a function literal after the function keyword.
-	fn parse_function(&mut self) -> Result<ast::Literal, Error> {
+	/// Returns a pair of parameters and body.
+	fn parse_function(&mut self) -> Result<(Box<[ast::Symbol]>, ast::Block), Error> {
 		self.expect(TokenKind::OpenParens)?;
 		let args = self.comma_sep(|parser| {
 			let (id, _) = parser.parse_identifier()?;
@@ -532,7 +557,7 @@ where
 		let body = self.parse_block()?;
 		self.expect(TokenKind::Keyword(Keyword::End))?;
 
-		Ok(ast::Literal::Function { args, body })
+		Ok((args, body))
 	}
 
 

@@ -3,95 +3,43 @@ use super::{lexer, SourcePos};
 
 
 /// The most basic part of an argument.
-pub enum ArgumentPart {
+pub enum ArgUnit {
 	Literal(Box<[u8]>),
 	Dollar(Symbol),
 }
 
 
-/// An argument may consist of several argument parts.
-pub struct Argument {
-	pub parts: Box<[ArgumentPart]>,
-	pub pos: SourcePos,
+/// The most basic part of an argument.
+pub enum ArgPart {
+	Unit(ArgUnit),
+
+	// Expansions:
+	Home, // ~/
+	Range(i64, i64), // {x..y}
+	Collection(Box<[ArgUnit]>), // {a,b,c}
+
+	// Regex expansions:
+	Star, // *
+	Question, // ?
+	CharClass(Box<[u8]>), // [...]
 }
 
 
-impl Argument {
-	pub fn from_arg_parts(parts: Box<[lexer::ArgPart]>, pos: SourcePos) -> Self {
-		enum Iter {
-			Once(std::iter::Once<lexer::ArgUnit>),
-			Vec(std::vec::IntoIter<lexer::ArgUnit>),
-		}
-
-		impl From<lexer::ArgPart> for Iter {
-			fn from(part: lexer::ArgPart) -> Self {
-				match part {
-					lexer::ArgPart::Unquoted(unit) => Self::Once(std::iter::once(unit)),
-					lexer::ArgPart::SingleQuoted(lit) => Self::Once(
-						std::iter::once(lexer::ArgUnit::Literal(lit))
-					),
-					lexer::ArgPart::DoubleQuoted(units) => Self::Vec(units.into_vec().into_iter()),
-				}
-			}
-		}
-
-		impl Iterator for Iter {
-			type Item = lexer::ArgUnit;
-
-			fn next(&mut self) -> Option<Self::Item> {
-				match self {
-					Self::Once(iter) => iter.next(),
-					Self::Vec(iter) => iter.next(),
-				}
-			}
-		}
-
-		let units = parts
-			.into_vec()
-			.into_iter()
-			.flat_map(Into::<Iter>::into);
-
-		let mut parts = Vec::<ArgumentPart>::with_capacity(1); // Expect at least one part.
-		let mut literal = Option::<Vec<u8>>::None; // The accumulated literal, if any.
-
-		for unit in units {
-			match unit {
-				lexer::ArgUnit::Literal(lit) => {
-					if let Some(literal) = &mut literal {
-						literal.extend(lit.iter());
-					} else {
-						literal = Some(lit.into());
-					}
-				}
-
-				lexer::ArgUnit::Dollar(id) => {
-					if let Some(literal) = literal.take() {
-						parts.push(ArgumentPart::Literal(literal.into()));
-					}
-
-					parts.push(ArgumentPart::Dollar(id));
-				}
-			}
-		}
-
-		if let Some(lit) = literal {
-			parts.push(ArgumentPart::Literal(lit.into()));
-		}
-
-		Argument {
-			parts: parts.into(),
-			pos
-		}
-	}
+/// An argument may consist of several argument parts.
+pub struct Argument {
+	pub parts: Box<[ArgPart]>,
+	pub pos: SourcePos,
 }
 
 
 /// The target of a redirection operation.
 pub enum RedirectionTarget {
-	/// A numeric file descriptor.
+	/// Redirect to a file descriptor.
 	Fd(FileDescriptor),
-	/// A file path.
-	File(Argument),
+	/// Overwrite a file.
+	Overwrite(Argument),
+	/// Append to a file.
+	Append(Argument),
 }
 
 
@@ -100,10 +48,6 @@ pub enum Redirection {
 	Output {
 		source: FileDescriptor,
 		target: RedirectionTarget,
-	},
-	OutputAppend {
-		source: FileDescriptor,
-		target: Argument,
 	},
 	Input {
 		/// Whether the source is the input or the file path.

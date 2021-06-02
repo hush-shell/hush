@@ -107,6 +107,17 @@ pub enum ArgUnit {
 }
 
 
+impl ArgUnit {
+	/// Check if the unit is a literal composed only of digits.
+	pub fn is_number(&self) -> bool {
+		matches!(
+			self,
+			Self::Literal(lit) if lit.iter().all(u8::is_ascii_digit)
+		)
+	}
+}
+
+
 /// Argument parts may be single, double ou unquoted.
 #[derive(Clone, PartialEq)]
 pub enum ArgPart {
@@ -116,12 +127,34 @@ pub enum ArgPart {
 }
 
 
+impl ArgPart {
+	/// Check if the part is a unquoted literal composed only of digits.
+	pub fn is_unquoted_number(&self) -> bool {
+		matches!(
+			self,
+			Self::Unquoted(unit) if unit.is_number()
+		)
+	}
+}
+
+
 /// Operators in command blocks.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CommandOperator {
-	OutputRedirection { overwrite: bool }, // >, >>
-	InputRedirection { literal: bool },    // <, <<
-	Try,                                   // ?
+	Output { append: bool }, // >, >>
+	Input { literal: bool }, // <, <<
+	Try,                     // ?
+}
+
+
+impl CommandOperator {
+	/// Check if the operator is a input or output redirection.
+	pub fn is_redirection(&self) -> bool {
+		matches!(
+			self,
+			Self::Output { .. } | Self::Input { .. }
+		)
+	}
 }
 
 
@@ -151,7 +184,7 @@ pub enum TokenKind {
 
 	// A single argument may be composed of many parts.
 	Argument(Box<[ArgPart]>),
-	CommandOperator(CommandOperator),
+	CmdOperator(CommandOperator),
 	// Semicolons and pipes are not considered operators because they separate different
 	// commands, instead of being attributed to a single command.
 	Semicolon, // ;

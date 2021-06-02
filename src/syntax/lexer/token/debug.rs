@@ -98,10 +98,10 @@ impl Debug for ArgPart {
 impl Debug for CommandOperator {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match self {
-			Self::OutputRedirection { overwrite: true } => ">>",
-			Self::OutputRedirection { overwrite: false } => ">",
-			Self::InputRedirection { literal: true } => "<<",
-			Self::InputRedirection { literal: false } => "<",
+			Self::Output { append: true } => ">>",
+			Self::Output { append: false } => ">",
+			Self::Input { literal: true } => "<<",
+			Self::Input { literal: false } => "<",
 			Self::Try => "?",
 		})
 	}
@@ -131,7 +131,7 @@ impl Debug for TokenKind {
 					write!(f, "{:?}", part)?
 				}
 			}
-			Self::CommandOperator(op) => write!(f, "{:?}", op)?,
+			Self::CmdOperator(op) => write!(f, "{:?}", op)?,
 			Self::Semicolon => write!(f, ";")?,
 			Self::Pipe => write!(f, "|")?,
 		}
