@@ -1,5 +1,6 @@
 mod command;
 mod error;
+mod sync;
 
 use std::{
 	collections::HashMap,
@@ -11,6 +12,7 @@ use super::{
 	ast::{self, CommandBlockKind},
 	lexer::{ArgPart, ArgUnit, Keyword, Token, TokenKind, Operator, CommandOperator}
 };
+use sync::{ResultExt, WithSync};
 pub use error::Error;
 
 
@@ -48,24 +50,12 @@ where
 impl<I, E> Parser<I, E>
 where
 	I: Iterator<Item = Token>,
-	E: ErrorReporter,
 {
 	/// Create a new parser for the given input.
 	pub fn new(mut cursor: I, error_reporter: E) -> Self {
 		let token = cursor.next();
 
 		Self { cursor: cursor.peekable(), token, error_reporter }
-	}
-
-
-	/// Parse the input, producing a top-level block.
-	pub fn parse(mut self) -> ast::Block {
-		loop {
-			match self.parse_block() {
-				Ok(block) => return block,
-				Err(error) => self.error_reporter.report(error),
-			};
-		}
 	}
 
 
@@ -107,17 +97,96 @@ where
 
 
 	/// Consume the expected token, or produce an error.
-	fn expect(&mut self, expected: TokenKind) -> Result<TokenKind, Error> {
+	fn expect(&mut self, expected: TokenKind) -> Result<(), Error> {
 		self.eat(|token| match token {
-			Token { token, .. } if token == expected => Ok(token),
+			Token { token, .. } if token == expected => Ok(()),
 			token => Err((Error::unexpected(token.clone(), expected), token)),
 		})
 	}
 
 
-	/// Parse a block of statements, stopping when END of EOF are reached, or after a return
-	/// is parsed. The lua-like grammar requires stopping after such conditions.
-	fn parse_block(&mut self) -> Result<ast::Block, Error> {
+	/// Items divided by a separator.
+	/// A ending trailing separator is optional.
+	fn sep_by<P, R, S>(&mut self, mut parse: P, mut sep: S) -> Box<[R]>
+	where
+		P: FnMut(&mut Self) -> Result<R, Error>,
+		S: FnMut(&TokenKind) -> bool,
+	{
+		let mut items = Vec::new();
+
+		while let Ok(item) = parse(self) {
+			items.push(item);
+
+			match &self.token {
+				Some(Token { token, .. }) if sep(token) => self.step(),
+				_ => break,
+			}
+		}
+
+		items.into()
+	}
+
+
+	/// Comma-separated items.
+	fn comma_sep<P, R>(&mut self, parse: P) -> Box<[R]>
+	where
+		P: FnMut(&mut Self) -> Result<R, Error>,
+	{
+		self.sep_by(parse, |token| *token == TokenKind::Comma)
+	}
+
+
+	/// Semicolon-separated items.
+	fn semicolon_sep<P, R>(&mut self, parse: P) -> Box<[R]>
+	where
+		P: FnMut(&mut Self) -> Result<R, Error>,
+	{
+		self.sep_by(parse, |token| *token == TokenKind::Semicolon)
+	}
+}
+
+
+impl<I, E> sync::Parser<Error> for Parser<I, E>
+where
+	I: Iterator<Item = Token>,
+	E: ErrorReporter,
+{
+	fn synchronize(&mut self, error: Error, mut sync: sync::Strategy) {
+		self.error_reporter.report(error);
+
+		while let Some(Token { token, .. }) = &self.token {
+			if sync.synchronized(token) {
+				break;
+			} else {
+				self.step();
+			}
+		}
+	}
+}
+
+
+impl<I, E> Parser<I, E>
+where
+	I: Iterator<Item = Token>,
+	E: ErrorReporter,
+{
+	/// Parse the input, producing a top-level block.
+	pub fn parse(mut self) -> ast::Block {
+		loop {
+			let block = self.parse_block();
+
+			if self.token.is_none() { // Stop on EOF.
+				return block;
+			}
+		}
+	}
+
+
+	/// Parse a block of statements, stopping when ELSE, END of EOF are reached, or after a
+	/// return is parsed. The Lua-like grammar requires stopping after such conditions.
+	/// This method synchronizes on all errors, producing an empty block if no statements
+	/// can be parsed.
+	fn parse_block(&mut self) -> ast::Block {
 		let mut block = Vec::new();
 
 		loop {
@@ -127,7 +196,10 @@ where
 				Some(Token { token: TokenKind::Keyword(Keyword::End), .. }) => break,
 
 				Some(_) => {
-					let statement = self.parse_statement()?;
+					let statement = self
+						.parse_statement()
+						.synchronize(self);
+
 					let is_return = matches!(statement, ast::Statement::Return { .. });
 
 					block.push(statement);
@@ -143,26 +215,29 @@ where
 			}
 		}
 
-		Ok(block.into_boxed_slice().into())
+		block.into_boxed_slice().into()
 	}
 
 
 	/// Parse a single statement.
-	fn parse_statement(&mut self) -> Result<ast::Statement, Error> {
+	fn parse_statement(&mut self) -> sync::Result<ast::Statement, Error> {
 		match self.token.take() {
 			// Let.
 			Some(Token { token: TokenKind::Keyword(Keyword::Let), pos }) => {
 				self.step();
 
-				let (identifier, _) = self.parse_identifier()?;
+				let (identifier, _) = self
+					.parse_identifier()
+					.synchronize(self);
+
 				let init;
 				if matches!(self.token, Some(Token { token: TokenKind::Operator(Operator::Assign), .. })) {
 					self.step();
-
+					// Don't synchronize here because this expression is the last part of the statement.
 					init = self.parse_expression()?;
 				} else {
 					init = ast::Expr::Literal {
-						literal: ast::Literal::Nil,
+						literal: ast::Literal::default(),
 						pos,
 					};
 				}
@@ -175,7 +250,11 @@ where
 				if matches!(self.peek(), Some(Token { token: TokenKind::Identifier(_), .. })) => {
 					self.step();
 
-					let (identifier, id_pos) = self.parse_identifier()?;
+					// This should not fail because we have just peeked an identifier.
+					let (identifier, id_pos) = self
+						.parse_identifier()
+						.expect("there should be an identifier");
+
 					let (args, body) = self.parse_function()?;
 
 					Ok(
@@ -191,6 +270,7 @@ where
 			Some(Token { token: TokenKind::Keyword(Keyword::Return), pos }) => {
 				self.step();
 
+				// Don't synchronize here because this expression is the last part of the statement.
 				let expr = self.parse_expression()?;
 
 				Ok(ast::Statement::Return { expr, pos })
@@ -207,10 +287,17 @@ where
 			Some(Token { token: TokenKind::Keyword(Keyword::While), pos }) => {
 				self.step();
 
-				let condition = self.parse_expression()?;
-				self.expect(TokenKind::Keyword(Keyword::Do))?;
-				let block = self.parse_block()?;
-				self.expect(TokenKind::Keyword(Keyword::End))?;
+				let condition = self.parse_expression()
+					.synchronize(self);
+
+				self.expect(TokenKind::Keyword(Keyword::Do))
+					.with_sync(sync::Strategy::keep())
+					.synchronize(self);
+
+				let block = self.parse_block();
+
+				self.expect(TokenKind::Keyword(Keyword::End))
+					.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 				Ok(ast::Statement::While { condition, block, pos })
 			}
@@ -219,12 +306,24 @@ where
 			Some(Token { token: TokenKind::Keyword(Keyword::For), pos }) => {
 				self.step();
 
-				let (identifier, _) = self.parse_identifier()?;
-				self.expect(TokenKind::Keyword(Keyword::In))?;
-				let expr = self.parse_expression()?;
-				self.expect(TokenKind::Keyword(Keyword::Do))?;
-				let block = self.parse_block()?;
-				self.expect(TokenKind::Keyword(Keyword::End))?;
+				let (identifier, _) = self.parse_identifier()
+					.synchronize(self);
+
+				self.expect(TokenKind::Keyword(Keyword::In))
+					.with_sync(sync::Strategy::skip_one())
+					.synchronize(self);
+
+				let expr = self.parse_expression()
+					.synchronize(self);
+
+				self.expect(TokenKind::Keyword(Keyword::Do))
+					.with_sync(sync::Strategy::keep())
+					.synchronize(self);
+
+				let block = self.parse_block();
+
+				self.expect(TokenKind::Keyword(Keyword::End))
+					.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 				Ok(ast::Statement::For { identifier, expr, block, pos })
 			}
@@ -233,11 +332,13 @@ where
 			Some(token) => {
 				self.token = Some(token);
 
+				// Don't synchronize here because this expression may be the last part of the statement.
 				let expr = self.parse_expression()?;
 
 				if matches!(self.token, Some(Token { token: TokenKind::Operator(Operator::Assign), .. })) {
 					self.step();
 
+					// Don't synchronize here because this expression is the last part of the statement.
 					let right = self.parse_expression()?;
 
 					Ok(
@@ -249,13 +350,15 @@ where
 			}
 
 			// EOF.
-			None => Err(Error::unexpected_eof()),
+			None => Err(Error::unexpected_eof())
+				// Any sync strategy here is irrelevant, because we have already reached EOF.
+				.with_sync(sync::Strategy::keep()),
 		}
 	}
 
 
 	/// Parse a single expression.
-	fn parse_expression(&mut self) -> Result<ast::Expr, Error> {
+	fn parse_expression(&mut self) -> sync::Result<ast::Expr, Error> {
 		macro_rules! binop {
 			($parse_higher_prec:expr, $check:expr) => {
 				move |parser: &mut Self| parser.parse_binop($parse_higher_prec, $check)
@@ -279,9 +382,9 @@ where
 		&mut self,
 		mut parse_higher_prec_op: P,
 		mut check: F,
-	) -> Result<ast::Expr, Error>
+	) -> sync::Result<ast::Expr, Error>
 	where
-		P: FnMut(&mut Self) -> Result<ast::Expr, Error>,
+		P: FnMut(&mut Self) -> sync::Result<ast::Expr, Error>,
 		F: FnMut(&Operator) -> bool,
 	{
 		let mut expr = parse_higher_prec_op(self)?;
@@ -313,7 +416,7 @@ where
 
 
 	/// Parse a higher precedence expression, optionally starting with a unary operator.
-	fn parse_unop(&mut self) -> Result<ast::Expr, Error> {
+	fn parse_unop(&mut self) -> sync::Result<ast::Expr, Error> {
 		match self.token.take() {
 			Some(Token { token: TokenKind::Operator(op), pos }) if op.is_unary() => {
 				self.step();
@@ -335,7 +438,8 @@ where
 	}
 
 
-	fn parse_postfix(&mut self) -> Result<ast::Expr, Error> {
+	/// Parse a primary expression followed by a postfix operator.
+	fn parse_postfix(&mut self) -> sync::Result<ast::Expr, Error> {
 		let mut expr = self.parse_primary()?;
 
 		loop {
@@ -344,8 +448,13 @@ where
 				Some(Token { token: TokenKind::OpenParens, pos }) => {
 					self.step();
 
-					let params = self.comma_sep(Self::parse_expression)?;
-					self.expect(TokenKind::CloseParens)?;
+					let params = self.comma_sep(
+						|parser| parser.parse_expression()
+							.discard_sync()
+					);
+
+					self.expect(TokenKind::CloseParens)
+						.with_sync(sync::Strategy::token(TokenKind::CloseParens))?;
 
 					expr = ast::Expr::Call {
 						function: expr.into(),
@@ -358,8 +467,11 @@ where
 				Some(Token { token: TokenKind::OpenBracket, pos }) => {
 					self.step();
 
-					let field = self.parse_expression()?;
-					self.expect(TokenKind::CloseBracket)?;
+					let field = self.parse_expression()
+						.synchronize(self);
+
+					self.expect(TokenKind::CloseBracket)
+						.with_sync(sync::Strategy::token(TokenKind::CloseBracket))?;
 
 					expr = ast::Expr::Access {
 						object: expr.into(),
@@ -374,7 +486,9 @@ where
 
 					// Here, the identifier is a literal, and not a variable name. Hence, `var.id`
 					// is equivalent to `var["id"]`, and not from `var[id]`.
-					let (identifier, id_pos) = self.parse_identifier()?;
+					let (identifier, id_pos) = self.parse_identifier()
+						.with_sync(sync::Strategy::skip_one())?;
+
 					let field = ast::Expr::Literal {
 						literal: ast::Literal::Identifier(identifier),
 						pos: id_pos,
@@ -398,8 +512,8 @@ where
 	}
 
 
-	/// Parse a higher precedence expression.
-	fn parse_primary(&mut self) -> Result<ast::Expr, Error> {
+	/// Parse a primary (highest precedence) expression.
+	fn parse_primary(&mut self) -> sync::Result<ast::Expr, Error> {
 		match self.token.take() {
 			// Identifier.
 			Some(Token { token: TokenKind::Identifier(identifier), pos }) => {
@@ -426,8 +540,13 @@ where
 			Some(Token { token: TokenKind::OpenBracket, pos }) => {
 				self.step();
 
-				let items = self.comma_sep(Self::parse_expression)?;
-				self.expect(TokenKind::CloseBracket)?;
+				let items = self.comma_sep(
+					|parser| parser.parse_expression()
+						.discard_sync()
+				);
+
+				self.expect(TokenKind::CloseBracket)
+					.with_sync(sync::Strategy::token(TokenKind::CloseBracket))?;
 
 				Ok(ast::Expr::Literal {
 					literal: ast::Literal::Array(items.into()),
@@ -439,20 +558,32 @@ where
 			Some(Token { token: TokenKind::OpenDict, pos }) => {
 				self.step();
 
-				let items = self.comma_sep(|parser| {
-					let (key, _) = parser.parse_identifier()?;
-					parser.expect(TokenKind::Colon)?;
-					let value = parser.parse_expression()?;
+				let items = self.comma_sep(
+					|parser| {
+						let (key, _) = parser.parse_identifier()
+							.with_sync(sync::Strategy::skip_one())
+							.synchronize(parser);
 
-					Ok((key, value))
-				})?;
-				self.expect(TokenKind::CloseBracket)?;
+						parser.expect(TokenKind::Colon)
+							.with_sync(sync::Strategy::keep())
+							.synchronize(parser);
+
+						let value = parser.parse_expression()
+							.discard_sync()?;
+
+						Ok((key, value))
+					}
+				);
+
+				self.expect(TokenKind::CloseBracket)
+					.with_sync(sync::Strategy::token(TokenKind::CloseBracket))?;
 
 				let mut dict = HashMap::new();
 
 				for (id, value) in items.into_vec() { // Use vec's owned iterator.
 					if dict.insert(id, value).is_some() { // Key already in dict.
 						return Err(Error::duplicate_keys(pos))
+							.with_sync(sync::Strategy::keep())
 					}
 				}
 
@@ -462,6 +593,7 @@ where
 			// Function literal.
 			Some(Token { token: TokenKind::Keyword(Keyword::Function), pos }) => {
 				self.step();
+
 				let (args, body) = self.parse_function()?;
 
 				Ok(ast::Expr::Literal { literal: ast::Literal::Function { args, body }, pos })
@@ -487,19 +619,32 @@ where
 			Some(Token { token: TokenKind::Keyword(Keyword::If), pos }) => {
 				self.step();
 
-				let condition = self.parse_expression()?;
-				self.expect(TokenKind::Keyword(Keyword::Then))?;
-				let then = self.parse_block()?;
+				let condition = self.parse_expression()
+					.synchronize(self);
+
+				self.expect(TokenKind::Keyword(Keyword::Then))
+					.with_sync(sync::Strategy::keep())
+					.synchronize(self);
+
+				let then = self.parse_block();
+
 				let otherwise = {
-					let has_else = self.eat(|token| match token {
-						Token { token: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
-						Token { token: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
-						token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
-					})?;
+					let has_else = self
+						.eat(
+							|token| match token {
+								Token { token: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
+								Token { token: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
+								token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
+							}
+						)
+						.with_sync(sync::Strategy::block_terminator())?;
 
 					if has_else {
-						let block = self.parse_block()?;
-						self.expect(TokenKind::Keyword(Keyword::End))?;
+						let block = self.parse_block();
+
+						self.expect(TokenKind::Keyword(Keyword::End))
+							.with_sync(sync::Strategy::keyword(Keyword::End))?;
+
 						block
 					} else {
 						ast::Block::default()
@@ -518,8 +663,11 @@ where
 			Some(Token { token: TokenKind::OpenParens, .. }) => {
 				self.step();
 
-				let expr = self.parse_expression()?;
-				self.expect(TokenKind::CloseParens)?;
+				let expr = self.parse_expression()
+					.synchronize(self);
+
+				self.expect(TokenKind::CloseParens)
+					.with_sync(sync::Strategy::token(TokenKind::CloseParens))?;
 
 				Ok(expr)
 			}
@@ -529,65 +677,67 @@ where
 				// We need to restore the token because it may be some delimiter.
 				self.token = Some(token.clone());
 				Err(Error::unexpected_msg(token, "expression"))
+					.with_sync(sync::Strategy::keep())
 			}
 
-			None => Err(Error::unexpected_eof()),
+			None => Err(Error::unexpected_eof())
+				// Any sync strategy here is irrelevant, because we have already reached EOF.
+				.with_sync(sync::Strategy::keep()),
 		}
 	}
 
 
 	/// Parse a identifier.
-	fn parse_identifier(&mut self) -> Result<(ast::Symbol, SourcePos), Error> {
-		self.eat(|token| match token {
-			Token { token: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos)),
-			token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
-		})
+	fn parse_identifier(&mut self) -> sync::Result<(ast::Symbol, SourcePos), Error> {
+		self
+			.eat(
+				|token| match token {
+					Token { token: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos)),
+					token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
+				}
+			)
+			.with_sync(sync::Strategy::keep())
 	}
 
 
 	/// Parse a function literal after the function keyword.
 	/// Returns a pair of parameters and body.
-	fn parse_function(&mut self) -> Result<(Box<[ast::Symbol]>, ast::Block), Error> {
-		self.expect(TokenKind::OpenParens)?;
-		let args = self.comma_sep(|parser| {
-			let (id, _) = parser.parse_identifier()?;
-			Ok(id)
-		})?;
-		self.expect(TokenKind::CloseParens)?;
-		let body = self.parse_block()?;
-		self.expect(TokenKind::Keyword(Keyword::End))?;
-
-		Ok((args, body))
-	}
-
-
-	/// Comma-separated items.
-	fn comma_sep<P, R>(&mut self, parse: P) -> Result<Box<[R]>, Error>
-	where
-		P: FnMut(&mut Self) -> Result<R, Error>,
-	{
-		self.sep_by(parse, |token| *token == TokenKind::Comma)
-	}
-
-
-	/// Items divided by a separator.
-	/// A ending trailing separator is optional.
-	fn sep_by<P, R, S>(&mut self, mut parse: P, mut sep: S) -> Result<Box<[R]>, Error>
-	where
-		P: FnMut(&mut Self) -> Result<R, Error>,
-		S: FnMut(&TokenKind) -> bool,
-	{
-		let mut items = Vec::new();
-
-		while let Ok(item) = parse(self) {
-			items.push(item);
-
-			match &self.token {
-				Some(Token { token, .. }) if sep(token) => self.step(),
-				_ => break,
+	fn parse_function(&mut self) -> sync::Result<(Box<[ast::Symbol]>, ast::Block), Error> {
+		impl ast::IllFormed for Box<[ast::Symbol]> {
+			fn ill_formed() -> Self {
+				Self::default()
 			}
 		}
 
-		Ok(items.into())
+		let result = self.expect(TokenKind::OpenParens)
+			.with_sync(sync::Strategy::keep());
+
+		let open_parens = result.is_ok();
+
+		result.synchronize(self);
+
+		let args = self.comma_sep(|parser| {
+			let (id, _) = parser.parse_identifier()
+				.discard_sync()?;
+
+			Ok(id)
+		});
+
+		self.expect(TokenKind::CloseParens)
+			.with_sync(
+				if open_parens {
+					sync::Strategy::token(TokenKind::CloseParens)
+				} else {
+					sync::Strategy::keep()
+				}
+			)
+			.synchronize(self);
+
+		let body = self.parse_block();
+
+		self.expect(TokenKind::Keyword(Keyword::End))
+			.with_sync(sync::Strategy::keyword(Keyword::End))?;
+
+		Ok((args, body))
 	}
 }

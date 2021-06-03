@@ -4,7 +4,7 @@ mod debug;
 use std::{collections::HashMap, path::Path};
 
 use super::{lexer, SourcePos};
-pub use crate::symbol::Symbol;
+pub use crate::symbol::{Symbol, SymbolExt};
 pub use command::{
 	ArgPart,
 	ArgUnit,
@@ -17,6 +17,50 @@ pub use command::{
 };
 
 
+/// A trait for types that can be produced from ill-formed syntax.
+/// The resulting value should not be considered value for any use but a placeholder.
+pub trait IllFormed {
+	fn ill_formed() -> Self;
+}
+
+
+impl IllFormed for () {
+	fn ill_formed() -> Self {
+		()
+	}
+}
+
+
+impl<A, B> IllFormed for (A, B)
+where
+	A: IllFormed,
+	B: IllFormed,
+{
+	fn ill_formed() -> Self {
+    (
+			A::ill_formed(),
+			B::ill_formed()
+		)
+	}
+}
+
+
+impl IllFormed for SourcePos {
+	fn ill_formed() -> Self {
+		Self { line: 0, column: 0 }
+	}
+}
+
+
+impl IllFormed for Symbol {
+	fn ill_formed() -> Self {
+		Self
+			::try_from_usize(0)
+			.expect("invalid illformed symbol")
+	}
+}
+
+
 /// A block is a list of statements, constituting a new scope.
 #[derive(Default)]
 pub struct Block(pub Box<[Statement]>);
@@ -25,6 +69,13 @@ pub struct Block(pub Box<[Statement]>);
 impl From<Box<[Statement]>> for Block {
 	fn from(block: Box<[Statement]>) -> Self {
 		Self(block)
+	}
+}
+
+
+impl IllFormed for Block {
+	fn ill_formed() -> Self {
+		Self::default()
 	}
 }
 
@@ -49,6 +100,13 @@ pub enum Literal {
 	/// strings instead of names for variables. This variant should only be used in such
 	/// case.
 	Identifier(Symbol),
+}
+
+
+impl Default for Literal {
+	fn default() -> Self {
+		Self::Nil
+	}
 }
 
 
@@ -136,6 +194,8 @@ impl From<lexer::Operator> for BinaryOp {
 
 /// Expressions of all kinds in the language.
 pub enum Expr {
+	/// An ill-formed expr, produced by a parse error.
+	IllFormed,
 	/// The `self` keyword.
 	Self_ {
 		pos: SourcePos,
@@ -185,8 +245,17 @@ pub enum Expr {
 }
 
 
+impl IllFormed for Expr {
+	fn ill_formed() -> Self {
+		Self::IllFormed
+	}
+}
+
+
 /// Statements of all kinds in the language.
 pub enum Statement {
+	/// An ill-formed statement, produced by a parse error.
+	IllFormed,
 	/// Introduces an identifier.
 	Let {
 		identifier: Symbol,
@@ -218,6 +287,13 @@ pub enum Statement {
 		pos: SourcePos,
 	},
 	Expr(Expr),
+}
+
+
+impl IllFormed for Statement {
+	fn ill_formed() -> Self {
+		Self::IllFormed
+	}
 }
 
 

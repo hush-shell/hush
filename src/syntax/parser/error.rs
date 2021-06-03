@@ -1,9 +1,9 @@
 use std::fmt::{self, Display};
 
-use super::{Token, TokenKind, SourcePos};
+use super::{SourcePos, Token, TokenKind};
 
 
-/// What kind of token the parser was expecting.
+/// The kind of token the parser was expecting.
 #[derive(Debug)]
 pub enum Expected {
 	Token(TokenKind),
@@ -21,10 +21,14 @@ impl Display for Expected {
 }
 
 
+/// A parser error.
 #[derive(Debug)]
 pub enum Error {
+	/// Premature EOF.
 	UnexpectedEof,
+	/// Unexpected token.
 	Unexpected { token: Token, expected: Expected },
+	/// Duplicate keys in dict literal.
 	DuplicateKeys { pos: SourcePos },
 }
 

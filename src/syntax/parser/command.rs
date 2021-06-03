@@ -1,6 +1,7 @@
 use crate::io::{self, FileDescriptor};
 use super::{
 	ast,
+	sync::{self, WithSync},
 	ArgPart,
 	ArgUnit,
 	CommandOperator as Operator,
@@ -17,13 +18,18 @@ where
 	I: Iterator<Item = Token>,
 	E: ErrorReporter,
 {
-	pub(super) fn parse_command_block(&mut self) -> Result<Box<[ast::Command]>, Error> {
-		let commands = self.semicolon_sep(Self::parse_command)?;
-		self.expect(TokenKind::CloseCommand)?;
+	/// Parse a command block after the block start token.
+	pub(super) fn parse_command_block(&mut self) -> sync::Result<Box<[ast::Command]>, Error> {
+		let commands = self.semicolon_sep(Self::parse_command);
+
+		self.expect(TokenKind::CloseCommand)
+			.with_sync(sync::Strategy::token(TokenKind::CloseCommand))?;
+
 		Ok(commands)
 	}
 
 
+	/// Parse a complete command, including pipelines.
 	fn parse_command(&mut self) -> Result<ast::Command, Error> {
 		let mut basic_commands = Vec::with_capacity(1); // Expect at least one command.
 
@@ -44,6 +50,7 @@ where
 	}
 
 
+	/// Parse a single basic command, including redirections and try operator.
 	fn parse_basic_command(&mut self) -> Result<ast::BasicCommand, Error> {
 		let command = self.parse_argument()?;
 		let pos = command.pos;
@@ -78,7 +85,7 @@ where
 
 		// Make sure there are no trailing arguments.
 		match &self.token {
-			Some(Token { token, .. }) if token.is_basic_command_end() => {
+			Some(Token { token, .. }) if token.is_basic_command_terminator() => {
 				Ok(
 					ast::BasicCommand {
 						command,
@@ -97,6 +104,7 @@ where
 	}
 
 
+	/// Parse a single argument.
 	fn parse_argument(&mut self) -> Result<ast::Argument, Error> {
 		let (token_parts, pos) = self.eat(|token| match token {
 			Token { token: TokenKind::Argument(parts), pos } => Ok((parts, pos)),
@@ -164,12 +172,14 @@ where
 	}
 
 
+	/// Parse command operators.
+	/// Returns a pair of redirections and try operator.
 	fn parse_operators(&mut self) -> Result<(Box<[ast::Redirection]>, bool), Error> {
 		let mut redirections = Vec::new();
 
 		loop {
 			match &self.token {
-				Some(Token { token, .. }) if token.is_basic_command_end() => break,
+				Some(Token { token, .. }) if token.is_basic_command_terminator() => break,
 
 				Some(Token { token: TokenKind::CmdOperator(Operator::Try), .. }) => {
 					self.step();
@@ -191,6 +201,7 @@ where
 	}
 
 
+	/// Parse a single redirection operation.
 	fn parse_redirection(&mut self) -> Result<ast::Redirection, Error> {
 		match &self.token {
 			&Some(Token { token: TokenKind::CmdOperator(Operator::Input { literal }), .. }) => {
@@ -207,6 +218,7 @@ where
 				let source_fd = self
 					.parse_file_descriptor()
 					.unwrap_or(io::stdout_fd());
+
 				let redirection = self.parse_output_redirection(source_fd)?;
 
 				Ok(redirection)
@@ -217,6 +229,7 @@ where
 	}
 
 
+	/// Parse a single output redirection operation after the optional file descriptor.
 	fn parse_output_redirection(&mut self, source: FileDescriptor) -> Result<ast::Redirection, Error> {
 		match &self.token {
 			&Some(Token { token: TokenKind::CmdOperator(Operator::Output { append }), .. }) => {
@@ -264,14 +277,5 @@ where
 
 			_ => None,
 		}
-	}
-
-
-	/// Semicolon-separated items.
-	fn semicolon_sep<P, R>(&mut self, parse: P) -> Result<Box<[R]>, Error>
-	where
-		P: FnMut(&mut Self) -> Result<R, Error>,
-	{
-		self.sep_by(parse, |token| *token == TokenKind::Semicolon)
 	}
 }

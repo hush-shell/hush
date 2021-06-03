@@ -17,7 +17,7 @@ use super::{
 	Statement,
 	UnaryOp,
 };
-use crate::symbol::SymbolExt;
+use crate::symbol::{Symbol, SymbolExt};
 
 
 impl Debug for Block {
@@ -45,7 +45,33 @@ impl Debug for Literal {
 			Self::Byte(c) => write!(f, "'{}'", *c as char),
 			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s)),
 			Self::Array(arr) => f.debug_list().entries(arr.iter()).finish(),
-			Self::Dict(dict) => f.debug_map().entries(dict.iter()).finish(),
+			Self::Dict(dict) => {
+				write!(f, "@")?;
+				f
+					.debug_list()
+					.entries(
+						dict
+							.iter()
+							.map(
+								|(key, expr)| {
+									struct Pair<'a> { key: &'a Symbol, expr: &'a Expr }
+
+									impl<'a> Debug for Pair<'a> {
+										fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+											if f.alternate() {
+												write!(f, "id#{}: {:#?}", self.key.to_usize(), self.expr)
+											} else {
+												write!(f, "id#{}: {:?}", self.key.to_usize(), self.expr)
+											}
+										}
+									}
+
+									Pair { key, expr }
+								}
+							)
+					)
+					.finish()
+			},
 			Self::Function { args, body } => {
 				write!(f, "function (")?;
 
@@ -100,6 +126,7 @@ impl Debug for BinaryOp {
 impl Debug for Expr {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
+			Self::IllFormed => write!(f, "***ill-formed***"),
 			Self::Self_ { .. } => write!(f, "self"),
 			Self::Identifier { identifier, .. } => write!(f, "id#{}", identifier.to_usize()),
 			Self::Literal { literal, .. } => {
@@ -151,36 +178,37 @@ impl Debug for Expr {
 impl Debug for Statement {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Statement::Let { identifier, init, .. } => {
+			Self::IllFormed => write!(f, "***ill-formed***"),
+			Self::Let { identifier, init, .. } => {
 				if f.alternate() {
 					write!(f, "let id#{} = {:#?}", identifier.to_usize(), init)
 				} else {
 					write!(f, "let id#{} = {:?}", identifier.to_usize(), init)
 				}
 			}
-			Statement::Assign { left, right, .. } => {
+			Self::Assign { left, right, .. } => {
 				if f.alternate() {
 					write!(f, "{:?} = {:#?}", left, right)
 				} else {
 					write!(f, "{:?} = {:?}", left, right)
 				}
 			}
-			Statement::Return { expr, .. } => {
+			Self::Return { expr, .. } => {
 				if f.alternate() {
 					write!(f, "return {:#?}", expr)
 				} else {
 					write!(f, "return {:?}", expr)
 				}
 			}
-			Statement::Break { .. } => write!(f, "break"),
-			Statement::While { condition, block, .. } => {
+			Self::Break { .. } => write!(f, "break"),
+			Self::While { condition, block, .. } => {
 				if f.alternate() {
 					write!(f, "while {:?} do {:#?}", condition, block)
 				} else {
 					write!(f, "while {:?} do {:?} end", condition, block)
 				}
 			}
-			Statement::For { identifier, expr, block, .. } => {
+			Self::For { identifier, expr, block, .. } => {
 				if f.alternate() {
 					write!(
 						f,
@@ -199,7 +227,7 @@ impl Debug for Statement {
 					)
 				}
 			}
-			Statement::Expr(expr) => {
+			Self::Expr(expr) => {
 				if f.alternate() {
 					write!(f, "{:#?}", expr)
 				} else {

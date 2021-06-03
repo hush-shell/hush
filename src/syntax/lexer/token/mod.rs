@@ -193,7 +193,19 @@ pub enum TokenKind {
 
 
 impl TokenKind {
-	pub fn is_basic_command_end(&self) -> bool {
+	/// Check if the token terminates a statement block.
+	/// Currently, only the END and ELSE keywords do that.
+	pub fn is_block_terminator(&self) -> bool {
+		matches!(
+			self,
+			TokenKind::Keyword(Keyword::End) | TokenKind::Keyword(Keyword::Else)
+		)
+	}
+
+
+	/// Check if the token terminates a basic command.
+	/// Currently, the semicolon, the pipe and the close bracket tokens do that.
+	pub fn is_basic_command_terminator(&self) -> bool {
 		matches!(
 			self,
 			TokenKind::Semicolon | TokenKind::Pipe | TokenKind::CloseCommand
