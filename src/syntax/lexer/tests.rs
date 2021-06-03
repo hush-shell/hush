@@ -22,6 +22,13 @@ macro_rules! assert_symbol {
 }
 
 
+/// Check that TokenKind is not too big, because it gets moved around a lot.
+#[test]
+fn test_token_kind_size() {
+	assert_eq!(std::mem::size_of::<TokenKind>(), 32);
+}
+
+
 #[test]
 fn test_simple_function() {
 	let input = r#"
@@ -311,9 +318,9 @@ fn test_command_block() {
 			token!(TokenKind::Argument(args2)),
 			token!(TokenKind::Argument(args3)),
 			token!(TokenKind::Argument(args4)),
-			token!(TokenKind::CommandOperator(CommandOperator::OutputRedirection { overwrite: false})),
+			token!(TokenKind::CmdOperator(CommandOperator::Output { append: true })),
 			token!(TokenKind::Argument(args5)),
-			token!(TokenKind::CommandOperator(CommandOperator::Try)),
+			token!(TokenKind::CmdOperator(CommandOperator::Try)),
 			token!(TokenKind::Semicolon),
 			token!(TokenKind::Argument(dollar1)),
 			token!(TokenKind::Argument(dollar2)),
