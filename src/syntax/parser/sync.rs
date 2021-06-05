@@ -34,6 +34,14 @@ pub enum Strategy {
 
 
 impl Strategy {
+	/// A dummy strategy to use when EOF was already reached.
+	/// The behavior of this strategy is irrelevant, because the parser can't skip beyond
+	/// EOF.
+	pub fn eof() -> Self {
+		Self::Keep
+	}
+
+
 	/// Don't skip any token.
 	pub fn keep() -> Self {
 		Self::Keep
@@ -126,19 +134,12 @@ pub type Result<T, E> = std::result::Result<T, (E, Strategy)>;
 pub trait WithSync<T, E> {
 	/// Use the given sync strategy.
 	fn with_sync(self, strategy: Strategy) -> Result<T, E>;
-
-	/// Discard the sync strategy.
-	fn discard_sync(self) -> std::result::Result<T, E>;
 }
 
 
 impl<T, E> WithSync<T, E> for std::result::Result<T, E> {
 	fn with_sync(self, strategy: Strategy) -> Result<T, E> {
 		self.map_err(|error| (error, strategy))
-	}
-
-	fn discard_sync(self) -> std::result::Result<T, E> {
-		self
 	}
 }
 
@@ -147,10 +148,6 @@ impl<T, E> WithSync<T, E> for Result<T, E> {
 	fn with_sync(self, strategy: Strategy) -> Result<T, E> {
 		self.map_err(|(error, _)| (error, strategy))
 	}
-
-	fn discard_sync(self) -> std::result::Result<T, E> {
-		self.map_err(|(error, _)| error)
-	}
 }
 
 
@@ -158,6 +155,9 @@ impl<T, E> WithSync<T, E> for Result<T, E> {
 pub trait ResultExt<T, E> {
 	/// Synchronize the parser using the current strategy.
 	fn synchronize<P: Parser<E>>(self, parser: &mut P) -> T;
+
+	/// If the sync strategy is `keep`, replace it with `skip_one`.
+	fn force_sync_skip(self) -> Self;
 }
 
 
@@ -174,5 +174,15 @@ where
 				T::ill_formed()
 			}
 		}
+	}
+
+
+	fn force_sync_skip(self) -> Self {
+		self.map_err(
+			|(error, strategy)| match strategy {
+				Strategy::Keep => (error, Strategy::skip_one()),
+				_ => (error, strategy)
+			}
+		)
 	}
 }

@@ -23,6 +23,7 @@ use crate::symbol::{Symbol, SymbolExt};
 impl Debug for Block {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if f.alternate() {
+			write!(f, "#")?;
 			f.debug_set().entries(self.0.iter()).finish()?;
 		} else {
 			for statement in self.0.iter() {
@@ -291,6 +292,7 @@ impl Debug for RedirectionTarget {
 impl Debug for Redirection {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
+			Self::IllFormed => write!(f, "***ill-formed***"),
 			Self::Output { source, target } => write!(f, "{}{:?}", source, target),
 			Self::Input { literal: false, source } => write!(f, "<{:?}", source),
 			Self::Input { literal: true, source } => write!(f, "<<{:?}", source),

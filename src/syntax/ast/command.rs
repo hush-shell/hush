@@ -1,5 +1,5 @@
 use crate::{io::FileDescriptor, symbol::Symbol};
-use super::{lexer, SourcePos};
+use super::{lexer, IllFormed, SourcePos};
 
 
 /// The most basic part of an argument.
@@ -32,6 +32,16 @@ pub struct Argument {
 }
 
 
+impl IllFormed for Argument {
+	fn ill_formed() -> Self {
+		Self {
+			parts: Default::default(),
+			pos: SourcePos::ill_formed(),
+		}
+	}
+}
+
+
 /// The target of a redirection operation.
 pub enum RedirectionTarget {
 	/// Redirect to a file descriptor.
@@ -45,15 +55,26 @@ pub enum RedirectionTarget {
 
 /// Redirection operation.
 pub enum Redirection {
+	/// An ill-formed redirection, produced by a parse error.
+	IllFormed,
+	/// Redirect output to a file or file descriptor.
 	Output {
 		source: FileDescriptor,
 		target: RedirectionTarget,
 	},
+	/// Redirect input from a file or literal.
 	Input {
 		/// Whether the source is the input or the file path.
 		literal: bool,
 		source: Argument,
 	},
+}
+
+
+impl IllFormed for Redirection {
+	fn ill_formed() -> Self {
+		Self::IllFormed
+	}
 }
 
 
@@ -67,13 +88,34 @@ pub struct BasicCommand {
 }
 
 
+impl IllFormed for BasicCommand {
+	fn ill_formed() -> Self {
+		Self {
+			command: Argument::ill_formed(),
+			arguments: Default::default(),
+			redirections: Default::default(),
+			abort_on_error: Default::default(),
+			pos: SourcePos::ill_formed(),
+		}
+	}
+}
+
+
 /// Commands may be pipelines, or a single BasicCommand.
+#[derive(Default)]
 pub struct Command(pub Box<[BasicCommand]>);
 
 
 impl From<Box<[BasicCommand]>> for Command {
 	fn from(commands: Box<[BasicCommand]>) -> Self {
 		Self(commands)
+	}
+}
+
+
+impl IllFormed for Command {
+	fn ill_formed() -> Self {
+		Self::default()
 	}
 }
 

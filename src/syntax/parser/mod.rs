@@ -50,6 +50,7 @@ where
 impl<I, E> Parser<I, E>
 where
 	I: Iterator<Item = Token>,
+	E: ErrorReporter,
 {
 	/// Create a new parser for the given input.
 	pub fn new(mut cursor: I, error_reporter: E) -> Self {
@@ -107,14 +108,25 @@ where
 
 	/// Items divided by a separator.
 	/// A ending trailing separator is optional.
-	fn sep_by<P, R, S>(&mut self, mut parse: P, mut sep: S) -> Box<[R]>
+	fn sep_by<P, R, Sep, End>(&mut self, mut parse: P, mut sep: Sep, end: End) -> Box<[R]>
 	where
-		P: FnMut(&mut Self) -> Result<R, Error>,
-		S: FnMut(&TokenKind) -> bool,
+		P: FnMut(&mut Self) -> sync::Result<R, Error>,
+		R: ast::IllFormed,
+		Sep: FnMut(&TokenKind) -> bool,
+		End: Fn(&TokenKind) -> bool,
 	{
 		let mut items = Vec::new();
 
-		while let Ok(item) = parse(self) {
+		loop {
+			if let Some(Token { token, .. }) = &self.token {
+				if end(token) {
+					break;
+				}
+			}
+
+			let item = parse(self)
+				.synchronize(self);
+
 			items.push(item);
 
 			match &self.token {
@@ -128,20 +140,24 @@ where
 
 
 	/// Comma-separated items.
-	fn comma_sep<P, R>(&mut self, parse: P) -> Box<[R]>
+	fn comma_sep<P, R, End>(&mut self, parse: P, end: End) -> Box<[R]>
 	where
-		P: FnMut(&mut Self) -> Result<R, Error>,
+		P: FnMut(&mut Self) -> sync::Result<R, Error>,
+		R: ast::IllFormed,
+		End: Fn(&TokenKind) -> bool,
 	{
-		self.sep_by(parse, |token| *token == TokenKind::Comma)
+		self.sep_by(parse, |token| *token == TokenKind::Comma, end)
 	}
 
 
 	/// Semicolon-separated items.
-	fn semicolon_sep<P, R>(&mut self, parse: P) -> Box<[R]>
+	fn semicolon_sep<P, R, End>(&mut self, parse: P, end: End) -> Box<[R]>
 	where
-		P: FnMut(&mut Self) -> Result<R, Error>,
+		P: FnMut(&mut Self) -> sync::Result<R, Error>,
+		R: ast::IllFormed,
+		End: Fn(&TokenKind) -> bool,
 	{
-		self.sep_by(parse, |token| *token == TokenKind::Semicolon)
+		self.sep_by(parse, |token| *token == TokenKind::Semicolon, end)
 	}
 }
 
@@ -198,6 +214,7 @@ where
 				Some(_) => {
 					let statement = self
 						.parse_statement()
+						.force_sync_skip()
 						.synchronize(self);
 
 					let is_return = matches!(statement, ast::Statement::Return { .. });
@@ -351,8 +368,7 @@ where
 
 			// EOF.
 			None => Err(Error::unexpected_eof())
-				// Any sync strategy here is irrelevant, because we have already reached EOF.
-				.with_sync(sync::Strategy::keep()),
+				.with_sync(sync::Strategy::eof()),
 		}
 	}
 
@@ -448,9 +464,9 @@ where
 				Some(Token { token: TokenKind::OpenParens, pos }) => {
 					self.step();
 
-					let params = self.comma_sep(
-						|parser| parser.parse_expression()
-							.discard_sync()
+					let params =  self.comma_sep(
+						Self::parse_expression,
+						|token| *token == TokenKind::CloseParens,
 					);
 
 					self.expect(TokenKind::CloseParens)
@@ -486,8 +502,7 @@ where
 
 					// Here, the identifier is a literal, and not a variable name. Hence, `var.id`
 					// is equivalent to `var["id"]`, and not from `var[id]`.
-					let (identifier, id_pos) = self.parse_identifier()
-						.with_sync(sync::Strategy::skip_one())?;
+					let (identifier, id_pos) = self.parse_identifier()?;
 
 					let field = ast::Expr::Literal {
 						literal: ast::Literal::Identifier(identifier),
@@ -541,8 +556,8 @@ where
 				self.step();
 
 				let items = self.comma_sep(
-					|parser| parser.parse_expression()
-						.discard_sync()
+					Self::parse_expression,
+					|token| *token == TokenKind::CloseBracket,
 				);
 
 				self.expect(TokenKind::CloseBracket)
@@ -568,11 +583,11 @@ where
 							.with_sync(sync::Strategy::keep())
 							.synchronize(parser);
 
-						let value = parser.parse_expression()
-							.discard_sync()?;
+						let value = parser.parse_expression()?;
 
 						Ok((key, value))
-					}
+					},
+					|token| *token == TokenKind::CloseBracket,
 				);
 
 				self.expect(TokenKind::CloseBracket)
@@ -674,15 +689,13 @@ where
 
 			// Some other unexpected token.
 			Some(token) => {
-				// We need to restore the token because it may be some delimiter.
 				self.token = Some(token.clone());
 				Err(Error::unexpected_msg(token, "expression"))
 					.with_sync(sync::Strategy::keep())
 			}
 
 			None => Err(Error::unexpected_eof())
-				// Any sync strategy here is irrelevant, because we have already reached EOF.
-				.with_sync(sync::Strategy::keep()),
+				.with_sync(sync::Strategy::eof()),
 		}
 	}
 
@@ -716,12 +729,13 @@ where
 
 		result.synchronize(self);
 
-		let args = self.comma_sep(|parser| {
-			let (id, _) = parser.parse_identifier()
-				.discard_sync()?;
-
-			Ok(id)
-		});
+		let args = self.comma_sep(
+			|parser| {
+				let (id, _) = parser.parse_identifier()?;
+				Ok(id)
+			},
+			|token| *token == TokenKind::CloseParens,
+		);
 
 		self.expect(TokenKind::CloseParens)
 			.with_sync(

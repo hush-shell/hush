@@ -7,6 +7,8 @@ edition = "2018"
 [dependencies]
 string-interner = { version = "0.12", default-features = false, features = [ "std", "inline-more", "backends" ] }
 
-
 [dev-dependencies]
 assert_matches = "1.5"
+
+[profile.release]
+lto = true

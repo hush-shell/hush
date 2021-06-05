@@ -1,7 +1,7 @@
 use crate::io::{self, FileDescriptor};
 use super::{
 	ast,
-	sync::{self, WithSync},
+	sync::{self, WithSync, ResultExt},
 	ArgPart,
 	ArgUnit,
 	CommandOperator as Operator,
@@ -20,7 +20,10 @@ where
 {
 	/// Parse a command block after the block start token.
 	pub(super) fn parse_command_block(&mut self) -> sync::Result<Box<[ast::Command]>, Error> {
-		let commands = self.semicolon_sep(Self::parse_command);
+		let commands = self.semicolon_sep(
+			Self::parse_command,
+			|token| *token == TokenKind::CloseCommand,
+		);
 
 		self.expect(TokenKind::CloseCommand)
 			.with_sync(sync::Strategy::token(TokenKind::CloseCommand))?;
@@ -30,10 +33,11 @@ where
 
 
 	/// Parse a complete command, including pipelines.
-	fn parse_command(&mut self) -> Result<ast::Command, Error> {
+	fn parse_command(&mut self) -> sync::Result<ast::Command, Error> {
 		let mut basic_commands = Vec::with_capacity(1); // Expect at least one command.
 
-		let first = self.parse_basic_command()?;
+		let first = self.parse_basic_command()
+			.synchronize(self);
 
 		basic_commands.push(first);
 
@@ -41,7 +45,8 @@ where
 		while let Some(Token { token: TokenKind::Pipe, .. }) = self.token {
 			self.step();
 
-			let basic_command = self.parse_basic_command()?;
+			let basic_command = self.parse_basic_command()
+				.synchronize(self);
 
 			basic_commands.push(basic_command);
 		}
@@ -51,8 +56,10 @@ where
 
 
 	/// Parse a single basic command, including redirections and try operator.
-	fn parse_basic_command(&mut self) -> Result<ast::BasicCommand, Error> {
-		let command = self.parse_argument()?;
+	fn parse_basic_command(&mut self) -> sync::Result<ast::BasicCommand, Error> {
+		let command = self.parse_argument()
+			.with_sync(sync::Strategy::basic_command_terminator())?;
+
 		let pos = command.pos;
 
 		let mut arguments = Vec::new();
@@ -81,26 +88,19 @@ where
 			}
 		}
 
-		let (redirections, abort_on_error) = self.parse_operators()?;
+		let (redirections, abort_on_error) = self.parse_operators()
+			.with_sync(sync::Strategy::basic_command_terminator())?;
 
-		// Make sure there are no trailing arguments.
-		match &self.token {
-			Some(Token { token, .. }) if token.is_basic_command_terminator() => {
-				Ok(
-					ast::BasicCommand {
-						command,
-						arguments: arguments.into(),
-						redirections: redirections.into(),
-						abort_on_error,
-						pos,
-					}
-				)
+
+		Ok(
+			ast::BasicCommand {
+				command,
+				arguments: arguments.into(),
+				redirections: redirections.into(),
+				abort_on_error,
+				pos,
 			}
-
-			Some(token) => Err(Error::unexpected_msg(token.clone(), "end of command")),
-
-			None => Err(Error::unexpected_eof())
-		}
+		)
 	}
 
 
@@ -188,7 +188,8 @@ where
 				}
 
 				Some(_) => {
-					let redirection = self.parse_redirection()?;
+					let redirection = self.parse_redirection()
+						.synchronize(self);
 
 					redirections.push(redirection);
 				}
@@ -202,18 +203,21 @@ where
 
 
 	/// Parse a single redirection operation.
-	fn parse_redirection(&mut self) -> Result<ast::Redirection, Error> {
+	fn parse_redirection(&mut self) -> sync::Result<ast::Redirection, Error> {
 		match &self.token {
+			// Input redirection.
 			&Some(Token { token: TokenKind::CmdOperator(Operator::Input { literal }), .. }) => {
 				self.step();
 
-				let source = self.parse_argument()?;
+				let source = self.parse_argument()
+					.with_sync(sync::Strategy::keep())?;
 
 				Ok(
 					ast::Redirection::Input { literal, source }
 				)
 			}
 
+			// Expect a output redirection, with an optional prefixed file descriptor.
 			Some(_) => {
 				let source_fd = self
 					.parse_file_descriptor()
@@ -224,24 +228,31 @@ where
 				Ok(redirection)
 			}
 
-			None => Err(Error::unexpected_eof()),
+			None => Err(Error::unexpected_eof())
+				.with_sync(sync::Strategy::eof()),
 		}
 	}
 
 
 	/// Parse a single output redirection operation after the optional file descriptor.
-	fn parse_output_redirection(&mut self, source: FileDescriptor) -> Result<ast::Redirection, Error> {
+	fn parse_output_redirection(
+		&mut self, source: FileDescriptor
+	) -> sync::Result<ast::Redirection, Error> {
 		match &self.token {
 			&Some(Token { token: TokenKind::CmdOperator(Operator::Output { append }), .. }) => {
 				self.step();
 
 				let target = if append { // >> file
-					let target = self.parse_argument()?;
+					let target = self.parse_argument()
+						.with_sync(sync::Strategy::keep())?;
+
 					ast::RedirectionTarget::Append(target)
 				} else if let Some(fd) = self.parse_file_descriptor() { // > fd
 					ast::RedirectionTarget::Fd(fd)
 				} else { // > file
-					let target = self.parse_argument()?;
+					let target = self.parse_argument()
+						.with_sync(sync::Strategy::keep())?;
+
 					ast::RedirectionTarget::Overwrite(target)
 				};
 
@@ -250,9 +261,11 @@ where
 				)
 			}
 
-			Some(token) => Err(Error::unexpected_msg(token.clone(), "output redirection")),
+			Some(token) => Err(Error::unexpected_msg(token.clone(), "output redirection"))
+				.with_sync(sync::Strategy::skip_one()),
 
-			None => Err(Error::unexpected_eof()),
+			None => Err(Error::unexpected_eof())
+				.with_sync(sync::Strategy::eof()),
 		}
 	}
 
