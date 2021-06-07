@@ -44,7 +44,7 @@ impl Debug for Literal {
 			Self::Int(i) => write!(f, "{}", *i),
 			Self::Float(n) => write!(f, "{}", *n),
 			Self::Byte(c) => write!(f, "'{}'", (*c as char).escape_debug()),
-			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s)),
+			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s).escape_debug()),
 			Self::Array(arr) => f.debug_list().entries(arr.iter()).finish(),
 			Self::Dict(dict) => {
 				write!(f, "@")?;
@@ -243,7 +243,7 @@ impl Debug for Statement {
 impl Debug for ArgUnit {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::Literal(lit) => write!(f, "{}", String::from_utf8_lossy(lit)),
+			Self::Literal(lit) => write!(f, "{}", String::from_utf8_lossy(lit).escape_debug()),
 			Self::Dollar(identifier) => write!(f, "${{id#{}}}", identifier.to_usize()),
 		}
 	}
@@ -259,7 +259,7 @@ impl Debug for ArgPart {
 			Self::Collection(items) => f.debug_set().entries(items.iter()).finish(),
 			Self::Star => write!(f, "*"),
 			Self::Question => write!(f, "?"),
-			Self::CharClass(chars) => write!(f, "[{}]", String::from_utf8_lossy(chars)),
+			Self::CharClass(chars) => write!(f, "[{}]", String::from_utf8_lossy(chars).escape_debug()),
 		}
 	}
 }

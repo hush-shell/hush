@@ -34,7 +34,7 @@ impl Debug for Literal {
 			Self::Int(i) => write!(f, "{}", *i),
 			Self::Float(n) => write!(f, "{}", *n),
 			Self::Byte(c) => write!(f, "'{}'", (*c as char).escape_debug()),
-			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s)),
+			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s).escape_debug()),
 		}
 	}
 }
@@ -68,7 +68,7 @@ impl Debug for Operator {
 impl Debug for ArgUnit {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::Literal(s) => write!(f, "{}", String::from_utf8_lossy(s)),
+			Self::Literal(s) => write!(f, "{}", String::from_utf8_lossy(s).escape_debug()),
 			Self::Dollar(s) => write!(f, "${{id#{}}}", s.to_usize()),
 		}
 	}
@@ -79,7 +79,7 @@ impl Debug for ArgPart {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			Self::Unquoted(arg) => write!(f, "{:?}", arg)?,
-			Self::SingleQuoted(s) => write!(f, "'{}'", String::from_utf8_lossy(s))?,
+			Self::SingleQuoted(s) => write!(f, "'{}'", String::from_utf8_lossy(s).escape_debug())?,
 			Self::DoubleQuoted(args) => {
 				write!(f, "\"")?;
 
