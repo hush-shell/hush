@@ -1,8 +1,37 @@
-use std::path::Path;
+use std::{io, fs, path::{Path, PathBuf}};
 
 use crate::symbol;
 use super::{Analysis, Source, DisplayErrors};
 
+
+#[test]
+fn test_examples() -> io::Result<()> {
+	let mut examples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+	examples_dir.push("examples/hush");
+
+	fn run(dir: &Path, interner: &mut symbol::Interner) -> io::Result<()> {
+		for entry in fs::read_dir(dir)? {
+			let path = entry?.path();
+
+			if path.is_dir() {
+				run(&path, interner)?;
+			} else {
+				let source = Source::from_path(path)?;
+				let analysis = Analysis::analyze(source, interner);
+
+				if !analysis.errors.is_empty() {
+					panic!("{:#?}", analysis);
+				}
+			}
+		}
+
+		Ok(())
+	}
+
+	let mut interner = symbol::Interner::new();
+
+	run(&examples_dir, &mut interner)
+}
 
 #[test]
 fn test_ill_statement() {

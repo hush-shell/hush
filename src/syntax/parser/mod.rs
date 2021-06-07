@@ -214,7 +214,7 @@ where
 				Some(_) => {
 					let statement = self
 						.parse_statement()
-						.force_sync_skip()
+						.force_sync_skip() // Prevent the parser from getting stuck.
 						.synchronize(self);
 
 					let is_return = matches!(statement, ast::Statement::Return { .. });

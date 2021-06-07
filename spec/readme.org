@@ -66,7 +66,7 @@
       : end
 
     Example:
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       let my_dict = @[ # dict
         field0: nil,
         field1: true,
@@ -114,13 +114,13 @@
 ** Constructs
 *** Variables
     /Hush/ adopts static scope, and variables must be declared with a `let` statement.
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       let x # Introduces the variable in the local scope
       let y = 5 # Shortcut for assignment
     #+end_src
 
     Assignment is straightforward, but requires previous declaration.
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       x = 1
     #+end_src
 
@@ -132,7 +132,7 @@
     =bool=. If one supplies a condition that is not a boolean, a [[#Panics][panic]] occurs.
 
     The =if= statement can have two forms:
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       if expression then
         # body
       end
@@ -147,14 +147,14 @@
     body. If the body ends with a statement that produces no value, then =nil= is produced.
 
     The =while= loop allows looping over a boolean expression:
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       while expression do
         # body
       end
     #+end_src
 
     The =for= loop allows looping over an iterator function:
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       for identifier in expression do
         # body
       end
@@ -166,7 +166,7 @@
     executed. When =false=, the iteration is finished.
 
     Under the hood, the =for= loop translates to something like:
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       let iter = expression
       let arr = iter()
       while arr[0] do
@@ -233,13 +233,14 @@
       then ~self~ refers to the same value as ~my_obj~.
 
     Summarizing, here are some examples of functions in /Hush/:
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       # Simple function definition.
       function sum(a, b, c)
         return a + b + c
       end
-
-
+    #+end_src
+    # Don't tangle this one yet because optional parameters are yet to be implemented.
+    #+begin_src bash
       # Reassigns the sum variable, which was referring to the previous function.
       sum = function (a, b, c; d) # Here, `d` is an optional argument.
         if d != nil then
@@ -248,15 +249,15 @@
           return a + b + c
         end
       end
-
-
+    #+end_src
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       function sum(a)
         return function(b) # Closure!
           return a + b  # Here, `a` is captured from the outer scope.
         end
       end
-
-
+    #+end_src
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       # Simple recursive function.
       function factorial(n)
         if n < 2 then
@@ -265,8 +266,8 @@
           return n * factorial(n - 1)
         end
       end
-
-
+    #+end_src
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       # A member function.
       let my_obj = @[
         value: 5,
@@ -297,14 +298,13 @@
      commands, but it allows one to split a command across multiple lines interspersed
      with comments, which is currently impossible in /Bash/, for instance.
 
-     #+begin_src bash
+     #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
        {
          docker create
                 --name $container
                 -i -a STDIN -a STDOUT -a STDERR # attach all stdio
                 -v $pwd:/my/project:ro # mount the source code as a read-only volume
                 my-image:latest;
-
 
          rsync -av --delete --delete-excluded
                 # version control directories:
@@ -321,7 +321,6 @@
                 --exclude='torrents/'
                 ~/ /mnt/backup 2>1
            | tee rsync.log;
-
 
          list-musics
            | xargs --null -- mediainfo --Output='Audio;%Duration%\n' # get duration in milliseconds
@@ -345,7 +344,7 @@
       proceed even if the result is an =error=.
 
       Example:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         let results = {
           # (A)
           cat /etc/shadow ?; # Should error with permission denied, but won't abort the command block.
@@ -426,7 +425,7 @@
       interpolation. Inside double quotes, variables can be accessed with =$= or =${}=, to
       allow consecutive word characters. As an example, all of the following produce a
       single argument to =echo=:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         let file = "/etc/myconfig"
 
         {
@@ -506,12 +505,12 @@
       | /stdout/ |      1 |
       | /stderr/ |      2 |
       If one desires to redirect to a file named "2", quotes must be used:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         { command > "2" }
       #+end_src
 
       Filenames may be supplied through variables, but not file descriptors:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         let var = 2
         { command > $var } # Redirects to a file named "2"
       #+end_src
@@ -532,7 +531,7 @@
 
       Here are some insightful examples of such behavior:
       - The following pipeline:
-        #+begin_src bash
+        #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
           { ps aux | cat | cat | cat | grep 'cat' }
         #+end_src
         May output something like:
@@ -545,11 +544,11 @@
         Which indicates that all =cat= programs were already running when =ps= fetched the
         process list.
       - The following command outputs an infinite stream of zeroes:
-        #+begin_src bash
+        #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
           { cat /dev/zero | tr '\0' '0' }
         #+end_src
         But when piped to the =head= command, all involved programs terminate:
-        #+begin_src bash
+        #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
           { cat /dev/zero | tr '\0' '0' | head -c 20 }
         #+end_src
         Because when =head= closes it's side of the pipe, attempts to write from the other
@@ -564,7 +563,7 @@
       result status. This enables accessing both /stdout/ and /stderr/ separately, as well as
       the result status, all with value semantics. If one cares only about the /stdout/ for
       instance, direct access can be used, without requiring any intermediate variables:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         ${date --iso-8061}.stdout
       #+end_src
 
@@ -577,7 +576,7 @@
       #+end_src
 
       /Hush/:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         let date = ${date --iso-8601}.stdout
         { tee $date }
       #+end_src
@@ -637,7 +636,7 @@
         command block result.
 
       Hush:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         # Array variable to capture the pids of all spawned tasks
         let jobs = []
 
@@ -697,7 +696,7 @@
     mechanism should be used for reporting and handling errors. Command blocks and
     built-in functions will report errors by returning values of such type, instead of the
     expected return value.
-    #+begin_src bash
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       let result = std.cd("/non-existing/directory")
 
       if std.type(result) == "error" then
@@ -768,7 +767,7 @@
       + =error=: formats the error description message, along with the context if any.
     - =type(value)= ::
       Returns a string describing the type of =value=.
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         let val = "this is a string"
         std.type(val) == "string" # true
       #+end_src
@@ -781,14 +780,14 @@
       Creates an alias, to take part in [[#Command-lookup][command lookup]]. The first argument is the alias
       name, and the following arguments are the aliased command and arguments. The alias
       name cannot contain a path separator (=/=). Example:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         { alias ll ls --color=auto -lh --time-style long-iso --group-directories-first }
       #+end_src
     - =cd= ::
       The first and only argument is the directory to be accessed. If the directory does
       not exists, or cannot be accessed, =cd= prints an error description to /stderr/, and
       returns =1=. Example:
-      #+begin_src bash
+      #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
         { cd /home/my-username/ }
       #+end_src
 
@@ -808,7 +807,7 @@
    by a constructor function.
 
    Hush:
-   #+begin_src bash
+   #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
      function MyCounter(initial_value) # MyCounter is a function that represents a Class.
        let increment = function()
          self._value += 1
