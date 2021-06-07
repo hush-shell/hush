@@ -73,7 +73,7 @@
         field2: 42, # integer
         field3: -12, # integer
         field4: 3.14, # float
-        field5: 12E+99, # float
+        field5: 12E99, # float
         field6: [ # array
           "a simple string",
           "a string with \n escaped \" characters",
@@ -810,7 +810,7 @@
    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
      function MyCounter(initial_value) # MyCounter is a function that represents a Class.
        let increment = function()
-         self._value += 1
+         self._value = self._value + 1
        end
 
        let get = function()
@@ -836,7 +836,7 @@
      function StepCounter(initial_value, step)
        # This function captures the `step` variable, which acts as a private field.
        let increment = function()
-         self._value += step
+         self._value = self._value + step
        end
 
        let print = function()
