@@ -1,0 +1,2 @@
+fun(1, hello., 3,) # missing dot access identifier.
+5 + 5

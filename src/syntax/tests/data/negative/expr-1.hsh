@@ -1,0 +1,9 @@
+@[
+	hai: 1,
+	b: [ 5 * ], # missing operand here
+	c: 3
+]
+
+function b()
+	std.print(hai)
+end

@@ -1,0 +1,4 @@
+call()
+dict[field](arg)
+fun(many)(chained)[field](calls)
+fun(many).field(chained).field.calls()

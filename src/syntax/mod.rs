@@ -10,7 +10,7 @@ use std::{cell::RefCell, fmt::{self, Debug}};
 
 use crate::symbol;
 pub use ast::Ast;
-pub use error::{DisplayErrors, Error};
+pub use error::Error;
 use lexer::Lexer;
 use parser::Parser;
 pub use source::{Source, SourcePos};

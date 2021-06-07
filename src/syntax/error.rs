@@ -22,18 +22,3 @@ impl Display for Error {
 
 
 impl std::error::Error for Error {}
-
-
-#[derive(Debug)]
-pub struct DisplayErrors<'a>(pub &'a [Error]);
-
-
-impl<'a> Display for DisplayErrors<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for error in self.0 {
-			writeln!(f, "{}", error)?;
-		}
-
-		Ok(())
-	}
-}
