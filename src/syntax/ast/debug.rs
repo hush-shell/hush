@@ -43,7 +43,7 @@ impl Debug for Literal {
 			Self::Bool(b) => write!(f, "{}", b),
 			Self::Int(i) => write!(f, "{}", *i),
 			Self::Float(n) => write!(f, "{}", *n),
-			Self::Byte(c) => write!(f, "'{}'", *c as char),
+			Self::Byte(c) => write!(f, "'{}'", (*c as char).escape_debug()),
 			Self::String(s) => write!(f, "\"{}\"", String::from_utf8_lossy(s)),
 			Self::Array(arr) => f.debug_list().entries(arr.iter()).finish(),
 			Self::Dict(dict) => {

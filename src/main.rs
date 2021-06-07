@@ -1,11 +1,13 @@
-// #![feature(backtrace)]
 #![allow(dead_code)] // This is temporarily used for the inital development.
 
 mod io;
 mod symbol;
 mod syntax;
+mod term;
 
 use std::path::Path;
+
+use term::color;
 
 
 fn main() -> std::io::Result<()> {
@@ -23,7 +25,11 @@ fn syntax(source: syntax::Source) {
 	let mut interner = symbol::Interner::new();
 	let analysis = Analysis::analyze(source, &mut interner);
 
-	println!("{:#?}", analysis);
+	for error in analysis.errors.iter() {
+		println!("{}: {}", color::Fg(color::Red, "Error"), error);
+	}
+
+	println!("{:#?}", analysis.ast);
 }
 
 

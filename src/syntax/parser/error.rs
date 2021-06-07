@@ -58,16 +58,16 @@ impl Error {
 impl Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			Self::UnexpectedEof => write!(f, "Error: unexpected end of file"),
+			Self::UnexpectedEof => write!(f, "unexpected end of file"),
 			Self::Unexpected { token: Token { token, pos }, expected } => {
 				write!(
 					f,
-					"Error at {}: unexpected '{:?}', expected {}",
+					"{} - unexpected '{:?}', expected {}",
 					pos, token, expected
 				)
 			},
 			Self::DuplicateKeys { pos } => {
-				write!(f, "Error at {}: duplicate keys in dict literal", pos)
+				write!(f, "{} - duplicate keys in dict literal", pos)
 			}
 		}
 	}

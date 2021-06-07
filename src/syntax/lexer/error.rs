@@ -68,7 +68,7 @@ pub struct Error {
 
 impl Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "Error at {}: {}.", self.pos, self.error)
+		write!(f, "{} - {}.", self.pos, self.error)
 	}
 }
 

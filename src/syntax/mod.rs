@@ -62,13 +62,13 @@ impl Debug for Analysis {
 		writeln!(f, "Analysis for {}", self.ast.path.display())?;
 
 		for error in self.errors.iter() {
-			writeln!(f, "{}", error)?;
+			writeln!(f, "Error: {}", error)?;
 		}
 
 		if f.alternate() {
-			writeln!(f, "{:#?}", self.ast.statements)
+			writeln!(f, "AST:\n{:#?}", self.ast.statements)
 		} else {
-			writeln!(f, "{:?}", self.ast.statements)
+			writeln!(f, "AST:\n{:?}", self.ast.statements)
 		}
 	}
 }
