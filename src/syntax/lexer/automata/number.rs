@@ -49,7 +49,7 @@ impl NumberLiteral {
 			}
 
 			// Exponent may be present regardless of dot.
-			(&Self { consumed_exponent: None, .. }, Some(b'e')) => {
+			(&Self { consumed_exponent: None, .. }, Some(c)) if c == b'e' || c == b'E' => {
 				self.consumed_exponent = Some(false);
 				Transition::step(self)
 			}

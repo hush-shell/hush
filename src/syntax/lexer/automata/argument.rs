@@ -348,6 +348,7 @@ impl WordContext for SingleQuoted {
 			// Additional escape sequences:
 			b'n' => Some(b'\n'),
 			b't' => Some(b'\t'),
+			b'0' => Some(b'\0'),
 			b'\\' => Some(b'\\'),
 
 			// Invalid escape sequence:
@@ -512,6 +513,7 @@ impl WordContext for Argument {
 			b'\'' | b'"' => false,                 // Quotes.
 			b'>' | b'<' | b'?' | b';' => false,    // Symbols.
 			b'$' => false,                         // Dollar.
+			b'}' => false,                         // Close command.
 			c if c.is_ascii_whitespace() => false, // Whitespace.
 			_ => true,
 		}
