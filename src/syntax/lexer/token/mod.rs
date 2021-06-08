@@ -1,11 +1,11 @@
-mod debug;
+mod fmt;
 
 use super::SourcePos;
 use crate::symbol::Symbol;
 
 
 /// All keywords in the language, except for operator keywords (and, or, not).
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
 	Let,
 	If,
@@ -24,7 +24,7 @@ pub enum Keyword {
 
 
 /// Literals for non-composite types.
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
 	Nil,
 	True,
@@ -38,7 +38,7 @@ pub enum Literal {
 
 
 /// Non-command operators.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operator {
 	Plus,  // +
 	Minus, // -
@@ -100,7 +100,7 @@ impl Operator {
 
 
 /// The indivisible part of a command argument.
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArgUnit {
 	Literal(Box<[u8]>),
 	Dollar(Symbol), // $, ${}
@@ -119,7 +119,7 @@ impl ArgUnit {
 
 
 /// Argument parts may be single, double ou unquoted.
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArgPart {
 	Unquoted(ArgUnit),
 	SingleQuoted(Box<[u8]>),
@@ -139,7 +139,7 @@ impl ArgPart {
 
 
 /// Operators in command blocks.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CommandOperator {
 	Output { append: bool }, // >, >>
 	Input { literal: bool }, // <, <<
@@ -159,7 +159,7 @@ impl CommandOperator {
 
 
 /// All possible kinds of token in Hush.
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
 	Identifier(Symbol),
 	Keyword(Keyword),
@@ -215,7 +215,7 @@ impl TokenKind {
 
 
 /// A lexical token.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Token {
 	pub token: TokenKind,
 	pub pos: SourcePos,

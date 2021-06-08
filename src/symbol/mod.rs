@@ -1,3 +1,5 @@
+mod fmt;
+
 pub use string_interner::Symbol as SymbolExt;
 use string_interner::{DefaultSymbol, StringInterner};
 

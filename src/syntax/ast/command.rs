@@ -3,6 +3,7 @@ use super::{lexer, IllFormed, SourcePos};
 
 
 /// The most basic part of an argument.
+#[derive(Debug)]
 pub enum ArgUnit {
 	Literal(Box<[u8]>),
 	Dollar(Symbol),
@@ -10,6 +11,7 @@ pub enum ArgUnit {
 
 
 /// The most basic part of an argument.
+#[derive(Debug)]
 pub enum ArgPart {
 	Unit(ArgUnit),
 
@@ -26,6 +28,7 @@ pub enum ArgPart {
 
 
 /// An argument may consist of several argument parts.
+#[derive(Debug)]
 pub struct Argument {
 	pub parts: Box<[ArgPart]>,
 	pub pos: SourcePos,
@@ -43,6 +46,7 @@ impl IllFormed for Argument {
 
 
 /// The target of a redirection operation.
+#[derive(Debug)]
 pub enum RedirectionTarget {
 	/// Redirect to a file descriptor.
 	Fd(FileDescriptor),
@@ -54,6 +58,7 @@ pub enum RedirectionTarget {
 
 
 /// Redirection operation.
+#[derive(Debug)]
 pub enum Redirection {
 	/// An ill-formed redirection, produced by a parse error.
 	IllFormed,
@@ -79,6 +84,7 @@ impl IllFormed for Redirection {
 
 
 /// A single command, including possible redirections and try operator.
+#[derive(Debug)]
 pub struct BasicCommand {
 	pub command: Argument,
 	pub arguments: Box<[Argument]>,
@@ -102,7 +108,7 @@ impl IllFormed for BasicCommand {
 
 
 /// Commands may be pipelines, or a single BasicCommand.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Command(pub Box<[BasicCommand]>);
 
 
@@ -121,6 +127,7 @@ impl IllFormed for Command {
 
 
 /// The kinds of command blocks.
+#[derive(Debug)]
 pub enum CommandBlockKind {
 	Synchronous,  // {}
 	Asynchronous, // &{}

@@ -1,9 +1,10 @@
-use std::fmt::{self, Debug, Display};
+mod fmt;
 
 use super::SourcePos;
 
 
 /// The kind of lexical error.
+#[derive(Debug)]
 pub enum ErrorKind {
 	/// Unexpected end of file.
 	UnexpectedEof,
@@ -20,56 +21,11 @@ pub enum ErrorKind {
 }
 
 
-impl Debug for ErrorKind {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self) // Use the display instance for debugging.
-	}
-}
-
-
-impl Display for ErrorKind {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self {
-			Self::UnexpectedEof => write!(f, "unexpected end of file")?,
-
-			Self::Unexpected(value) => write!(f, "unexpected '{}'", *value as char)?,
-
-			Self::EmptyByteLiteral => write!(f, "empty char literal")?,
-
-			Self::InvalidEscapeSequence(sequence) => {
-				write!(
-					f,
-					"invalid escape sequence: {}",
-					String::from_utf8_lossy(sequence)
-				)?;
-			}
-
-			Self::InvalidNumber(number) => {
-				write!(f, "invalid number: {}", String::from_utf8_lossy(number))?;
-			}
-
-			Self::InvalidIdentifier(ident) => {
-				write!(f, "invalid identifier: {}", String::from_utf8_lossy(ident))?;
-			}
-		};
-
-		Ok(())
-	}
-}
-
-
 /// A lexical error.
 #[derive(Debug)]
 pub struct Error {
 	pub error: ErrorKind,
 	pub pos: SourcePos,
-}
-
-
-impl Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{} - {}.", self.pos, self.error)
-	}
 }
 
 

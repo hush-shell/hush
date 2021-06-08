@@ -2,11 +2,12 @@ pub mod ast;
 pub mod error;
 pub mod lexer;
 pub mod parser;
+mod fmt;
 mod source;
 #[cfg(test)]
 mod tests;
 
-use std::{cell::RefCell, fmt::{self, Debug}};
+use std::cell::RefCell;
 
 use crate::symbol;
 pub use ast::Ast;
@@ -16,6 +17,8 @@ use parser::Parser;
 pub use source::{Source, SourcePos};
 
 
+/// Syntactical analysis.
+#[derive(Debug)]
 pub struct Analysis {
 	/// The produced AST, possibly partial if there were errors.
 	pub ast: Ast,
@@ -52,23 +55,6 @@ impl Analysis {
 		Analysis {
 			ast: Ast { path: source.path, statements },
 			errors: errors.into_inner().into(),
-		}
-	}
-}
-
-
-impl Debug for Analysis {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		writeln!(f, "Analysis for {}", self.ast.path.display())?;
-
-		for error in self.errors.iter() {
-			writeln!(f, "Error: {}", error)?;
-		}
-
-		if f.alternate() {
-			writeln!(f, "AST:\n{:#?}", self.ast.statements)
-		} else {
-			writeln!(f, "AST:\n{:?}", self.ast.statements)
 		}
 	}
 }

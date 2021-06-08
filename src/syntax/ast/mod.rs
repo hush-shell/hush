@@ -1,5 +1,5 @@
 mod command;
-mod debug;
+pub mod fmt;
 
 use std::{collections::HashMap, path::Path};
 
@@ -54,6 +54,7 @@ impl IllFormed for SourcePos {
 
 impl IllFormed for Symbol {
 	fn ill_formed() -> Self {
+		// This is actually a valid symbol, but it doesn't matter because it won't be used.
 		Self
 			::try_from_usize(0)
 			.expect("invalid illformed symbol")
@@ -62,7 +63,7 @@ impl IllFormed for Symbol {
 
 
 /// A block is a list of statements, constituting a new scope.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Block(pub Box<[Statement]>);
 
 
@@ -82,6 +83,7 @@ impl IllFormed for Block {
 
 /// Literals of all types in the language.
 /// Note that there are no literals for the error type.
+#[derive(Debug)]
 pub enum Literal {
 	Nil,
 	Bool(bool),
@@ -126,6 +128,7 @@ impl From<lexer::Literal> for Literal {
 
 
 /// Unary operators.
+#[derive(Debug)]
 pub enum UnaryOp {
 	Minus, // -
 	Not,   // not
@@ -147,6 +150,7 @@ impl From<lexer::Operator> for UnaryOp {
 /// Binary operators.
 /// Assignment/Access are not represented as operators, but directly as
 /// statements/expressions instead.
+#[derive(Debug)]
 pub enum BinaryOp {
 	Plus,  // +
 	Minus, // -
@@ -193,6 +197,7 @@ impl From<lexer::Operator> for BinaryOp {
 
 
 /// Expressions of all kinds in the language.
+#[derive(Debug)]
 pub enum Expr {
 	/// An ill-formed expr, produced by a parse error.
 	IllFormed,
@@ -253,6 +258,7 @@ impl IllFormed for Expr {
 
 
 /// Statements of all kinds in the language.
+#[derive(Debug)]
 pub enum Statement {
 	/// An ill-formed statement, produced by a parse error.
 	IllFormed,
@@ -298,6 +304,7 @@ impl IllFormed for Statement {
 
 
 /// The abstract syntax tree for a source file.
+#[derive(Debug)]
 pub struct Ast {
 	/// The source path. May be something fictional, like "<stdin>".
 	pub path: Box<Path>,
