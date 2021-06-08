@@ -92,7 +92,7 @@ pub enum Literal {
 	Byte(u8),
 	String(Box<[u8]>),
 	Array(Box<[Expr]>),
-	Dict(HashMap<Symbol, Expr>),
+	Dict(Box<[(Symbol, Expr)]>),
 	Function {
 		/// A list of arguments (identifiers).
 		args: Box<[Symbol]>,

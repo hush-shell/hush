@@ -38,14 +38,6 @@ impl<'a> Display<'a> for Error {
 				expected.fmt(f, context)
 			},
 
-			Self::DuplicateParams { pos } => {
-				write!(f, "{} - duplicate parameters in function", pos)
-			}
-
-			Self::DuplicateKeys { pos } => {
-				write!(f, "{} - duplicate keys in dict literal", pos)
-			}
-
 			Self::EmptyCommandBlock { pos } => {
 				write!(f, "{} - empty command block", pos)
 			}

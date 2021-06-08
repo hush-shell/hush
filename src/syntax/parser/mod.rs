@@ -2,7 +2,7 @@ mod command;
 mod error;
 mod sync;
 
-use std::{collections::{HashMap, HashSet}, iter::Peekable};
+use std::iter::Peekable;
 
 use super::{
 	SourcePos,
@@ -461,7 +461,7 @@ where
 				Some(Token { token: TokenKind::OpenParens, pos }) => {
 					self.step();
 
-					let params =  self.comma_sep(
+					let params = self.comma_sep(
 						Self::parse_expression,
 						|token| *token == TokenKind::CloseParens,
 					);
@@ -590,16 +590,7 @@ where
 				self.expect(TokenKind::CloseBracket)
 					.with_sync(sync::Strategy::token(TokenKind::CloseBracket))?;
 
-				let mut dict = HashMap::new();
-
-				for (id, value) in items.into_vec() { // Use vec's owned iterator.
-					if dict.insert(id, value).is_some() { // Key already in dict.
-						return Err(Error::duplicate_keys(pos))
-							.with_sync(sync::Strategy::keep())
-					}
-				}
-
-				Ok(ast::Expr::Literal { literal: ast::Literal::Dict(dict), pos })
+				Ok(ast::Expr::Literal { literal: ast::Literal::Dict(items), pos })
 			}
 
 			// Function literal.
@@ -724,7 +715,7 @@ where
 
 		let open_parens = result.is_ok();
 
-		let params_pos = result.synchronize(self);
+		result.synchronize(self);
 
 		let args = self.comma_sep(
 			|parser| {
@@ -749,16 +740,6 @@ where
 		self.expect(TokenKind::Keyword(Keyword::End))
 			.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
-		let mut unique_params = HashSet::new();
-    let contains_duplicate = args
-			.iter()
-			.any(move |x| !unique_params.insert(x));
-
-		if contains_duplicate {
-			Err(Error::duplicate_params(params_pos))
-				.with_sync(sync::Strategy::keep())
-		} else {
-			Ok((args, body))
-		}
+		Ok((args, body))
 	}
 }

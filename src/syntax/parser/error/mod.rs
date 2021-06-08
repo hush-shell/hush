@@ -18,10 +18,6 @@ pub enum Error {
 	UnexpectedEof,
 	/// Unexpected token.
 	Unexpected { token: Token, expected: Expected },
-	/// Duplicate parameters in function.
-	DuplicateParams { pos: SourcePos },
-	/// Duplicate keys in dict literal.
-	DuplicateKeys { pos: SourcePos },
 	/// Command blocks must have at least one command.
 	EmptyCommandBlock { pos: SourcePos },
 }
@@ -43,18 +39,6 @@ impl Error {
 	/// Create an error signaling an unexpected token, and a message.
 	pub fn unexpected_msg(token: Token, message: &'static str) -> Self {
 		Self::Unexpected { token, expected: Expected::Message(message) }
-	}
-
-
-	/// Create an error signaling a function has duplicate parameters.
-	pub fn duplicate_params(pos: SourcePos) -> Self {
-		Self::DuplicateParams { pos }
-	}
-
-
-	/// Create an error signaling a dict has duplicate keys.
-	pub fn duplicate_keys(pos: SourcePos) -> Self {
-		Self::DuplicateKeys { pos }
 	}
 
 

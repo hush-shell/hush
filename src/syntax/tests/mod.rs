@@ -25,7 +25,7 @@ where
 				let source = Source::from_path(path)?;
 				let analysis = Analysis::analyze(source, interner);
 
-				check(&analysis, &*interner)
+				check(&analysis, interner)
 			}
 		}
 
