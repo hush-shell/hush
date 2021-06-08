@@ -30,7 +30,7 @@ impl Command {
 			// Close command block.
 			Some(b'}') => Transition::produce(
 				Root,
-				Token { token: TokenKind::CloseCommand, pos: cursor.pos() },
+				Token { kind: TokenKind::CloseCommand, pos: cursor.pos() },
 			),
 
 			// Argument or operator.
@@ -40,7 +40,7 @@ impl Command {
 
 				// Semicolon, pipe or try.
 				CommandSymbolChar::Single(token) => {
-					Transition::produce(self, Token { token, pos: cursor.pos() })
+					Transition::produce(self, Token { kind: token, pos: cursor.pos() })
 				}
 
 				// >, >>, <, <<.

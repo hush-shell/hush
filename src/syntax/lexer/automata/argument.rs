@@ -489,7 +489,7 @@ impl Argument {
 			_ => Transition::resume_produce(
 				Command,
 				Token {
-					token: TokenKind::Argument(self.parts.into_boxed_slice()),
+					kind: TokenKind::Argument(self.parts.into_boxed_slice()),
 					pos: self.pos,
 				},
 			),

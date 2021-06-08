@@ -11,6 +11,7 @@ pub use command::{
 	Argument,
 	BasicCommand,
 	Command,
+	CommandBlock,
 	CommandBlockKind,
 	Redirection,
 	RedirectionTarget,
@@ -240,8 +241,7 @@ pub enum Expr {
 		pos: SourcePos,
 	},
 	CommandBlock {
-		kind: CommandBlockKind,
-		commands: Box<[Command]>,
+		block: CommandBlock,
 		pos: SourcePos,
 	},
 }

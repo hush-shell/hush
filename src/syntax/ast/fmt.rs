@@ -10,8 +10,10 @@ use super::{
 	BinaryOp,
 	Block,
 	Command,
+	CommandBlock,
 	CommandBlockKind,
 	Expr,
+	IllFormed,
 	Literal,
 	Redirection,
 	RedirectionTarget,
@@ -298,29 +300,7 @@ impl<'a> Display<'a> for Expr {
 				")".fmt(f)
 			}
 
-			Self::CommandBlock { kind, commands, .. } => {
-				match kind {
-					CommandBlockKind::Synchronous => "{",
-					CommandBlockKind::Asynchronous => "&{",
-					CommandBlockKind::Capture => "${",
-				}.fmt(f)?;
-
-				let nested = context.indent();
-
-				sep_by(
-					commands.iter(),
-					f,
-					|cmd, f| {
-						step(f, nested)?;
-						cmd.fmt(f, context.interner)
-					},
-					if context.indentation.is_some() { ";" } else { ";" },
-				)?;
-
-				step(f, context)?;
-
-				"}".fmt(f)
-			}
+			Self::CommandBlock { block, .. } => block.fmt(f, context),
 		}
 	}
 }
@@ -552,18 +532,62 @@ impl<'a> Display<'a> for Command {
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		let mut commands = self.0.iter();
 
-		let command = commands.next().expect("empty command");
+		match commands.next() {
+			Some(command) => {
+				command.fmt(f, context)?;
 
-		command.fmt(f, context)?;
+				for command in commands {
+					" ".fmt(f)?;
+					TokenKind::Pipe.fmt(f, context)?;
+					" ".fmt(f)?;
+					command.fmt(f, context)?;
+				}
 
-		for command in commands {
-			" ".fmt(f)?;
-			TokenKind::Pipe.fmt(f, context)?;
-			" ".fmt(f)?;
-			command.fmt(f, context)?;
+				Ok(())
+			}
+
+			None => ILL_FORMED.fmt(f)
 		}
+	}
+}
 
-		Ok(())
+
+impl std::fmt::Display for CommandBlockKind {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			Self::Synchronous => "{",
+			Self::Asynchronous => "&{",
+			Self::Capture => "${",
+		}.fmt(f)
+	}
+}
+
+
+impl<'a> Display<'a> for CommandBlock {
+	type Context = Context<'a>;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		if self.commands.is_empty() {
+			ILL_FORMED.fmt(f)
+		} else {
+			self.kind.fmt(f)?;
+
+			let nested = context.indent();
+
+			sep_by(
+				self.commands.iter(),
+				f,
+				|cmd, f| {
+					step(f, nested)?;
+					cmd.fmt(f, context.interner)
+				},
+				if context.indentation.is_some() { ";" } else { ";" },
+			)?;
+
+			step(f, context)?;
+
+			"}".fmt(f)
+		}
 	}
 }
 

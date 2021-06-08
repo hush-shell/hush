@@ -31,9 +31,9 @@ impl<'a> Display<'a> for Error {
 		match self {
 			Self::UnexpectedEof => "unexpected end of file".fmt(f),
 
-			Self::Unexpected { token: Token { token, pos }, expected } => {
+			Self::Unexpected { token: Token { kind, pos }, expected } => {
 				write!(f, "{} - unexpected '", pos)?;
-				token.fmt(f, context)?;
+				kind.fmt(f, context)?;
 				"', expected ".fmt(f)?;
 				expected.fmt(f, context)
 			},

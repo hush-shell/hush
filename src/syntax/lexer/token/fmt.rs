@@ -172,6 +172,6 @@ impl<'a> Display<'a> for Token {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		write!(f, "{}:\t", self.pos)?;
-		self.token.fmt(f, context)
+		self.kind.fmt(f, context)
 	}
 }

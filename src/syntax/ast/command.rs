@@ -108,7 +108,7 @@ impl IllFormed for BasicCommand {
 
 
 /// Commands may be pipelines, or a single BasicCommand.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Command(pub Box<[BasicCommand]>);
 
 
@@ -121,7 +121,26 @@ impl From<Box<[BasicCommand]>> for Command {
 
 impl IllFormed for Command {
 	fn ill_formed() -> Self {
-		Self::default()
+		Self(Default::default())
+	}
+}
+
+
+/// A command block.
+/// An empty command block is ill-formed.
+#[derive(Debug)]
+pub struct CommandBlock {
+	pub kind: CommandBlockKind,
+	pub commands: Box<[Command]>,
+}
+
+
+impl IllFormed for CommandBlock {
+	fn ill_formed() -> Self {
+		Self {
+			kind: CommandBlockKind::Synchronous,
+			commands: Default::default(),
+		}
 	}
 }
 

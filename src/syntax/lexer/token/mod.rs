@@ -203,6 +203,15 @@ impl TokenKind {
 	}
 
 
+	/// Check if the token starts a command block.
+	pub fn is_command_block_starter(&self) -> bool {
+		matches!(
+			self,
+			TokenKind::Command | TokenKind::AsyncCommand | TokenKind::CaptureCommand
+		)
+	}
+
+
 	/// Check if the token terminates a basic command.
 	/// Currently, the semicolon, the pipe and the close bracket tokens do that.
 	pub fn is_basic_command_terminator(&self) -> bool {
@@ -217,6 +226,6 @@ impl TokenKind {
 /// A lexical token.
 #[derive(Debug, Clone)]
 pub struct Token {
-	pub token: TokenKind,
+	pub kind: TokenKind,
 	pub pos: SourcePos,
 }

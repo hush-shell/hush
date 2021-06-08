@@ -90,7 +90,7 @@ impl NumberLiteral {
 	fn parse(&self, cursor: &Cursor) -> Result<Token, Error> {
 		let number = &cursor.slice()[self.start_offset .. cursor.offset()];
 
-		let literal = |literal| Ok(Token { token: TokenKind::Literal(literal), pos: self.pos });
+		let literal = |literal| Ok(Token { kind: TokenKind::Literal(literal), pos: self.pos });
 
 		// There is no method in std to parse a number from a byte array.
 		let number_str = std::str::from_utf8(number)

@@ -39,7 +39,7 @@ impl Word {
 				let word = &cursor.slice()[self.start_offset .. cursor.offset()];
 				let token = Self::to_token(word, interner);
 
-				Transition::resume_produce(Root, Token { token, pos: self.pos })
+				Transition::resume_produce(Root, Token { kind: token, pos: self.pos })
 			}
 		}
 	}

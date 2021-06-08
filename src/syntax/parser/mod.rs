@@ -97,7 +97,7 @@ where
 	/// Consume the expected token, or produce an error.
 	fn expect(&mut self, expected: TokenKind) -> Result<SourcePos, Error> {
 		self.eat(|token| match token {
-			Token { token, pos } if token == expected => Ok(pos),
+			Token { kind: token, pos } if token == expected => Ok(pos),
 			token => Err((Error::unexpected(token.clone(), expected), token)),
 		})
 	}
@@ -115,7 +115,7 @@ where
 		let mut items = Vec::new();
 
 		loop {
-			if let Some(Token { token, .. }) = &self.token {
+			if let Some(Token { kind: token, .. }) = &self.token {
 				if end(token) {
 					break;
 				}
@@ -127,7 +127,7 @@ where
 			items.push(item);
 
 			match &self.token {
-				Some(Token { token, .. }) if sep(token) => self.step(),
+				Some(Token { kind: token, .. }) if sep(token) => self.step(),
 				_ => break,
 			}
 		}
@@ -167,7 +167,7 @@ where
 	fn synchronize(&mut self, error: Error, mut sync: sync::Strategy) {
 		self.error_reporter.report(error);
 
-		while let Some(Token { token, .. }) = &self.token {
+		while let Some(Token { kind: token, .. }) = &self.token {
 			if sync.synchronized(token) {
 				break;
 			} else {
@@ -191,7 +191,7 @@ where
 			match self.token.take() {
 				// If the token is a block terminator, the parse_block won't parse anything.
 				// We must then prevent an infinite loop here.
-				Some(token) if token.token.is_block_terminator() => {
+				Some(token) if token.kind.is_block_terminator() => {
 					Err(Error::unexpected_msg(token, "statement"))
 						.with_sync(sync::Strategy::skip_one())
 						.synchronize(&mut self)
@@ -221,7 +221,7 @@ where
 				None => break,
 
 				// Break on end of block.
-				Some(Token { token, .. }) if token.is_block_terminator() => break,
+				Some(Token { kind: token, .. }) if token.is_block_terminator() => break,
 
 				Some(_) => {
 					let statement = self
@@ -249,7 +249,7 @@ where
 	fn parse_statement(&mut self) -> sync::Result<ast::Statement, Error> {
 		match self.token.take() {
 			// Let.
-			Some(Token { token: TokenKind::Keyword(Keyword::Let), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Let), pos }) => {
 				self.step();
 
 				let (identifier, _) = self
@@ -257,7 +257,7 @@ where
 					.synchronize(self);
 
 				let init;
-				if matches!(self.token, Some(Token { token: TokenKind::Operator(Operator::Assign), .. })) {
+				if matches!(self.token, Some(Token { kind: TokenKind::Operator(Operator::Assign), .. })) {
 					self.step();
 					// Don't synchronize here because this expression is the last part of the statement.
 					init = self.parse_expression()?;
@@ -272,8 +272,8 @@ where
 			}
 
 			// Let function.
-			Some(Token { token: TokenKind::Keyword(Keyword::Function), pos })
-				if matches!(self.peek(), Some(Token { token: TokenKind::Identifier(_), .. })) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Function), pos })
+				if matches!(self.peek(), Some(Token { kind: TokenKind::Identifier(_), .. })) => {
 					self.step();
 
 					// This should not fail because we have just peeked an identifier.
@@ -293,7 +293,7 @@ where
 				}
 
 			// Return.
-			Some(Token { token: TokenKind::Keyword(Keyword::Return), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Return), pos }) => {
 				self.step();
 
 				// Don't synchronize here because this expression is the last part of the statement.
@@ -303,14 +303,14 @@ where
 			}
 
 			// Break.
-			Some(Token { token: TokenKind::Keyword(Keyword::Break), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Break), pos }) => {
 				self.step();
 
 				Ok(ast::Statement::Break { pos })
 			}
 
 			// While.
-			Some(Token { token: TokenKind::Keyword(Keyword::While), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::While), pos }) => {
 				self.step();
 
 				let condition = self.parse_expression()
@@ -329,7 +329,7 @@ where
 			}
 
 			// For.
-			Some(Token { token: TokenKind::Keyword(Keyword::For), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::For), pos }) => {
 				self.step();
 
 				let (identifier, _) = self.parse_identifier()
@@ -361,7 +361,7 @@ where
 				// Don't synchronize here because this expression may be the last part of the statement.
 				let expr = self.parse_expression()?;
 
-				if matches!(self.token, Some(Token { token: TokenKind::Operator(Operator::Assign), .. })) {
+				if matches!(self.token, Some(Token { kind: TokenKind::Operator(Operator::Assign), .. })) {
 					self.step();
 
 					// Don't synchronize here because this expression is the last part of the statement.
@@ -416,7 +416,7 @@ where
 
 		loop {
 			match self.token.take() {
-				Some(Token { token: TokenKind::Operator(op), pos }) if check(&op) => {
+				Some(Token { kind: TokenKind::Operator(op), pos }) if check(&op) => {
 					self.step();
 
 					let right = parse_higher_prec_op(self)?;
@@ -443,7 +443,7 @@ where
 	/// Parse a higher precedence expression, optionally starting with a unary operator.
 	fn parse_unop(&mut self) -> sync::Result<ast::Expr, Error> {
 		match self.token.take() {
-			Some(Token { token: TokenKind::Operator(op), pos }) if op.is_unary() => {
+			Some(Token { kind: TokenKind::Operator(op), pos }) if op.is_unary() => {
 				self.step();
 
 				let operand = self.parse_unop()?;
@@ -470,7 +470,7 @@ where
 		loop {
 			match self.token.take() {
 				// Function call.
-				Some(Token { token: TokenKind::OpenParens, pos }) => {
+				Some(Token { kind: TokenKind::OpenParens, pos }) => {
 					self.step();
 
 					let params = self.comma_sep(
@@ -489,7 +489,7 @@ where
 				},
 
 				// Subscript operator.
-				Some(Token { token: TokenKind::OpenBracket, pos }) => {
+				Some(Token { kind: TokenKind::OpenBracket, pos }) => {
 					self.step();
 
 					let field = self.parse_expression()
@@ -506,7 +506,7 @@ where
 				},
 
 				// Dot access operator.
-				Some(Token { token: TokenKind::Operator(Operator::Dot), pos }) => {
+				Some(Token { kind: TokenKind::Operator(Operator::Dot), pos }) => {
 					self.step();
 
 					// Here, the identifier is a literal, and not a variable name. Hence, `var.id`
@@ -540,28 +540,28 @@ where
 	fn parse_primary(&mut self) -> sync::Result<ast::Expr, Error> {
 		match self.token.take() {
 			// Identifier.
-			Some(Token { token: TokenKind::Identifier(identifier), pos }) => {
+			Some(Token { kind: TokenKind::Identifier(identifier), pos }) => {
 				self.step();
 
 				Ok(ast::Expr::Identifier { identifier, pos })
 			}
 
 			// Self.
-			Some(Token { token: TokenKind::Keyword(Keyword::Self_), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Self_), pos }) => {
 				self.step();
 
 				Ok(ast::Expr::Self_ { pos })
 			}
 
 			// Basic literal.
-			Some(Token { token: TokenKind::Literal(literal), pos }) => {
+			Some(Token { kind: TokenKind::Literal(literal), pos }) => {
 				self.step();
 
 				Ok(ast::Expr::Literal { literal: literal.into(), pos })
 			}
 
 			// Array literal.
-			Some(Token { token: TokenKind::OpenBracket, pos }) => {
+			Some(Token { kind: TokenKind::OpenBracket, pos }) => {
 				self.step();
 
 				let items = self.comma_sep(
@@ -579,7 +579,7 @@ where
 			}
 
 			// Dict literal.
-			Some(Token { token: TokenKind::OpenDict, pos }) => {
+			Some(Token { kind: TokenKind::OpenDict, pos }) => {
 				self.step();
 
 				let items = self.comma_sep(
@@ -606,7 +606,7 @@ where
 			}
 
 			// Function literal.
-			Some(Token { token: TokenKind::Keyword(Keyword::Function), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Function), pos }) => {
 				self.step();
 
 				let (args, body) = self.parse_function()?;
@@ -615,23 +615,22 @@ where
 			}
 
 			// Command blocks.
-			Some(Token { token, pos }) if CommandBlockKind::from_token(&token).is_some() => {
-				self.step();
+			Some(token) if token.kind.is_command_block_starter() => {
+				let pos = token.pos;
+				self.token = Some(token);
 
-				let commands = self.parse_command_block()?;
+				let block = self.parse_command_block()?;
 
 				Ok(
 					ast::Expr::CommandBlock {
-						// TODO: refactor this expect as a if-let guard when stabilized.
-						kind: CommandBlockKind::from_token(&token).expect("invalid command token"),
-						commands,
+						block,
 						pos
 					}
 				)
 			}
 
 			// If conditional.
-			Some(Token { token: TokenKind::Keyword(Keyword::If), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::If), pos }) => {
 				self.step();
 
 				let condition = self.parse_expression()
@@ -647,8 +646,8 @@ where
 					let has_else = self
 						.eat(
 							|token| match token {
-								Token { token: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
-								Token { token: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
+								Token { kind: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
+								Token { kind: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
 								token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
 							}
 						)
@@ -675,7 +674,7 @@ where
 			}
 
 			// Parenthesis.
-			Some(Token { token: TokenKind::OpenParens, .. }) => {
+			Some(Token { kind: TokenKind::OpenParens, .. }) => {
 				self.step();
 
 				let expr = self.parse_expression()
@@ -705,7 +704,7 @@ where
 		self
 			.eat(
 				|token| match token {
-					Token { token: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos)),
+					Token { kind: TokenKind::Identifier(symbol), pos } => Ok((symbol, pos)),
 					token => Err((Error::unexpected_msg(token.clone(), "identifier"), token)),
 				}
 			)

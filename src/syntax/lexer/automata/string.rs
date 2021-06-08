@@ -28,7 +28,7 @@ impl ByteLiteral {
 			(&Self { value: Some(c), .. }, Some(b'\'')) => Transition::produce(
 				Root,
 				Token {
-					token: TokenKind::Literal(Literal::Byte(c)),
+					kind: TokenKind::Literal(Literal::Byte(c)),
 					pos: self.pos,
 				},
 			),
@@ -134,7 +134,7 @@ impl StringLiteral {
 			(_, Some(b'\"')) => Transition::produce(
 				Root,
 				Token {
-					token: TokenKind::Literal(Literal::String(self.value.into_boxed_slice())),
+					kind: TokenKind::Literal(Literal::String(self.value.into_boxed_slice())),
 					pos: self.pos,
 				},
 			),

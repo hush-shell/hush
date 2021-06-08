@@ -5,7 +5,7 @@ use assert_matches::assert_matches;
 
 macro_rules! token {
 	($kind:pat) => {
-		Ok(Token { token: $kind, .. })
+		Ok(Token { kind: $kind, .. })
 	};
 }
 

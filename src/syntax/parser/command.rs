@@ -19,9 +19,19 @@ where
 	E: ErrorReporter,
 {
 	/// Parse a command block after the block start token.
-	pub(super) fn parse_command_block(&mut self) -> sync::Result<Box<[ast::Command]>, Error> {
+	pub(super) fn parse_command_block(&mut self) -> sync::Result<ast::CommandBlock, Error> {
+		let kind = self
+			.eat(
+				|token| ast::CommandBlockKind
+					::from_token(&token.kind)
+					.ok_or_else(
+						|| (Error::unexpected_msg(token.clone(), "command block"), token)
+					)
+			)
+			.with_sync(sync::Strategy::skip_one())?;
+
 		let commands = self.semicolon_sep(
-			Self::parse_command,
+			|parser| Ok(parser.parse_command()),
 			|token| *token == TokenKind::CloseCommand,
 		);
 
@@ -29,16 +39,24 @@ where
 			.with_sync(sync::Strategy::token(TokenKind::CloseCommand))?;
 
 		if commands.is_empty() {
-			Err(Error::empty_command_block(close_pos))
+			let ill_formed = Err(Error::empty_command_block(close_pos))
 				.with_sync(sync::Strategy::keep())
+				.synchronize(self);
+
+			Ok(ill_formed)
 		} else {
-			Ok(commands)
+			Ok(
+				ast::CommandBlock {
+					kind,
+					commands,
+				}
+			)
 		}
 	}
 
 
 	/// Parse a complete command, including pipelines.
-	fn parse_command(&mut self) -> sync::Result<ast::Command, Error> {
+	fn parse_command(&mut self) -> ast::Command {
 		let mut basic_commands = Vec::with_capacity(1); // Expect at least one command.
 
 		let first = self.parse_basic_command()
@@ -47,7 +65,7 @@ where
 		basic_commands.push(first);
 
 		// Contrary to semicolons and commas, there may be no trailing pipe.
-		while let Some(Token { token: TokenKind::Pipe, .. }) = self.token {
+		while let Some(Token { kind: TokenKind::Pipe, .. }) = self.token {
 			self.step();
 
 			let basic_command = self.parse_basic_command()
@@ -56,7 +74,7 @@ where
 			basic_commands.push(basic_command);
 		}
 
-		Ok(basic_commands.into_boxed_slice().into())
+		basic_commands.into_boxed_slice().into()
 	}
 
 
@@ -72,12 +90,12 @@ where
 			let is_redirection = matches!(
 				&self.token,
 				// The current token is a single unquoted number
-				Some(Token { token: TokenKind::Argument(parts), .. })
+				Some(Token { kind: TokenKind::Argument(parts), .. })
 					if matches!(parts.as_ref(), &[ref part] if part.is_unquoted_number())
 					// And the next token is a redirection operator.
 					&& matches!(
 						self.cursor.peek(),
-						Some(Token { token: TokenKind::CmdOperator(op), .. })
+						Some(Token { kind: TokenKind::CmdOperator(op), .. })
 							if op.is_redirection()
 					)
 			);
@@ -112,7 +130,7 @@ where
 	/// Parse a single argument.
 	fn parse_argument(&mut self) -> Result<ast::Argument, Error> {
 		let (token_parts, pos) = self.eat(|token| match token {
-			Token { token: TokenKind::Argument(parts), pos } => Ok((parts, pos)),
+			Token { kind: TokenKind::Argument(parts), pos } => Ok((parts, pos)),
 			token => Err((Error::unexpected_msg(token.clone(), "argument"), token)),
 		})?;
 
@@ -184,9 +202,9 @@ where
 
 		loop {
 			match &self.token {
-				Some(Token { token, .. }) if token.is_basic_command_terminator() => break,
+				Some(Token { kind: token, .. }) if token.is_basic_command_terminator() => break,
 
-				Some(Token { token: TokenKind::CmdOperator(Operator::Try), .. }) => {
+				Some(Token { kind: TokenKind::CmdOperator(Operator::Try), .. }) => {
 					self.step();
 
 					return Ok((redirections.into(), true));
@@ -211,7 +229,7 @@ where
 	fn parse_redirection(&mut self) -> sync::Result<ast::Redirection, Error> {
 		match &self.token {
 			// Input redirection.
-			&Some(Token { token: TokenKind::CmdOperator(Operator::Input { literal }), .. }) => {
+			&Some(Token { kind: TokenKind::CmdOperator(Operator::Input { literal }), .. }) => {
 				self.step();
 
 				let source = self.parse_argument()
@@ -244,7 +262,7 @@ where
 		&mut self, source: FileDescriptor
 	) -> sync::Result<ast::Redirection, Error> {
 		match &self.token {
-			&Some(Token { token: TokenKind::CmdOperator(Operator::Output { append }), .. }) => {
+			&Some(Token { kind: TokenKind::CmdOperator(Operator::Output { append }), .. }) => {
 				self.step();
 
 				let target = if append { // >> file
@@ -278,7 +296,7 @@ where
 	/// Parse a optional file descriptor from a argument.
 	fn parse_file_descriptor(&mut self) -> Option<FileDescriptor> {
 		match &self.token {
-			Some(Token { token: TokenKind::Argument(parts), .. }) => {
+			Some(Token { kind: TokenKind::Argument(parts), .. }) => {
 				match parts.as_ref() {
 					&[ArgPart::Unquoted(ArgUnit::Literal(ref lit))] => {
 						let lit = std::str::from_utf8(&lit).ok()?;

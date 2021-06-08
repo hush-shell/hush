@@ -49,11 +49,11 @@ impl Root {
 
 				SymbolChar::Single(TokenKind::Command) => Transition::produce(
 					Command,
-					Token { token: TokenKind::Command, pos: cursor.pos() },
+					Token { kind: TokenKind::Command, pos: cursor.pos() },
 				),
 
 				SymbolChar::Single(token) => {
-					Transition::produce(self, Token { token, pos: cursor.pos() })
+					Transition::produce(self, Token { kind: token, pos: cursor.pos() })
 				}
 
 				SymbolChar::Double { first } => Transition::step(Symbol::from_first(first, cursor)),

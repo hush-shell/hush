@@ -29,7 +29,7 @@ impl Symbol {
 
 	pub fn visit(self, cursor: &Cursor) -> Transition {
 		let unexpected = |input| Transition::resume_error(Root, Error::unexpected(input, self.pos));
-		let token = |token| Token { token, pos: self.pos };
+		let token = |token| Token { kind: token, pos: self.pos };
 		let operator = |op| token(TokenKind::Operator(op));
 
 		let skip_produce = |output| Transition::resume_produce(Root, output);
@@ -89,7 +89,7 @@ impl CommandSymbol {
 
 
 	pub fn visit(self, cursor: &Cursor) -> Transition {
-		let token = |token| Token { token, pos: self.pos };
+		let token = |token| Token { kind: token, pos: self.pos };
 		let operator = |op| token(TokenKind::CmdOperator(op));
 
 		let produce = |token| Transition::produce(Command, token);
