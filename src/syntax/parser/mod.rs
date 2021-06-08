@@ -2,10 +2,7 @@ mod command;
 mod error;
 mod sync;
 
-use std::{
-	collections::HashMap,
-	iter::Peekable,
-};
+use std::{collections::{HashMap, HashSet}, iter::Peekable};
 
 use super::{
 	SourcePos,
@@ -98,9 +95,9 @@ where
 
 
 	/// Consume the expected token, or produce an error.
-	fn expect(&mut self, expected: TokenKind) -> Result<(), Error> {
+	fn expect(&mut self, expected: TokenKind) -> Result<SourcePos, Error> {
 		self.eat(|token| match token {
-			Token { token, .. } if token == expected => Ok(()),
+			Token { token, pos } if token == expected => Ok(pos),
 			token => Err((Error::unexpected(token.clone(), expected), token)),
 		})
 	}
@@ -727,7 +724,7 @@ where
 
 		let open_parens = result.is_ok();
 
-		result.synchronize(self);
+		let params_pos = result.synchronize(self);
 
 		let args = self.comma_sep(
 			|parser| {
@@ -752,6 +749,16 @@ where
 		self.expect(TokenKind::Keyword(Keyword::End))
 			.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
-		Ok((args, body))
+		let mut unique_params = HashSet::new();
+    let contains_duplicate = args
+			.iter()
+			.any(move |x| !unique_params.insert(x));
+
+		if contains_duplicate {
+			Err(Error::duplicate_params(params_pos))
+				.with_sync(sync::Strategy::keep())
+		} else {
+			Ok((args, body))
+		}
 	}
 }

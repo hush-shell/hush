@@ -25,10 +25,15 @@ where
 			|token| *token == TokenKind::CloseCommand,
 		);
 
-		self.expect(TokenKind::CloseCommand)
+		let close_pos = self.expect(TokenKind::CloseCommand)
 			.with_sync(sync::Strategy::token(TokenKind::CloseCommand))?;
 
-		Ok(commands)
+		if commands.is_empty() {
+			Err(Error::empty_command_block(close_pos))
+				.with_sync(sync::Strategy::keep())
+		} else {
+			Ok(commands)
+		}
 	}
 
 
