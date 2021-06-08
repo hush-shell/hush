@@ -188,8 +188,21 @@ where
 		loop {
 			let block = self.parse_block();
 
-			if self.token.is_none() { // Stop on EOF.
-				return block;
+			match self.token.take() {
+				// If the token is a block terminator, the parse_block won't parse anything.
+				// We must then prevent an infinite loop here.
+				Some(token) if token.token.is_block_terminator() => {
+					Err(Error::unexpected_msg(token, "statement"))
+						.with_sync(sync::Strategy::skip_one())
+						.synchronize(&mut self)
+				}
+
+				// Stop on EOF.
+				None => return block,
+
+				token => {
+					self.token = token;
+				},
 			}
 		}
 	}
@@ -204,9 +217,11 @@ where
 
 		loop {
 			match &self.token {
+				// Break on eof.
+				None => break,
+
 				// Break on end of block.
-				Some(Token { token: TokenKind::Keyword(Keyword::Else), .. }) => break,
-				Some(Token { token: TokenKind::Keyword(Keyword::End), .. }) => break,
+				Some(Token { token, .. }) if token.is_block_terminator() => break,
 
 				Some(_) => {
 					let statement = self
@@ -223,9 +238,6 @@ where
 						break;
 					}
 				}
-
-				// Break on eof.
-				None => break,
 			}
 		}
 
