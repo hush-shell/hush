@@ -1,10 +1,10 @@
 mod command;
 pub mod fmt;
 
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use super::{lexer, SourcePos};
-pub use crate::symbol::{Symbol, SymbolExt};
+pub use crate::symbol::Symbol;
 pub use command::{
 	ArgPart,
 	ArgUnit,
@@ -54,10 +54,7 @@ impl IllFormed for SourcePos {
 
 impl IllFormed for Symbol {
 	fn ill_formed() -> Self {
-		// This is actually a valid symbol, but it doesn't matter because it won't be used.
-		Self
-			::try_from_usize(0)
-			.expect("invalid illformed symbol")
+		Symbol::default()
 	}
 }
 

@@ -21,32 +21,12 @@ use super::{
 use crate::{
 	fmt::{Display, Indentation},
 	symbol,
-	term::color,
+	syntax::SourcePos,
+	term::color
 };
 
 
-/// Format a sequence of items with a separator.
-fn sep_by<'a, T, I, F>(
-	mut iter: I,
-	f: &mut std::fmt::Formatter,
-	mut format: F,
-	separator: &str,
-) -> std::fmt::Result
-where
-	I: Iterator<Item = T>,
-	F: FnMut(T, &mut std::fmt::Formatter) -> std::fmt::Result,
-{
-	if let Some(item) = iter.next() {
-		format(item, f)?;
-	}
-
-	for item in iter {
-		separator.fmt(f)?;
-		format(item, f)?;
-	}
-
-	Ok(())
-}
+pub const ILL_FORMED: color::Fg<color::Red, &'static str> = color::Fg(color::Red, "***ill-formed***");
 
 
 /// The context for displaying AST nodes.
@@ -106,15 +86,6 @@ impl<'a> Display<'a> for Literal {
 	type Context = Context<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		let step = |f: &mut std::fmt::Formatter, ctx: Self::Context| -> std::fmt::Result {
-			if let Some(indent) = ctx.indentation {
-				"\n".fmt(f)?;
-				indent.fmt(f)
-			} else {
-				" ".fmt(f)
-			}
-		};
-
 		match self {
 			Self::Nil => color::Fg(color::Blue, "nil").fmt(f),
 
@@ -179,7 +150,8 @@ impl<'a> Display<'a> for Literal {
 			},
 
 			Self::Function { args, body } => {
-				"function (".fmt(f)?;
+				Keyword::Function.fmt(f)?;
+				"(".fmt(f)?;
 
 				sep_by(
 					args.iter(),
@@ -242,17 +214,8 @@ impl<'a> Display<'a> for Expr {
 	type Context = Context<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		let step = |f: &mut std::fmt::Formatter, ctx: Self::Context| -> std::fmt::Result {
-			if let Some(indent) = ctx.indentation {
-				"\n".fmt(f)?;
-				indent.fmt(f)
-			} else {
-				" ".fmt(f)
-			}
-		};
-
 		match self {
-			Self::IllFormed => color::Fg(color::Red, "***ill-formed***").fmt(f),
+			Self::IllFormed => ILL_FORMED.fmt(f),
 
 			Self::Self_ { .. } => Keyword::Self_.fmt(f),
 
@@ -368,7 +331,7 @@ impl<'a> Display<'a> for Statement {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
-			Self::IllFormed => color::Fg(color::Red, "***ill-formed***").fmt(f),
+			Self::IllFormed => ILL_FORMED.fmt(f),
 
 			Self::Let { identifier, init, .. } => {
 				Keyword::Let.fmt(f)?;
@@ -495,13 +458,17 @@ impl<'a> Display<'a> for Argument {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		'"'.fmt(f)?;
+		if self.pos == SourcePos::ill_formed() {
+			ILL_FORMED.fmt(f)
+		} else {
+			'"'.fmt(f)?;
 
-		for part in self.parts.iter() {
-			part.fmt(f, context)?;
+			for part in self.parts.iter() {
+				part.fmt(f, context)?;
+			}
+
+			'"'.fmt(f)
 		}
-
-		'"'.fmt(f)
 	}
 }
 
@@ -532,7 +499,7 @@ impl<'a> Display<'a> for Redirection {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
-			Self::IllFormed => color::Fg(color::Red, "***ill-formed***").fmt(f),
+			Self::IllFormed => ILL_FORMED.fmt(f),
 
 			Self::Output { source, target } => {
 				source.fmt(f)?;
@@ -610,5 +577,39 @@ impl<'a> Display<'a> for Ast {
 		}
 
 		self.statements.fmt(f, context)
+	}
+}
+
+
+/// Format a sequence of items with a separator.
+fn sep_by<'a, T, I, F>(
+	mut iter: I,
+	f: &mut std::fmt::Formatter,
+	mut format: F,
+	separator: &str,
+) -> std::fmt::Result
+where
+	I: Iterator<Item = T>,
+	F: FnMut(T, &mut std::fmt::Formatter) -> std::fmt::Result,
+{
+	if let Some(item) = iter.next() {
+		format(item, f)?;
+	}
+
+	for item in iter {
+		separator.fmt(f)?;
+		format(item, f)?;
+	}
+
+	Ok(())
+}
+
+
+fn step(f: &mut std::fmt::Formatter, ctx: Context) -> std::fmt::Result {
+	if let Some(indent) = ctx.indentation {
+		"\n".fmt(f)?;
+		indent.fmt(f)
+	} else {
+		" ".fmt(f)
 	}
 }
