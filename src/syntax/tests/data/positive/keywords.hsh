@@ -1,0 +1,15 @@
+function ()
+	let var = if not false then
+		nil
+	else
+		self
+	end
+
+	while true and false or true do
+		break
+	end
+
+	for var in val do
+		return
+	end
+end

@@ -1,4 +1,15 @@
-call()
+let condition = call()
 dict[field](arg)
 fun(many)(chained)[field](calls)
 fun(many).field(chained).field.calls()
+function ()
+	if condition then
+		return function()
+			return "foo"
+		end
+	else
+		return function()
+			return "bar"
+		end
+	end
+end()()

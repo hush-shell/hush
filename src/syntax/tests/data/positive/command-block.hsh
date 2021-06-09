@@ -1,4 +1,17 @@
 {
 	hey you;
-	out there on the wall 2>1 1>2 >> file > 'some file' ?;
+	out there on the wall << 'some input string' 2>1 1>2 >> file > $file ?
+		| and pipes ?
+		| can be 2>1
+		# interleaved with comments
+		| fun;
 }
+
+let error = ${
+	echo $args' aren\'t '$boring" even when \$'$double' quoted";
+	this command does not exist
+}[1]
+
+&{
+	go async
+}.join()

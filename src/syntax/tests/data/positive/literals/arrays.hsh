@@ -1,0 +1,6 @@
+[
+	nil,
+	true,
+	[ "nested" ],
+	[ [[[[[]]]]], [ "ultra", ["nested"] ] ],
+]

@@ -1,0 +1,3 @@
+let var
+let another_var = (if true then ['a'] else ['b'] end)[0]
+var = 5 * if false then 0 else 1 end + 7

@@ -1,0 +1,14 @@
+function ()
+	function(a, b, c)
+		"here"
+		"be"
+		"my body"
+	end
+
+	function (a,)
+		[
+			function () function () function () function () function () end end end end end,
+			@[ fun: function () end ]
+		]
+	end
+end
