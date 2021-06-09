@@ -27,7 +27,11 @@ fn syntax(source: syntax::Source) {
 	let analysis = Analysis::analyze(source, &mut interner);
 
 	for error in analysis.errors.iter() {
-		println!("{}: {}", color::Fg(color::Red, "Error"), error);
+		println!(
+			"{}: {}",
+			color::Fg(color::Red, "Error"),
+			fmt::Show(error, &interner)
+		);
 	}
 
 	println!(

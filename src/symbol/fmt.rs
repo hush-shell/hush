@@ -1,4 +1,4 @@
-use std::fmt::Display as _;
+use std::{borrow::Cow, fmt::Display as _};
 
 use super::{Interner, Symbol};
 use crate::{
@@ -15,7 +15,10 @@ impl<'a> Display<'a> for Symbol {
 		if *self == Self::default() {
 			ILL_FORMED.fmt(f)
 		} else {
-			let ident = context.resolve(*self).expect("invalid symbol");
+			let ident: Cow<str> = match context.resolve(*self) {
+				Some(id) => id.into(),
+				None => format!("<unresolved id #{}>", Into::<usize>::into(*self)).into(),
+			};
 
 			color::Fg(color::Green, ident).fmt(f)
 		}
