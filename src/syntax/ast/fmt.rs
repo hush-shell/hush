@@ -266,12 +266,13 @@ impl<'a> Display<'a> for Expr {
 					if context.indentation.is_some() {
 						"\n".fmt(f)?;
 					}
+
 					otherwise.fmt(f, context.indent())?;
 					step.fmt(f)?;
-				}
 
-				if let Some(indent) = context.indentation {
-					indent.fmt(f)?;
+					if let Some(indent) = context.indentation {
+						indent.fmt(f)?;
+					}
 				}
 
 				Keyword::End.fmt(f)
