@@ -6,7 +6,7 @@ use std::iter::Peekable;
 
 use super::{
 	SourcePos,
-	ast::{self, CommandBlockKind},
+	ast,
 	lexer::{ArgPart, ArgUnit, Keyword, Token, TokenKind, Operator, CommandOperator}
 };
 use sync::{ResultExt, WithSync};
@@ -297,7 +297,14 @@ where
 				self.step();
 
 				// Don't synchronize here because this expression is the last part of the statement.
-				let expr = self.parse_expression()?;
+				let expr = match &self.token {
+					Some(Token { kind, .. }) if kind.is_block_terminator() => ast::Expr::Literal {
+						literal: ast::Literal::Nil,
+						pos,
+					},
+
+					_ => self.parse_expression()?,
+				};
 
 				Ok(ast::Statement::Return { expr, pos })
 			}
