@@ -13,6 +13,7 @@ impl<'a> Display<'a> for Analysis {
 		for error in self.errors.iter() {
 			write!(f, "{}: ", color::Fg(color::Red, "Error"))?;
 			error.fmt(f, context)?;
+			writeln!(f)?;
 		}
 
 		self.ast.fmt(f, ast::fmt::Context::from(context))

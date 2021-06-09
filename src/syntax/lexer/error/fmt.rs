@@ -8,24 +8,24 @@ impl Display for ErrorKind {
 		match self {
 			Self::UnexpectedEof => "unexpected end of file".fmt(f)?,
 
-			Self::Unexpected(value) => write!(f, "unexpected '{}'", *value as char)?,
+			Self::Unexpected(value) => write!(f, "unexpected '{}'", (*value as char).escape_debug())?,
 
 			Self::EmptyByteLiteral => "empty char literal".fmt(f)?,
 
 			Self::InvalidEscapeSequence(sequence) => {
 				write!(
 					f,
-					"invalid escape sequence: {}",
+					"invalid escape sequence '{}'",
 					String::from_utf8_lossy(sequence)
 				)?;
 			}
 
 			Self::InvalidNumber(number) => {
-				write!(f, "invalid number: {}", String::from_utf8_lossy(number))?;
+				write!(f, "invalid number '{}'", String::from_utf8_lossy(number))?;
 			}
 
 			Self::InvalidIdentifier(ident) => {
-				write!(f, "invalid identifier: {}", String::from_utf8_lossy(ident))?;
+				write!(f, "invalid identifier '{}'", String::from_utf8_lossy(ident))?;
 			}
 		};
 

@@ -162,14 +162,15 @@ impl<'a> Display<'a> for Literal {
 					", "
 				)?;
 
-				if let Some(indent) = context.indentation {
+				if context.indentation.is_some() {
 					")\n".fmt(f)?;
-					body.fmt(f, context.indent())?;
-					"\n".fmt(f)?;
-					indent.fmt(f)?;
 				} else {
-					") ".fmt(f)?;
+					")".fmt(f)?;
 				}
+
+				body.fmt(f, context.indent())?;
+
+				step(f, context)?;
 
 				Keyword::End.fmt(f)
 			}
@@ -227,15 +228,15 @@ impl<'a> Display<'a> for Expr {
 
 			Self::UnaryOp { op, operand, .. } => {
 				write!(f, "({} ", op)?;
-				operand.fmt(f, context)?;
+				operand.fmt(f, context.inlined())?;
 				")".fmt(f)
 			},
 
 			Self::BinaryOp { left, op, right, .. } => {
 				"(".fmt(f)?;
-				left.fmt(f, context)?;
+				left.fmt(f, context.inlined())?;
 				write!(f, " {} ", op)?;
-				right.fmt(f, context)?;
+				right.fmt(f, context.inlined())?;
 				")".fmt(f)
 			}
 
@@ -247,7 +248,9 @@ impl<'a> Display<'a> for Expr {
 				condition.fmt(f, context.inlined())?;
 				" ".fmt(f)?;
 				Keyword::Then.fmt(f)?;
-				step.fmt(f)?;
+				if context.indentation.is_some() {
+					"\n".fmt(f)?;
+				}
 
 				if !then.0.is_empty() {
 					then.fmt(f, context.indent())?;
@@ -260,7 +263,9 @@ impl<'a> Display<'a> for Expr {
 
 				if !otherwise.0.is_empty() {
 					Keyword::Else.fmt(f)?;
-					step.fmt(f)?;
+					if context.indentation.is_some() {
+						"\n".fmt(f)?;
+					}
 					otherwise.fmt(f, context.indent())?;
 					step.fmt(f)?;
 				}
@@ -274,20 +279,20 @@ impl<'a> Display<'a> for Expr {
 
 			Self::Access { object, field, .. }
 			if matches!(field.as_ref(), Self::Literal { literal: Literal::Identifier(..), .. }) => {
-				object.fmt(f, context)?;
+				object.fmt(f, context.inlined())?;
 				".".fmt(f)?;
 				field.fmt(f, context.inlined())
 			}
 
 			Self::Access { object, field, .. } => {
-				object.fmt(f, context)?;
+				object.fmt(f, context.inlined())?;
 				"[".fmt(f)?;
 				field.fmt(f, context.inlined())?;
 				"]".fmt(f)
 			}
 
 			Self::Call { function, params, .. } => {
-				function.fmt(f, context)?;
+				function.fmt(f, context.inlined())?;
 				"(".fmt(f)?;
 
 				sep_by(
