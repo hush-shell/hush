@@ -1,0 +1,116 @@
+# Heap: A simple binary heap.
+
+# Construct a heap in the given array.
+# Parameters:
+# * array: the data array
+# * cmp: function or nil -- the comparison function, defaults to ascending
+# Returns the heap instance.
+Heap = function(array, cmp)
+	if cmp == nil then
+		cmp = function (a, b)
+			return a < b
+		end
+	end
+
+	let heap = @[
+		_data: array,
+		_cmp: cmp,
+
+		# Swap two elements in the array.
+		_swap: function(ix1, ix2)
+			let tmp = self._data[ix1]
+			self._data[ix1] = self._data[ix2]
+			self._data[ix2] = tmp
+		end,
+
+		# Recursively update a node up in the array.
+		_percolate_up: function (index)
+			let parent = index / 2
+
+			if index == 0 or self._cmp(self._data[parent], self._data[index]) then
+				return
+			end
+
+			self._swap(index, parent)
+
+			self._percolate_up(parent)
+		end,
+
+		# Recursively update a node down in the array.
+		_percolate_down: function (index)
+			let size = std.length(self._data)
+			let max = 0
+			let left = 2 * index
+			let right = left + 1
+
+			max = if (left < size) and self._cmp(self._data[left], self._data[index]) then
+				left
+			else
+				index
+			end
+
+			if (right < size) and self._cmp(self._data[right], self._data[max]) then
+				max = right
+			end
+
+			if max == index then
+				return
+			end
+
+			self._swap(index, max)
+
+			self._percolate_down(max)
+		end,
+
+		# Get the size of the collection.
+		size: function ()
+			return std.length(self._data)
+		end,
+
+		# Returns whether the collection is empty.
+		is_empty: function ()
+			return self.size() == 0
+		end,
+
+		# Empty the collection.
+		clear: function ()
+			self._data = []
+		end,
+
+		# Peek the top element.
+		# Returns the top element.
+		peek: function ()
+			return self._data[0]
+		end,
+
+		# Pop the top element.
+		# This function updates the heap after extracting the top element.
+		# Returns the top element.
+		pop: function ()
+			let elem = self._data[0]
+
+			self._data[0] = self._data[self.size() - 1]
+
+			std.pop(self._data)
+
+			if not self.is_empty() then
+				self._percolate_down(0)
+			end
+
+			return elem
+		end,
+
+		# Push an element into the heap.
+		push: function (elem)
+			std.push(self._data, elem)
+
+			self._percolate_up(self.size())
+		end,
+	]
+
+	for i in std.range(heap.size() / 2, 0, -1) do
+		heap._percolate_down(i)
+	end
+
+	return heap
+end
