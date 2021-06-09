@@ -33,11 +33,6 @@ impl ByteLiteral {
 				},
 			),
 
-			// Empty literal.
-			(&Self { value: None, .. }, Some(b'\'')) => {
-				Transition::error(Root, Error::empty_byte_literal(self.pos))
-			}
-
 			// If a value has already been scanned (including incorrect escape sequences). There
 			// should be no further characters except for the closing quote.
 			(&Self { value: Some(_), .. }, Some(c)) => {
@@ -65,6 +60,11 @@ impl ByteLiteral {
 			(_, Some(b'\\')) => {
 				self.escaping = Some((cursor.offset(), cursor.pos()));
 				Transition::step(self)
+			}
+
+			// Empty literal.
+			(&Self { value: None, .. }, Some(b'\'')) => {
+				Transition::error(Root, Error::empty_byte_literal(self.pos))
 			}
 
 			// Ordinary character.
