@@ -161,18 +161,17 @@
     #+end_src
     Here, a new variable is introduced (=identifier=), and =expression= must result in a
     function that can be called once for every iteration, receiving no arguments and
-    returning an array with two elements. The first element *must* be a boolean. When =true=,
-    the second element is assigned to the iteration variable, and the loop body is
-    executed. When =false=, the iteration is finished.
+    returning a =@[ finished: bool, value: any ]= dictionary. When =finished= is =true=, the
+    iteration is finished.
 
     Under the hood, the =for= loop translates to something like:
     #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       let iter = expression
-      let arr = iter()
-      while arr[0] do
-        let identifier = arr[1]
+      let iteration = iter()
+      while not iteration.finished do
+        let identifier = iteration.value
         # body
-        arr = iter()
+        iteration = iter()
       end
     #+end_src
 
