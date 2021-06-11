@@ -111,8 +111,8 @@ impl Default for Literal {
 
 
 impl From<lexer::Literal> for Literal {
-	fn from(op: lexer::Literal) -> Self {
-		match op {
+	fn from(lit: lexer::Literal) -> Self {
+		match lit {
 			lexer::Literal::Nil => Literal::Nil,
 			lexer::Literal::True => Literal::Bool(true),
 			lexer::Literal::False => Literal::Bool(false),
@@ -235,6 +235,7 @@ pub enum Expr {
 		field: Box<Expr>,
 		pos: SourcePos,
 	},
+	/// Function call (()) operator.
 	Call {
 		function: Box<Expr>,
 		params: Box<[Expr]>,
