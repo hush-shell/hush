@@ -113,10 +113,11 @@
     [1]: Check the [[#Commands][Commands]] section for more details.
 ** Constructs
 *** Variables
-    /Hush/ adopts static scope, and variables must be declared with a `let` statement.
+    /Hush/ adopts static scope, and variables must be declared with a `let` statement. The
+    default value for variables is =nil=.
     #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       let x # Introduces the variable in the local scope
-      let y = 5 # Shortcut for assignment
+      let y = 5 # Syntax sugar for assignment
     #+end_src
 
     Assignment is straightforward, but requires previous declaration.
