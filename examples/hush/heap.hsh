@@ -8,7 +8,7 @@
 Heap = function(array, cmp)
 	if cmp == nil then
 		cmp = function (a, b)
-			return a < b
+			a < b
 		end
 	end
 
@@ -64,12 +64,12 @@ Heap = function(array, cmp)
 
 		# Get the size of the collection.
 		size: function ()
-			return std.length(self._data)
+			std.length(self._data)
 		end,
 
 		# Returns whether the collection is empty.
 		is_empty: function ()
-			return self.size() == 0
+			self.size() == 0
 		end,
 
 		# Empty the collection.
@@ -80,7 +80,7 @@ Heap = function(array, cmp)
 		# Peek the top element.
 		# Returns the top element.
 		peek: function ()
-			return self._data[0]
+			self._data[0]
 		end,
 
 		# Pop the top element.
@@ -97,7 +97,7 @@ Heap = function(array, cmp)
 				self._percolate_down(0)
 			end
 
-			return elem
+			elem
 		end,
 
 		# Push an element into the heap.
@@ -112,5 +112,5 @@ Heap = function(array, cmp)
 		heap._percolate_down(i)
 	end
 
-	return heap
+	heap
 end
