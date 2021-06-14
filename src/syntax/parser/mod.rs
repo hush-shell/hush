@@ -249,10 +249,10 @@ where
 	fn parse_statement(&mut self) -> sync::Result<ast::Statement, Error> {
 		match self.token.take() {
 			// Let.
-			Some(Token { kind: TokenKind::Keyword(Keyword::Let), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::Let), .. }) => {
 				self.step();
 
-				let (identifier, _) = self
+				let (identifier, pos) = self
 					.parse_identifier()
 					.synchronize(self);
 
@@ -281,12 +281,12 @@ where
 						.parse_identifier()
 						.expect("there should be an identifier");
 
-					let (args, body) = self.parse_function()?;
+					let (params, body) = self.parse_function()?;
 
 					Ok(
 						ast::Statement::Let {
 							identifier,
-							init: ast::Expr::Literal { literal: ast::Literal::Function { args, body }, pos },
+							init: ast::Expr::Literal { literal: ast::Literal::Function { params, body }, pos },
 							pos: id_pos,
 						}
 					)
@@ -336,10 +336,10 @@ where
 			}
 
 			// For.
-			Some(Token { kind: TokenKind::Keyword(Keyword::For), pos }) => {
+			Some(Token { kind: TokenKind::Keyword(Keyword::For), .. }) => {
 				self.step();
 
-				let (identifier, _) = self.parse_identifier()
+				let (identifier, pos) = self.parse_identifier()
 					.synchronize(self);
 
 				self.expect(TokenKind::Keyword(Keyword::In))
@@ -480,7 +480,7 @@ where
 				Some(Token { kind: TokenKind::OpenParens, pos }) => {
 					self.step();
 
-					let params = self.comma_sep(
+					let args = self.comma_sep(
 						Self::parse_expression,
 						|token| *token == TokenKind::CloseParens,
 					);
@@ -490,7 +490,7 @@ where
 
 					expr = ast::Expr::Call {
 						function: expr.into(),
-						params: params.into(),
+						args: args.into(),
 						pos,
 					}
 				},
@@ -591,7 +591,7 @@ where
 
 				let items = self.comma_sep(
 					|parser| {
-						let (key, _) = parser.parse_identifier()
+						let key = parser.parse_identifier()
 							.with_sync(sync::Strategy::skip_one())
 							.synchronize(parser);
 
@@ -616,9 +616,9 @@ where
 			Some(Token { kind: TokenKind::Keyword(Keyword::Function), pos }) => {
 				self.step();
 
-				let (args, body) = self.parse_function()?;
+				let (params, body) = self.parse_function()?;
 
-				Ok(ast::Expr::Literal { literal: ast::Literal::Function { args, body }, pos })
+				Ok(ast::Expr::Literal { literal: ast::Literal::Function { params, body }, pos })
 			}
 
 			// Command blocks.
@@ -721,7 +721,9 @@ where
 
 	/// Parse a function literal after the function keyword.
 	/// Returns a pair of parameters and body.
-	fn parse_function(&mut self) -> sync::Result<(Box<[ast::Symbol]>, ast::Block), Error> {
+	fn parse_function(
+		&mut self
+	) -> sync::Result<(Box<[(ast::Symbol, SourcePos)]>, ast::Block), Error> {
 		impl ast::IllFormed for Box<[ast::Symbol]> {
 			fn ill_formed() -> Self {
 				Self::default()
@@ -735,11 +737,8 @@ where
 
 		result.synchronize(self);
 
-		let args = self.comma_sep(
-			|parser| {
-				let (id, _) = parser.parse_identifier()?;
-				Ok(id)
-			},
+		let params = self.comma_sep(
+			Self::parse_identifier,
 			|token| *token == TokenKind::CloseParens,
 		);
 
@@ -758,6 +757,6 @@ where
 		self.expect(TokenKind::Keyword(Keyword::End))
 			.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
-		Ok((args, body))
+		Ok((params, body))
 	}
 }

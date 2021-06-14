@@ -90,10 +90,10 @@ pub enum Literal {
 	Byte(u8),
 	String(Box<[u8]>),
 	Array(Box<[Expr]>),
-	Dict(Box<[(Symbol, Expr)]>),
+	Dict(Box<[((Symbol, SourcePos), Expr)]>),
 	Function {
-		/// A list of arguments (identifiers).
-		args: Box<[Symbol]>,
+		/// A list of parameters (identifiers).
+		params: Box<[(Symbol, SourcePos)]>,
 		body: Block,
 	},
 	/// For the dot access operator, we want to be able to have identifiers as literal
@@ -238,7 +238,7 @@ pub enum Expr {
 	/// Function call (()) operator.
 	Call {
 		function: Box<Expr>,
-		params: Box<[Expr]>,
+		args: Box<[Expr]>,
 		pos: SourcePos,
 	},
 	CommandBlock {

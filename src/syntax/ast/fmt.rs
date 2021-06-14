@@ -135,7 +135,7 @@ impl<'a> Display<'a> for Literal {
 				sep_by(
 					dict.iter(),
 					f,
-					|(k, v), f| {
+					|((k, _), v), f| {
 						step(f, nested)?;
 						k.fmt(f, nested.interner)?;
 						": ".fmt(f)?;
@@ -151,14 +151,14 @@ impl<'a> Display<'a> for Literal {
 				"]".fmt(f)
 			},
 
-			Self::Function { args, body } => {
+			Self::Function { params, body } => {
 				Keyword::Function.fmt(f)?;
 				"(".fmt(f)?;
 
 				sep_by(
-					args.iter(),
+					params.iter(),
 					f,
-					|ident, f| ident.fmt(f, context.interner),
+					|(ident, _), f| ident.fmt(f, context.interner),
 					", "
 				)?;
 
@@ -292,12 +292,12 @@ impl<'a> Display<'a> for Expr {
 				"]".fmt(f)
 			}
 
-			Self::Call { function, params, .. } => {
+			Self::Call { function, args, .. } => {
 				function.fmt(f, context.inlined())?;
 				"(".fmt(f)?;
 
 				sep_by(
-					params.iter(),
+					args.iter(),
 					f,
 					|param, f| param.fmt(f, context.inlined()),
 					", "
