@@ -1,10 +1,11 @@
 #![allow(dead_code)] // This is temporarily used for the inital development.
 
+mod fmt;
 mod io;
+mod semantic;
 mod symbol;
 mod syntax;
 mod term;
-mod fmt;
 
 use std::path::Path;
 
@@ -12,52 +13,78 @@ use term::color;
 
 
 fn main() -> std::io::Result<()> {
+	let mut interner = symbol::Interner::new();
 	let source = syntax::Source::from_reader(Path::new("<stdin>"), std::io::stdin().lock())?;
 
-	syntax(source);
+	semantic(source, &mut interner);
 
 	Ok(())
 }
 
 
-fn syntax(source: syntax::Source) {
-	use syntax::Analysis;
+fn lexer(source: syntax::Source, interner: &mut symbol::Interner) {
+	use syntax::lexer::{Cursor, Lexer};
 
-	let mut interner = symbol::Interner::new();
-	let analysis = Analysis::analyze(source, &mut interner);
+	let cursor = Cursor::from(source.contents.as_ref());
+	let lexer = Lexer::new(cursor, interner);
+	let tokens: Vec<_> = lexer.collect();
+
+	for result in tokens {
+		match result {
+			Ok(token) => println!("{}", fmt::Show(token, &*interner)),
+			Err(error) => {
+				eprintln!("\n{}: {}", source.path.display(), error)
+			}
+		}
+	}
+}
+
+
+fn syntax(source: syntax::Source, interner: &mut symbol::Interner) -> syntax::Analysis {
+	let analysis = syntax::Analysis::analyze(source, interner);
+
+	println!("{}", color::Fg(color::Yellow, "syntactic analysis"));
 
 	for error in analysis.errors.iter().take(20) {
-		println!(
+		eprintln!(
 			"{}: {}",
 			color::Fg(color::Red, "Error"),
-			fmt::Show(error, &interner)
+			fmt::Show(error, &*interner)
 		);
 	}
 
 	println!(
 		"{}",
 		fmt::Show(
-			analysis.ast,
-			syntax::ast::fmt::Context::from(&interner)
+			&analysis.ast,
+			syntax::ast::fmt::Context::from(&*interner)
 		)
 	);
+
+	analysis
 }
 
 
-fn lexer(source: syntax::Source) {
-	use syntax::lexer::{Cursor, Lexer};
+fn semantic(source: syntax::Source, interner: &mut symbol::Interner) {
+	let syntactic_analysis = syntax(source, interner);
 
-	let mut interner = symbol::Interner::new();
-	let cursor = Cursor::from(source.contents.as_ref());
-	let lexer = Lexer::new(cursor, &mut interner);
-	let tokens: Vec<_> = lexer.collect();
+	println!("{}", color::Fg(color::Yellow, "semantic analysis"));
 
-	for result in tokens {
-		match result {
-			Ok(token) => println!("{}", fmt::Show(token, &interner)),
-			Err(error) => {
-				eprintln!("\n{}: {}", source.path.display(), error)
-			}
-		}
+	match semantic::analyze(syntactic_analysis.ast) {
+		Err(errors) => for error in errors.into_iter().take(20) {
+			eprintln!(
+				"{}: {}",
+				color::Fg(color::Red, "Error"),
+				fmt::Show(error, &*interner)
+			);
+		},
+
+		Ok(program) => println!(
+			"{}",
+			fmt::Show(
+				&program,
+				semantic::program::fmt::Context::from(&*interner)
+			)
+		),
 	}
 }
