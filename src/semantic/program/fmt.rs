@@ -14,6 +14,7 @@ use super::{
 	CommandBlockKind,
 	Expr,
 	Literal,
+	Lvalue,
 	Redirection,
 	RedirectionTarget,
 	Statement,
@@ -304,6 +305,24 @@ impl<'a> Display<'a> for Expr {
 			}
 
 			Self::CommandBlock { block, .. } => block.fmt(f, context),
+		}
+	}
+}
+
+
+impl<'a> Display<'a> for Lvalue {
+	type Context = Context<'a>;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		match self {
+			Self::Identifier { slot_ix, .. } => slot_ix.fmt(f),
+
+			Self::Access { object, field, .. } => {
+				object.fmt(f, context.inlined())?;
+				"[".fmt(f)?;
+				field.fmt(f, context.inlined())?;
+				"]".fmt(f)
+			}
 		}
 	}
 }

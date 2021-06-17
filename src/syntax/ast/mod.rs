@@ -269,6 +269,7 @@ pub enum Statement {
 	Assign {
 		left: Expr,
 		right: Expr,
+		pos: SourcePos,
 	},
 	Return {
 		expr: Expr,

@@ -120,7 +120,7 @@ impl From<ast::BinaryOp> for BinaryOp {
 }
 
 
-/// Expressions of all kinds in the language.
+/// Expressions of all kinds in the language, except for l-values.
 #[derive(Debug)]
 pub enum Expr {
 	Identifier {
@@ -170,11 +170,29 @@ pub enum Expr {
 }
 
 
+/// L-value expressions.
+#[derive(Debug)]
+pub enum Lvalue {
+	Identifier {
+		/// Frame index of the local variable.
+		/// Closures are inserted on the frame on function call.
+		slot_ix: mem::SlotIx,
+		pos: SourcePos,
+	},
+	/// Field access ([]) operator.
+	Access {
+		object: Box<Expr>,
+		field: Box<Expr>,
+		pos: SourcePos,
+	},
+}
+
+
 /// Statements of all kinds in the language.
 #[derive(Debug)]
 pub enum Statement {
 	Assign {
-		left: Expr, // TODO: custom data type for l-values.
+		left: Lvalue,
 		right: Expr,
 	},
 	Return {

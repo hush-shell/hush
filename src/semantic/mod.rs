@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use crate::symbol::{self, Symbol};
 use super::syntax::{ast, lexer, SourcePos};
 pub use error::{Error, ErrorKind, Errors};
-pub use program::{Program, Statement, Block, Literal, Expr, UnaryOp, BinaryOp};
+pub use program::{Program, Statement, Block, Literal, Lvalue, Expr, UnaryOp, BinaryOp};
 
 
 /// Perform static semantic analysis in the given AST.
@@ -67,15 +67,19 @@ fn analyze_statement(statement: ast::Statement, context: &mut Context) -> Option
 
 			let (slot_ix, right) = slot_ix.zip(init)?;
 
-			let left = Expr::Identifier { slot_ix, pos };
+			let left = Lvalue::Identifier { slot_ix, pos };
 
 			Some(Statement::Assign { left, right })
 		}
 
 		// Assign.
-		ast::Statement::Assign { left, right } => {
-			// TODO: Check if left is a valid l-value.
-			let left = analyze_expr(left, context);
+		ast::Statement::Assign { left, right, pos } => {
+			let left = analyze_lvalue(left, context);
+
+			if left.is_none() {
+				context.report(Error::invalid_assignment(pos));
+			}
+
 			let right = analyze_expr(right, context);
 
 			let (left, right) = left.zip(right)?;
@@ -286,6 +290,47 @@ fn analyze_expr(expr: ast::Expr, context: &mut Context) -> Option<Expr> {
 
 		// Ill-formed.
 		ast::Expr::IllFormed => panic!("ill-formed expression in semantic analysis"),
+	}
+}
+
+
+/// Analyze a statement.
+/// Errors are reported through the context, and None is returned if any error ocurred.
+fn analyze_lvalue(expr: ast::Expr, context: &mut Context) -> Option<Lvalue> {
+	match expr {
+		// Identifier.
+		ast::Expr::Identifier { identifier, pos } => {
+			let slot_ix = context.scope
+				.resolve(identifier, pos, context.interner)
+				.map_err(
+					|error| context.report(error)
+				)
+				.ok()?;
+
+			Some(Lvalue::Identifier { slot_ix, pos })
+		}
+
+		// Access.
+		ast::Expr::Access { object, field, pos } => {
+			let object = analyze_expr(*object, context);
+			let field = analyze_expr(*field, context);
+
+			let (object, field) = object.zip(field)?;
+
+			Some(
+				Lvalue::Access {
+					object: Box::new(object),
+					field: Box::new(field),
+					pos
+				}
+			)
+		}
+
+		// Ill-formed.
+		ast::Expr::IllFormed => panic!("ill-formed expression in semantic analysis"),
+
+		// Other.
+		_ => None, // Error will be reported in the assignment node.
 	}
 }
 

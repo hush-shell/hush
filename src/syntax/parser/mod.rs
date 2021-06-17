@@ -368,14 +368,19 @@ where
 				// Don't synchronize here because this expression may be the last part of the statement.
 				let expr = self.parse_expression()?;
 
-				if matches!(self.token, Some(Token { kind: TokenKind::Operator(Operator::Assign), .. })) {
+				let pos = match &self.token {
+					Some(Token { kind: TokenKind::Operator(Operator::Assign), pos }) => Some(*pos),
+					_ => None
+				};
+
+				if let Some(pos) = pos {
 					self.step();
 
 					// Don't synchronize here because this expression is the last part of the statement.
 					let right = self.parse_expression()?;
 
 					Ok(
-						ast::Statement::Assign { left: expr, right }
+						ast::Statement::Assign { left: expr, right, pos }
 					)
 				} else {
 					Ok(ast::Statement::Expr(expr))
