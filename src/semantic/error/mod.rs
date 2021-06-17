@@ -3,39 +3,7 @@ mod fmt;
 use super::{Symbol, SourcePos};
 
 
-/// A semantic error.
-#[derive(Debug, Default)]
-pub struct Errors(pub Vec<Error>);
-
-
-impl IntoIterator for Errors {
-	type Item = Error;
-	type IntoIter = std::vec::IntoIter<Error>;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
-}
-
-
-impl Extend<Error> for Errors {
-	fn extend<T>(&mut self, iter: T)
-	where
-		T : IntoIterator<Item = Error>,
-	{
-		self.0.extend(iter)
-	}
-}
-
-
-// impl From<Vec<Error>> for Errors {
-// 	fn from(errors: Vec<Error>) -> Self {
-// 		Errors(errors)
-// 	}
-// }
-
-
-/// The kind of semantic error.
+/// The kind of a semantic error.
 #[derive(Debug)]
 pub enum ErrorKind {
 	/// Variable usage before variable declaration.
@@ -141,3 +109,31 @@ impl Error {
 		}
 	}
 }
+
+
+/// A collection of semantic errors.
+#[derive(Debug, Default)]
+pub struct Errors(pub Vec<Error>);
+
+
+impl IntoIterator for Errors {
+	type Item = Error;
+	type IntoIter = std::vec::IntoIter<Error>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		self.0.into_iter()
+	}
+}
+
+
+impl Extend<Error> for Errors {
+	fn extend<T>(&mut self, iter: T)
+	where
+		T : IntoIterator<Item = Error>,
+	{
+		self.0.extend(iter)
+	}
+}
+
+
+impl std::error::Error for Errors { }

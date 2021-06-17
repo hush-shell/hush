@@ -1,20 +1,10 @@
 use std::fmt::Display as _;
 
-use super::{Error, ErrorKind};
+use super::{Errors, Error, ErrorKind};
 use crate::{
 	fmt::Display,
 	symbol,
 };
-
-
-impl<'a> Display<'a> for Error {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		write!(f, "{} - ", self.pos)?;
-		self.kind.fmt(f, context)
-	}
-}
 
 
 impl<'a> Display<'a> for ErrorKind {
@@ -54,9 +44,31 @@ impl<'a> Display<'a> for ErrorKind {
 }
 
 
+impl<'a> Display<'a> for Error {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		write!(f, "{} - ", self.pos)?;
+		self.kind.fmt(f, context)
+	}
+}
+
+
 /// We need this in order to be able to implement std::error::Error.
 impl std::fmt::Display for Error {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		Display::fmt(self, f, &symbol::Interner::new())
+	}
+}
+
+
+/// We need this in order to be able to implement std::error::Error.
+impl std::fmt::Display for Errors {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		for error in self.0.iter() {
+			Display::fmt(error, f, &symbol::Interner::new())?;
+		}
+
+		Ok(())
 	}
 }

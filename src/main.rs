@@ -70,7 +70,7 @@ fn semantic(source: syntax::Source, interner: &mut symbol::Interner) {
 
 	println!("{}", color::Fg(color::Yellow, "semantic analysis"));
 
-	match semantic::analyze(syntactic_analysis.ast) {
+	match semantic::analyze(syntactic_analysis.ast, interner) {
 		Err(errors) => for error in errors.into_iter().take(20) {
 			eprintln!(
 				"{}: {}",

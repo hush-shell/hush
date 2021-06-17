@@ -20,7 +20,7 @@ use super::{
 	UnaryOp,
 };
 use crate::{
-	fmt::{Display, Indentation},
+	fmt::{self, Display, Indentation},
 	symbol,
 	term::color
 };
@@ -62,7 +62,7 @@ impl<'a> Display<'a> for Block {
 	type Context = Context<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		sep_by(
+		fmt::sep_by(
 			self.0.iter(),
 			f,
 			|statement, f| {
@@ -105,7 +105,7 @@ impl<'a> Display<'a> for Literal {
 
 				"[".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					arr.iter(),
 					f,
 					|item, f| {
@@ -127,7 +127,7 @@ impl<'a> Display<'a> for Literal {
 
 				"@[".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					dict.iter(),
 					f,
 					|(k, v), f| {
@@ -146,14 +146,16 @@ impl<'a> Display<'a> for Literal {
 				"]".fmt(f)
 			},
 
-			Self::Function { params, body } => {
+			Self::Function { params, frame_info, body } => {
+				let step = if context.indentation.is_some() { "\n" } else { " " };
+
 				Keyword::Function.fmt(f)?;
 				"(".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					params.iter(),
 					f,
-					|ident, f| ident.fmt(f, context.interner),
+					|slot_ix, f| slot_ix.fmt(f),
 					", "
 				)?;
 
@@ -163,9 +165,13 @@ impl<'a> Display<'a> for Literal {
 					")".fmt(f)?;
 				}
 
+				frame_info.fmt(f, context.indent().indentation)?;
+
+				step.fmt(f)?;
+
 				body.fmt(f, context.indent())?;
 
-				step(f, context)?;
+				self::step(f, context)?;
 
 				Keyword::End.fmt(f)
 			}
@@ -213,9 +219,7 @@ impl<'a> Display<'a> for Expr {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
-			Self::Self_ { .. } => Keyword::Self_.fmt(f),
-
-			Self::Identifier { identifier, .. } => identifier.fmt(f, context.interner),
+			Self::Identifier { slot_ix, .. } => slot_ix.fmt(f),
 
 			Self::Literal { literal, .. } => literal.fmt(f, context),
 
@@ -289,7 +293,7 @@ impl<'a> Display<'a> for Expr {
 				function.fmt(f, context.inlined())?;
 				"(".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					args.iter(),
 					f,
 					|param, f| param.fmt(f, context.inlined()),
@@ -310,14 +314,6 @@ impl<'a> Display<'a> for Statement {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
-			Self::Let { identifier, init } => {
-				Keyword::Let.fmt(f)?;
-				" ".fmt(f)?;
-				identifier.fmt(f, context.interner)?;
-				" = ".fmt(f)?;
-				init.fmt(f, context)
-			}
-
 			Self::Assign { left, right } => {
 				left.fmt(f, context.inlined())?;
 				" = ".fmt(f)?;
@@ -354,12 +350,12 @@ impl<'a> Display<'a> for Statement {
 				Keyword::End.fmt(f)
 			}
 
-			Self::For { identifier, expr, block } => {
+			Self::For { slot_ix, expr, block } => {
 				let step = if context.indentation.is_some() { "\n" } else { " " };
 
 				Keyword::For.fmt(f)?;
 				" ".fmt(f)?;
-				identifier.fmt(f, context.interner)?;
+				slot_ix.fmt(f)?;
 				" ".fmt(f)?;
 				Keyword::In.fmt(f)?;
 				" ".fmt(f)?;
@@ -414,7 +410,7 @@ impl<'a> Display<'a> for ArgPart {
 			Self::Collection(items) => {
 				"{".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					items.iter(),
 					f,
 					|item, f| item.fmt(f, context),
@@ -554,7 +550,7 @@ impl<'a> Display<'a> for CommandBlock {
 
 		let nested = context.indent();
 
-		sep_by(
+		fmt::sep_by(
 			std::iter::once(&self.head).chain(self.tail.iter()),
 			f,
 			|cmd, f| {
@@ -581,30 +577,6 @@ impl<'a> Display<'a> for Program {
 
 		self.statements.fmt(f, context)
 	}
-}
-
-
-/// Format a sequence of items with a separator.
-fn sep_by<'a, T, I, F>(
-	mut iter: I,
-	f: &mut std::fmt::Formatter,
-	mut format: F,
-	separator: &str,
-) -> std::fmt::Result
-where
-	I: Iterator<Item = T>,
-	F: FnMut(T, &mut std::fmt::Formatter) -> std::fmt::Result,
-{
-	if let Some(item) = iter.next() {
-		format(item, f)?;
-	}
-
-	for item in iter {
-		separator.fmt(f)?;
-		format(item, f)?;
-	}
-
-	Ok(())
 }
 
 

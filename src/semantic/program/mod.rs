@@ -3,7 +3,7 @@ pub mod fmt;
 
 use std::path::Path;
 
-use super::{lexer, ast, SourcePos};
+use super::{ast, lexer, mem, SourcePos};
 pub use crate::symbol::Symbol;
 pub use command::{
 	ArgPart,
@@ -18,7 +18,7 @@ pub use command::{
 };
 
 
-/// A block is a list of statements, constituting a new scope.
+/// A block is a list of statements.
 #[derive(Debug, Default)]
 pub struct Block(pub Box<[Statement]>);
 
@@ -43,8 +43,9 @@ pub enum Literal {
 	Array(Box<[Expr]>),
 	Dict(Box<[(Symbol, Expr)]>),
 	Function {
-		/// A list of arguments (identifiers).
-		params: Box<[Symbol]>,
+		/// A list of parameters.
+		params: Box<[mem::SlotIx]>,
+		frame_info: mem::FrameInfo,
 		body: Block,
 	},
 	/// For the dot access operator, we want to be able to have identifiers as literal
@@ -122,12 +123,10 @@ impl From<ast::BinaryOp> for BinaryOp {
 /// Expressions of all kinds in the language.
 #[derive(Debug)]
 pub enum Expr {
-	/// The `self` keyword.
-	Self_ {
-		pos: SourcePos,
-	},
 	Identifier {
-		identifier: Symbol,
+		/// Frame index of the local variable.
+		/// Closures are inserted on the frame on function call.
+		slot_ix: mem::SlotIx,
 		pos: SourcePos,
 	},
 	Literal {
@@ -174,13 +173,8 @@ pub enum Expr {
 /// Statements of all kinds in the language.
 #[derive(Debug)]
 pub enum Statement {
-	/// Introduces an identifier.
-	Let {
-		identifier: Symbol,
-		init: Expr,
-	},
 	Assign {
-		left: Expr,
+		left: Expr, // TODO: custom data type for l-values.
 		right: Expr,
 	},
 	Return {
@@ -194,7 +188,7 @@ pub enum Statement {
 	},
 	/// For loop. Also introduces an identifier.
 	For {
-		identifier: Symbol,
+		slot_ix: mem::SlotIx,
 		expr: Expr,
 		block: Block,
 	},

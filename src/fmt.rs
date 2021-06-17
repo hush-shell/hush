@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::{Write, Display as _};
 
 /// A Display-like trait that takes an additional context when formatting.
 /// This is needed to have access to the string interner when formating the AST or error
@@ -73,4 +73,28 @@ impl std::fmt::Display for Indentation {
 
 		Ok(())
 	}
+}
+
+
+/// Format a sequence of items with a separator.
+pub fn sep_by<'a, T, I, F>(
+	mut iter: I,
+	f: &mut std::fmt::Formatter,
+	mut format: F,
+	separator: &str,
+) -> std::fmt::Result
+where
+	I: Iterator<Item = T>,
+	F: FnMut(T, &mut std::fmt::Formatter) -> std::fmt::Result,
+{
+	if let Some(item) = iter.next() {
+		format(item, f)?;
+	}
+
+	for item in iter {
+		separator.fmt(f)?;
+		format(item, f)?;
+	}
+
+	Ok(())
 }

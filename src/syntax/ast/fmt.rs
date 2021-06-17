@@ -21,7 +21,7 @@ use super::{
 	UnaryOp,
 };
 use crate::{
-	fmt::{Display, Indentation},
+	fmt::{self, Display, Indentation},
 	symbol,
 	syntax::SourcePos,
 	term::color
@@ -67,7 +67,7 @@ impl<'a> Display<'a> for Block {
 	type Context = Context<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		sep_by(
+		fmt::sep_by(
 			self.0.iter(),
 			f,
 			|statement, f| {
@@ -110,7 +110,7 @@ impl<'a> Display<'a> for Literal {
 
 				"[".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					arr.iter(),
 					f,
 					|item, f| {
@@ -132,7 +132,7 @@ impl<'a> Display<'a> for Literal {
 
 				"@[".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					dict.iter(),
 					f,
 					|((k, _), v), f| {
@@ -155,7 +155,7 @@ impl<'a> Display<'a> for Literal {
 				Keyword::Function.fmt(f)?;
 				"(".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					params.iter(),
 					f,
 					|(ident, _), f| ident.fmt(f, context.interner),
@@ -296,7 +296,7 @@ impl<'a> Display<'a> for Expr {
 				function.fmt(f, context.inlined())?;
 				"(".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					args.iter(),
 					f,
 					|param, f| param.fmt(f, context.inlined()),
@@ -423,7 +423,7 @@ impl<'a> Display<'a> for ArgPart {
 			Self::Collection(items) => {
 				"{".fmt(f)?;
 
-				sep_by(
+				fmt::sep_by(
 					items.iter(),
 					f,
 					|item, f| item.fmt(f, context),
@@ -580,7 +580,7 @@ impl<'a> Display<'a> for CommandBlock {
 
 			let nested = context.indent();
 
-			sep_by(
+			fmt::sep_by(
 				self.commands.iter(),
 				f,
 				|cmd, f| {
@@ -608,30 +608,6 @@ impl<'a> Display<'a> for Ast {
 
 		self.statements.fmt(f, context)
 	}
-}
-
-
-/// Format a sequence of items with a separator.
-fn sep_by<'a, T, I, F>(
-	mut iter: I,
-	f: &mut std::fmt::Formatter,
-	mut format: F,
-	separator: &str,
-) -> std::fmt::Result
-where
-	I: Iterator<Item = T>,
-	F: FnMut(T, &mut std::fmt::Formatter) -> std::fmt::Result,
-{
-	if let Some(item) = iter.next() {
-		format(item, f)?;
-	}
-
-	for item in iter {
-		separator.fmt(f)?;
-		format(item, f)?;
-	}
-
-	Ok(())
 }
 
 
