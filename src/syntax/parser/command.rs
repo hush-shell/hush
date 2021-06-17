@@ -18,7 +18,7 @@ where
 	I: Iterator<Item = Token>,
 	E: ErrorReporter,
 {
-	/// Parse a command block after the block start token.
+	/// Parse a command block.
 	pub(super) fn parse_command_block(&mut self) -> sync::Result<ast::CommandBlock, Error> {
 		let kind = self
 			.eat(
@@ -30,28 +30,34 @@ where
 			)
 			.with_sync(sync::Strategy::skip_one())?;
 
-		let commands = self.semicolon_sep(
-			|parser| Ok(parser.parse_command()),
-			|token| *token == TokenKind::CloseCommand,
-		);
+		// Check empty command block.
+		match &self.token {
+			Some(Token { kind: TokenKind::CloseCommand, pos }) => {
+				return Err(Error::empty_command_block(*pos))
+					.with_sync(sync::Strategy::skip_one())?;
+			}
+			_ => (),
+		}
 
-		let close_pos = self.expect(TokenKind::CloseCommand)
+		let head = self.parse_command();
+
+		let tail = match &self.token {
+			Some(Token { kind: TokenKind::Semicolon, .. }) => {
+				self.step();
+
+				self.semicolon_sep(
+					|parser| Ok(parser.parse_command()),
+					|token| *token == TokenKind::CloseCommand,
+				)
+			},
+
+			_ => Default::default(),
+		};
+
+		self.expect(TokenKind::CloseCommand)
 			.with_sync(sync::Strategy::token(TokenKind::CloseCommand))?;
 
-		if commands.is_empty() {
-			let ill_formed = Err(Error::empty_command_block(close_pos))
-				.with_sync(sync::Strategy::keep())
-				.synchronize(self);
-
-			Ok(ill_formed)
-		} else {
-			Ok(
-				ast::CommandBlock {
-					kind,
-					commands,
-				}
-			)
-		}
+		Ok(ast::CommandBlock { kind, head, tail })
 	}
 
 

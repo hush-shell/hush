@@ -573,27 +573,23 @@ impl<'a> Display<'a> for CommandBlock {
 	type Context = Context<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		if self.commands.is_empty() {
-			ILL_FORMED.fmt(f)
-		} else {
-			self.kind.fmt(f)?;
+		self.kind.fmt(f)?;
 
-			let nested = context.indent();
+		let nested = context.indent();
 
-			fmt::sep_by(
-				self.commands.iter(),
-				f,
-				|cmd, f| {
-					step(f, nested)?;
-					cmd.fmt(f, context.interner)
-				},
-				if context.indentation.is_some() { ";" } else { ";" },
-			)?;
+		step(f, nested)?;
 
-			step(f, context)?;
+		self.head.fmt(f, context.interner)?;
 
-			"}".fmt(f)
+		for command in self.tail.iter() {
+			";".fmt(f)?;
+			step(f, nested)?;
+			command.fmt(f, context.interner)?;
 		}
+
+		step(f, context)?;
+
+		"}".fmt(f)
 	}
 }
 

@@ -127,11 +127,11 @@ impl IllFormed for Command {
 
 
 /// A command block.
-/// An empty command block is ill-formed.
 #[derive(Debug)]
 pub struct CommandBlock {
 	pub kind: CommandBlockKind,
-	pub commands: Box<[Command]>,
+	pub head: Command,
+	pub tail: Box<[Command]>,
 }
 
 
@@ -139,7 +139,8 @@ impl IllFormed for CommandBlock {
 	fn ill_formed() -> Self {
 		Self {
 			kind: CommandBlockKind::Synchronous,
-			commands: Default::default(),
+			head: Command::ill_formed(),
+			tail: Default::default(),
 		}
 	}
 }

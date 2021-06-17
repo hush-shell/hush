@@ -631,7 +631,8 @@ where
 				let pos = token.pos;
 				self.token = Some(token);
 
-				let block = self.parse_command_block()?;
+				let block = self.parse_command_block()
+					.synchronize(self);
 
 				Ok(
 					ast::Expr::CommandBlock {
