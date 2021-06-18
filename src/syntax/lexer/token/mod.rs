@@ -103,7 +103,10 @@ impl Operator {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArgUnit {
 	Literal(Box<[u8]>),
-	Dollar(Symbol), // $, ${}
+	Dollar { // $, ${}
+		symbol: Symbol,
+		pos: SourcePos,
+	}
 }
 
 

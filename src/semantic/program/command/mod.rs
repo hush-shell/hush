@@ -1,23 +1,16 @@
 pub mod builtin;
 
-use crate::{io::FileDescriptor, symbol::Symbol};
-use super::{ast, SourcePos};
+use crate::io::FileDescriptor;
+use super::{ast, mem, SourcePos};
 
 
 /// The most basic part of an argument.
 #[derive(Debug)]
 pub enum ArgUnit {
 	Literal(Box<[u8]>),
-	Dollar(Symbol),
-}
-
-
-impl From<ast::ArgUnit> for ArgUnit {
-	fn from(op: ast::ArgUnit) -> Self {
-		match op {
-			ast::ArgUnit::Literal(lit) => ArgUnit::Literal(lit),
-			ast::ArgUnit::Dollar(symbol) => ArgUnit::Dollar(symbol),
-		}
+	Dollar {
+		slot_ix: mem::SlotIx,
+		pos: SourcePos,
 	}
 }
 
@@ -36,27 +29,6 @@ pub enum ArgPart {
 	Star, // *
 	Question, // ?
 	CharClass(Box<[u8]>), // [...]
-}
-
-
-impl From<ast::ArgPart> for ArgPart {
-	fn from(op: ast::ArgPart) -> Self {
-		match op {
-			ast::ArgPart::Unit(unit) => ArgPart::Unit(unit.into()),
-			ast::ArgPart::Home => ArgPart::Home,
-			ast::ArgPart::Range(from, to) => ArgPart::Range(from, to),
-			ast::ArgPart::Collection(items) => ArgPart::Collection(
-				items
-					.into_vec() // Use vec's owned iterator.
-					.into_iter()
-					.map(Into::into)
-					.collect()
-			),
-			ast::ArgPart::Star => ArgPart::Star,
-			ast::ArgPart::Question => ArgPart::Question,
-			ast::ArgPart::CharClass(chars) => ArgPart::CharClass(chars),
-		}
-	}
 }
 
 
@@ -135,8 +107,8 @@ pub enum CommandBlockKind {
 
 
 impl From<ast::CommandBlockKind> for CommandBlockKind {
-	fn from(op: ast::CommandBlockKind) -> Self {
-		match op {
+	fn from(kind: ast::CommandBlockKind) -> Self {
+		match kind {
 			ast::CommandBlockKind::Synchronous => CommandBlockKind::Synchronous,
 			ast::CommandBlockKind::Asynchronous => CommandBlockKind::Asynchronous,
 			ast::CommandBlockKind::Capture => CommandBlockKind::Capture,

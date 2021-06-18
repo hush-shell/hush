@@ -84,9 +84,9 @@ impl<'a> Display<'a> for ArgUnit {
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
 			Self::Literal(s) => String::from_utf8_lossy(s).escape_debug().fmt(f),
-			Self::Dollar(s) => {
+			Self::Dollar { symbol, .. } => {
 				"${{".fmt(f)?;
-				s.fmt(f, context)?;
+				symbol.fmt(f, context)?;
 				"}}".fmt(f)
 			}
 		}

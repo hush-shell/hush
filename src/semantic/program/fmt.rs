@@ -1,7 +1,7 @@
 use std::fmt::Display as _;
 
 use super::{
-	lexer::{CommandOperator, Keyword, Operator, TokenKind},
+	lexer::{CommandOperator, Keyword, Operator},
 	ArgPart,
 	ArgUnit,
 	Argument,
@@ -401,16 +401,14 @@ impl<'a> Display<'a> for Statement {
 }
 
 
-impl<'a> Display<'a> for ArgUnit {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+impl std::fmt::Display for ArgUnit {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Literal(lit) => String::from_utf8_lossy(lit).escape_debug().fmt(f),
 
-			Self::Dollar(identifier) => {
+			Self::Dollar { slot_ix, .. } => {
 				"${".fmt(f)?;
-				identifier.fmt(f, context)?;
+				slot_ix.fmt(f)?;
 				"}".fmt(f)
 			},
 		}
@@ -418,12 +416,10 @@ impl<'a> Display<'a> for ArgUnit {
 }
 
 
-impl<'a> Display<'a> for ArgPart {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+impl std::fmt::Display for ArgPart {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
-			Self::Unit(unit) => unit.fmt(f, context),
+			Self::Unit(unit) => unit.fmt(f),
 			Self::Home => "~/".fmt(f),
 			Self::Range(start, end) => write!(f, "{{{}..{}}}", start, end),
 			Self::Collection(items) => {
@@ -432,7 +428,7 @@ impl<'a> Display<'a> for ArgPart {
 				fmt::sep_by(
 					items.iter(),
 					f,
-					|item, f| item.fmt(f, context),
+					|item, f| item.fmt(f),
 					","
 				)?;
 
@@ -446,14 +442,12 @@ impl<'a> Display<'a> for ArgPart {
 }
 
 
-impl<'a> Display<'a> for Argument {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+impl std::fmt::Display for Argument {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		'"'.fmt(f)?;
 
 		for part in self.parts.iter() {
-			part.fmt(f, context)?;
+			part.fmt(f)?;
 		}
 
 		'"'.fmt(f)
@@ -461,65 +455,59 @@ impl<'a> Display<'a> for Argument {
 }
 
 
-impl<'a> Display<'a> for RedirectionTarget {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+impl std::fmt::Display for RedirectionTarget {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Fd(fd) => write!(f, ">{}", fd),
 
 			Self::Overwrite(arg) => {
 				">".fmt(f)?;
-				arg.fmt(f, context)
+				arg.fmt(f)
 			}
 
 			Self::Append(arg) => {
 				">>".fmt(f)?;
-				arg.fmt(f, context)
+				arg.fmt(f)
 			},
 		}
 	}
 }
 
 
-impl<'a> Display<'a> for Redirection {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+impl std::fmt::Display for Redirection {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Output { source, target } => {
 				source.fmt(f)?;
-				target.fmt(f, context)
+				target.fmt(f)
 			}
 
 			Self::Input { literal: false, source } => {
 				"<".fmt(f)?;
-				source.fmt(f, context)
+				source.fmt(f)
 			}
 
 			Self::Input { literal: true, source } => {
 				"<<".fmt(f)?;
-				source.fmt(f, context)
+				source.fmt(f)
 			}
 		}
 	}
 }
 
 
-impl<'a> Display<'a> for BasicCommand {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		self.program.fmt(f, context)?;
+impl std::fmt::Display for BasicCommand {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		self.program.fmt(f)?;
 
 		for arg in self.arguments.iter() {
 			" ".fmt(f)?;
-			arg.fmt(f, context)?;
+			arg.fmt(f)?;
 		}
 
 		for redirection in self.redirections.iter() {
 			" ".fmt(f)?;
-			redirection.fmt(f, context)?;
+			redirection.fmt(f)?;
 		}
 
 		if self.abort_on_error {
@@ -532,17 +520,15 @@ impl<'a> Display<'a> for BasicCommand {
 }
 
 
-impl<'a> Display<'a> for Command {
-	type Context = &'a symbol::Interner;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		self.head.fmt(f, context)?;
+impl std::fmt::Display for Command {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		self.head.fmt(f)?;
 
 		for command in self.tail.iter() {
 			" ".fmt(f)?;
-			TokenKind::Pipe.fmt(f, context)?;
+			color::Fg(color::Yellow, "|").fmt(f)?;
 			" ".fmt(f)?;
-			command.fmt(f, context)?;
+			command.fmt(f)?;
 		}
 
 		Ok(())
@@ -574,7 +560,7 @@ impl<'a> Display<'a> for CommandBlock {
 			f,
 			|cmd, f| {
 				step(f, nested)?;
-				cmd.fmt(f, context.interner)
+				cmd.fmt(f)
 			},
 			if context.indentation.is_some() { ";" } else { ";" },
 		)?;

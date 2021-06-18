@@ -13,6 +13,8 @@ use crate::{
 };
 use super::syntax::{ast, lexer, SourcePos};
 use program::{
+	ArgPart,
+	ArgUnit,
 	Argument,
 	BasicCommand,
 	Block,
@@ -614,16 +616,64 @@ impl<'a> Analyzer<'a> {
 		if argument.is_ill_formed() {
 			None
 		} else {
+			let parts = self.analyze_items(
+				Self::analyze_arg_part,
+				argument.parts.into_vec(), // Use vec's owned iterator.
+			)?;
+
 			Some(
 				Argument {
-					parts: argument.parts
-						.into_vec() // Use vec's owned iterator.
-						.into_iter()
-						.map(Into::into)
-						.collect(),
+					parts,
 					pos: argument.pos,
 				}
 			)
+		}
+	}
+
+
+	/// Analyze a command argument part.
+	/// None is returned if any error is detected.
+	fn analyze_arg_part(&mut self, part: ast::ArgPart) -> Option<ArgPart> {
+		match part {
+			ast::ArgPart::Unit(unit) => self
+				.analyze_arg_unit(unit)
+				.map(ArgPart::Unit),
+			ast::ArgPart::Home => Some(ArgPart::Home),
+			ast::ArgPart::Range(from, to) => Some(ArgPart::Range(from, to)),
+			ast::ArgPart::Collection(items) => {
+				let items = self.analyze_items(
+					Self::analyze_arg_unit,
+					items.into_vec() // Use vec's owned iterator.
+				)?;
+
+				Some(ArgPart::Collection(items))
+			},
+			ast::ArgPart::Star => Some(ArgPart::Star),
+			ast::ArgPart::Question => Some(ArgPart::Question),
+			ast::ArgPart::CharClass(chars) => Some(ArgPart::CharClass(chars)),
+		}
+	}
+
+
+	/// Analyze a command argument unit.
+	/// None is returned if any error is detected.
+	fn analyze_arg_unit(&mut self, unit: ast::ArgUnit) -> Option<ArgUnit> {
+		match unit {
+			ast::ArgUnit::Literal(lit) => Some(ArgUnit::Literal(lit)),
+			ast::ArgUnit::Dollar { symbol, pos } => {
+				if symbol.is_ill_formed() {
+					None
+				} else {
+					let slot_ix = self.scope
+						.resolve(symbol, pos, self.interner)
+						.map_err(
+							|error| self.report(error)
+						)
+						.ok()?;
+
+					Some(ArgUnit::Dollar { slot_ix, pos })
+				}
+			}
 		}
 	}
 

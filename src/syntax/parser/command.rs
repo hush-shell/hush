@@ -161,10 +161,10 @@ where
 			}
 		};
 
-		let push_dollar = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, id: ast::Symbol| {
+		let push_dollar = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, symbol, pos| {
 			push_literal(literal, parts);
 			parts.push(
-				ast::ArgPart::Unit(ast::ArgUnit::Dollar(id))
+				ast::ArgPart::Unit(ast::ArgUnit::Dollar { symbol, pos })
 			);
 		};
 
@@ -174,7 +174,7 @@ where
 
 				ArgPart::DoubleQuoted(units) => for unit in units.into_vec() {
 					match unit {
-						ArgUnit::Dollar(identifier) => push_dollar(&mut literal, &mut parts, identifier),
+						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
 						// Literals in double quotes don't expand to patterns.
 						ArgUnit::Literal(lit) => join_literal(&mut literal, lit),
 					}
@@ -182,7 +182,7 @@ where
 
 				ArgPart::Unquoted(unit) => {
 					match unit {
-						ArgUnit::Dollar(identifier) => push_dollar(&mut literal, &mut parts, identifier),
+						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
 						// TODO: parse patterns (home, range, collection, star, question, charclass)
 						ArgUnit::Literal(lit) => join_literal(&mut literal, lit),
 					}

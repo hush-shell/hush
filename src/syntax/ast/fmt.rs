@@ -406,9 +406,9 @@ impl<'a> Display<'a> for ArgUnit {
 		match self {
 			Self::Literal(lit) => String::from_utf8_lossy(lit).escape_debug().fmt(f),
 
-			Self::Dollar(identifier) => {
+			Self::Dollar { symbol, .. } => {
 				"${".fmt(f)?;
-				identifier.fmt(f, context)?;
+				symbol.fmt(f, context)?;
 				"}".fmt(f)
 			},
 		}

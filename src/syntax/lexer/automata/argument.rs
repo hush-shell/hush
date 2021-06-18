@@ -117,19 +117,19 @@ impl From<Word<DoubleQuoted>> for State {
 /// is finished. Such previous state is the DollarContext.
 pub(super) trait DollarContext {
 	/// The transition to make when the symbol has been consumed.
-	fn produce(self, symbol: Symbol) -> Transition;
+	fn produce(self, symbol: Symbol, pos: SourcePos) -> Transition;
 	/// The transition to make when the symbol is invalid.
 	fn error(self, error: Error) -> Transition;
 	/// Non-consuming variant of produce.
-	fn resume(self, symbol: Symbol) -> Transition;
+	fn resume(self, symbol: Symbol, pos: SourcePos) -> Transition;
 	/// Non-consuming variant of error.
 	fn resume_error(self, error: Error) -> Transition;
 }
 
 
 impl DollarContext for Argument {
-	fn produce(mut self, symbol: Symbol) -> Transition {
-		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar(symbol)));
+	fn produce(mut self, symbol: Symbol, pos: SourcePos) -> Transition {
+		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar { symbol, pos }));
 
 		Transition::step(self)
 	}
@@ -138,8 +138,8 @@ impl DollarContext for Argument {
 		Transition::error(self, error)
 	}
 
-	fn resume(mut self, symbol: Symbol) -> Transition {
-		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar(symbol)));
+	fn resume(mut self, symbol: Symbol, pos: SourcePos) -> Transition {
+		self.parts.push(ArgPart::Unquoted(ArgUnit::Dollar { symbol, pos }));
 
 		Transition::resume(self)
 	}
@@ -151,8 +151,8 @@ impl DollarContext for Argument {
 
 
 impl DollarContext for DoubleQuoted {
-	fn produce(mut self, symbol: Symbol) -> Transition {
-		self.parts.push(ArgUnit::Dollar(symbol));
+	fn produce(mut self, symbol: Symbol, pos: SourcePos) -> Transition {
+		self.parts.push(ArgUnit::Dollar { symbol, pos });
 
 		Transition::step(self)
 	}
@@ -161,8 +161,8 @@ impl DollarContext for DoubleQuoted {
 		Transition::error(self, error)
 	}
 
-	fn resume(mut self, symbol: Symbol) -> Transition {
-		self.parts.push(ArgUnit::Dollar(symbol));
+	fn resume(mut self, symbol: Symbol, pos: SourcePos) -> Transition {
+		self.parts.push(ArgUnit::Dollar { symbol, pos });
 
 		Transition::resume(self)
 	}
@@ -220,9 +220,9 @@ where
 				match word::to_token(identifier, interner) {
 					TokenKind::Identifier(symbol) => {
 						if $consume {
-							self.context.produce(symbol)
+							self.context.produce(symbol, self.pos)
 						} else {
-							self.context.resume(symbol)
+							self.context.resume(symbol, self.pos)
 						}
 					}
 

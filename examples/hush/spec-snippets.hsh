@@ -88,11 +88,14 @@ let fun = my_obj.method
 
 fun() # Returns 0
 
+let container = "my-service"
+let dir = "./"
+
 {
   docker create
          --name $container
          -i -a STDIN -a STDOUT -a STDERR # attach all stdio
-         -v $pwd:/my/project:ro # mount the source code as a read-only volume
+         -v $dir:/my/project:ro # mount the source code as a read-only volume
          my-image:latest;
 
   rsync -av --delete --delete-excluded

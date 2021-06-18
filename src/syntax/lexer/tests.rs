@@ -304,7 +304,7 @@ fn test_command_block() {
 	let double_quoted = |parts: &[ArgUnit]| ArgPart::DoubleQuoted(parts.to_vec().into());
 
 	let literal = |lit: &str| ArgUnit::Literal(lit.as_bytes().into());
-	let dollar = |ident: &str| ArgUnit::Dollar(interner.get(ident).expect("symbol not found"));
+	let sym = |ident: &str| interner.get(ident).expect("symbol not found");
 
 	assert_matches!(
 		&tokens[..],
@@ -345,9 +345,21 @@ fn test_command_block() {
 				assert_eq!(args4.as_ref(), &[unquoted(literal("4")), single_quoted("arg")]);
 				assert_eq!(args5.as_ref(), &[double_quoted(&[literal("5")]), unquoted(literal("arg"))]);
 
-				assert_eq!(dollar1.as_ref(), &[unquoted(dollar("dollars"))]);
-				assert_eq!(dollar2.as_ref(), &[unquoted(dollar("are"))]);
-				assert_eq!(dollar3.as_ref(), &[double_quoted(&[dollar("fun")])]);
+				assert_matches!(
+					dollar1.as_ref(),
+					&[ArgPart::Unquoted(ArgUnit::Dollar { symbol, .. })]
+						if symbol == sym("dollars")
+				);
+				assert_matches!(
+					dollar2.as_ref(),
+					&[ArgPart::Unquoted(ArgUnit::Dollar { symbol, .. })]
+						if symbol == sym("are")
+				);
+				assert_matches!(
+					dollar3.as_ref(),
+					&[ArgPart::DoubleQuoted(ref units)]
+						if matches!(units.as_ref(), &[ArgUnit::Dollar { ref symbol, .. }] if *symbol == sym("fun"))
+				);
 
 				assert_eq!(args6.as_ref(), &[unquoted(literal("so are"))]);
 				assert_eq!(args7.as_ref(), &[unquoted(literal("escape"))]);
