@@ -1,0 +1,4 @@
+{
+	hello > file;
+	cd > "well you can't do that"
+}

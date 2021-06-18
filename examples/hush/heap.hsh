@@ -5,7 +5,7 @@
 # * array: the data array
 # * cmp: function or nil -- the comparison function, defaults to ascending
 # Returns the heap instance.
-Heap = function(array, cmp)
+let Heap = function(array, cmp)
 	if cmp == nil then
 		cmp = function (a, b)
 			a < b

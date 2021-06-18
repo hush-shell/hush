@@ -63,12 +63,10 @@ where
 
 	/// Parse a complete command, including pipelines.
 	fn parse_command(&mut self) -> ast::Command {
-		let mut basic_commands = Vec::with_capacity(1); // Expect at least one command.
+		let mut tail = Vec::new();
 
-		let first = self.parse_basic_command()
+		let head = self.parse_basic_command()
 			.synchronize(self);
-
-		basic_commands.push(first);
 
 		// Contrary to semicolons and commas, there may be no trailing pipe.
 		while let Some(Token { kind: TokenKind::Pipe, .. }) = self.token {
@@ -77,10 +75,13 @@ where
 			let basic_command = self.parse_basic_command()
 				.synchronize(self);
 
-			basic_commands.push(basic_command);
+			tail.push(basic_command);
 		}
 
-		basic_commands.into_boxed_slice().into()
+		ast::Command {
+			head,
+			tail: tail.into(),
+		}
 	}
 
 
@@ -123,7 +124,7 @@ where
 
 		Ok(
 			ast::BasicCommand {
-				command,
+				program: command,
 				arguments: arguments.into(),
 				redirections: redirections.into(),
 				abort_on_error,

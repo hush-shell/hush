@@ -37,48 +37,9 @@ impl Word {
 			// If we visit EOF or a non-identifier character, we should just produce.
 			_ => {
 				let word = &cursor.slice()[self.start_offset .. cursor.offset()];
-				let token = Self::to_token(word, interner);
+				let token = to_token(word, interner);
 
 				Transition::resume_produce(Root, Token { kind: token, pos: self.pos })
-			}
-		}
-	}
-
-
-	fn to_token(word: &[u8], interner: &mut SymbolInterner) -> TokenKind {
-		match word {
-			// Keywords:
-			b"let" => TokenKind::Keyword(Keyword::Let),
-			b"if" => TokenKind::Keyword(Keyword::If),
-			b"then" => TokenKind::Keyword(Keyword::Then),
-			b"else" => TokenKind::Keyword(Keyword::Else),
-			b"end" => TokenKind::Keyword(Keyword::End),
-			b"for" => TokenKind::Keyword(Keyword::For),
-			b"in" => TokenKind::Keyword(Keyword::In),
-			b"do" => TokenKind::Keyword(Keyword::Do),
-			b"while" => TokenKind::Keyword(Keyword::While),
-			b"function" => TokenKind::Keyword(Keyword::Function),
-			b"return" => TokenKind::Keyword(Keyword::Return),
-			b"break" => TokenKind::Keyword(Keyword::Break),
-			b"self" => TokenKind::Keyword(Keyword::Self_),
-
-			// Literals:
-			b"nil" => TokenKind::Literal(Literal::Nil),
-			b"true" => TokenKind::Literal(Literal::True),
-			b"false" => TokenKind::Literal(Literal::False),
-
-			// Operators:
-			b"not" => TokenKind::Operator(Operator::Not),
-			b"and" => TokenKind::Operator(Operator::And),
-			b"or" => TokenKind::Operator(Operator::Or),
-
-			// Identifier:
-			ident => {
-				let ident = std::str::from_utf8(ident)
-					.expect("words should be valid ascii, which should be valid utf8");
-				let symbol = interner.get_or_intern(ident);
-
-				TokenKind::Identifier(symbol)
 			}
 		}
 	}
@@ -88,6 +49,45 @@ impl Word {
 impl From<Word> for State {
 	fn from(state: Word) -> State {
 		State::Word(state)
+	}
+}
+
+
+pub fn to_token(word: &[u8], interner: &mut SymbolInterner) -> TokenKind {
+	match word {
+		// Keywords:
+		b"let" => TokenKind::Keyword(Keyword::Let),
+		b"if" => TokenKind::Keyword(Keyword::If),
+		b"then" => TokenKind::Keyword(Keyword::Then),
+		b"else" => TokenKind::Keyword(Keyword::Else),
+		b"end" => TokenKind::Keyword(Keyword::End),
+		b"for" => TokenKind::Keyword(Keyword::For),
+		b"in" => TokenKind::Keyword(Keyword::In),
+		b"do" => TokenKind::Keyword(Keyword::Do),
+		b"while" => TokenKind::Keyword(Keyword::While),
+		b"function" => TokenKind::Keyword(Keyword::Function),
+		b"return" => TokenKind::Keyword(Keyword::Return),
+		b"break" => TokenKind::Keyword(Keyword::Break),
+		b"self" => TokenKind::Keyword(Keyword::Self_),
+
+		// Literals:
+		b"nil" => TokenKind::Literal(Literal::Nil),
+		b"true" => TokenKind::Literal(Literal::True),
+		b"false" => TokenKind::Literal(Literal::False),
+
+		// Operators:
+		b"not" => TokenKind::Operator(Operator::Not),
+		b"and" => TokenKind::Operator(Operator::And),
+		b"or" => TokenKind::Operator(Operator::Or),
+
+		// Identifier:
+		ident => {
+			let ident = std::str::from_utf8(ident)
+				.expect("words should be valid ascii, which should be valid utf8");
+			let symbol = interner.get_or_intern(ident);
+
+			TokenKind::Identifier(symbol)
+		}
 	}
 }
 

@@ -1,0 +1,4 @@
+function hello()
+  let x
+  foo().bar.baz[2].boo() = 2
+end

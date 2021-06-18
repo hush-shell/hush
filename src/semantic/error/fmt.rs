@@ -62,6 +62,20 @@ impl std::fmt::Display for Error {
 }
 
 
+impl<'a> Display<'a> for Errors {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		for error in self.0.iter() {
+			Display::fmt(error, f, context)?;
+			writeln!(f)?;
+		}
+
+		Ok(())
+	}
+}
+
+
 /// We need this in order to be able to implement std::error::Error.
 impl std::fmt::Display for Errors {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

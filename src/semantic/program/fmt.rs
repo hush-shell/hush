@@ -510,7 +510,7 @@ impl<'a> Display<'a> for BasicCommand {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		self.command.fmt(f, context)?;
+		self.program.fmt(f, context)?;
 
 		for arg in self.arguments.iter() {
 			" ".fmt(f)?;

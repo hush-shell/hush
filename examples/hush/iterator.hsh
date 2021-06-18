@@ -1,5 +1,7 @@
 # iterator: traversal utilities.
 
+let Heap # TODO: import Heap module.
+
 # Construct an iterator.
 # An Iterator is an object capable of iterating a collection.
 # Iterators *are mutable* (they may mutate as they iterate).
@@ -187,6 +189,7 @@ function Iterator(next)
 			let result = []
 			let push
 
+			let type = std.type(target)
 			if type == "function" then
 				result = nil
 				push = target
@@ -264,7 +267,7 @@ function Chain(iterators)
 			let iteration = current.next()
 
 			while iteration.finished do
-				next_iterator = iterators.next()
+				let next_iterator = iterators.next()
 
 				if next_iterator.finished then
 					return @[ finished: true ]

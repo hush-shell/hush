@@ -67,19 +67,23 @@ impl<'a> Display<'a> for Block {
 	type Context = Context<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		fmt::sep_by(
-			self.0.iter(),
-			f,
-			|statement, f| {
-				if let Some(indent) = context.indentation {
-					indent.fmt(f)?;
-				} else {
-					" ".fmt(f)?;
-				}
-				statement.fmt(f, context)
-			},
-			if context.indentation.is_some() { "\n" } else { ";" },
-		)
+		match self {
+			Self::IllFormed => ILL_FORMED.fmt(f),
+
+			Self::Block(block) => fmt::sep_by(
+				block.iter(),
+				f,
+				|statement, f| {
+					if let Some(indent) = context.indentation {
+						indent.fmt(f)?;
+					} else {
+						" ".fmt(f)?;
+					}
+					statement.fmt(f, context)
+				},
+				if context.indentation.is_some() { "\n" } else { ";" },
+			)
+		}
 	}
 }
 
@@ -252,7 +256,7 @@ impl<'a> Display<'a> for Expr {
 					"\n".fmt(f)?;
 				}
 
-				if !then.0.is_empty() {
+				if !then.is_empty() {
 					then.fmt(f, context.indent())?;
 					step.fmt(f)?;
 				}
@@ -261,7 +265,7 @@ impl<'a> Display<'a> for Expr {
 					indent.fmt(f)?;
 				}
 
-				if !otherwise.0.is_empty() {
+				if !otherwise.is_empty() {
 					Keyword::Else.fmt(f)?;
 					if context.indentation.is_some() {
 						"\n".fmt(f)?;
@@ -351,7 +355,7 @@ impl<'a> Display<'a> for Statement {
 				Keyword::Do.fmt(f)?;
 				step.fmt(f)?;
 
-				if !block.0.is_empty() {
+				if !block.is_empty() {
 					block.fmt(f, context.indent())?;
 					step.fmt(f)?;
 				}
@@ -377,7 +381,7 @@ impl<'a> Display<'a> for Statement {
 				Keyword::Do.fmt(f)?;
 				step.fmt(f)?;
 
-				if !block.0.is_empty() {
+				if !block.is_empty() {
 					block.fmt(f, context.indent())?;
 					step.fmt(f)?;
 				}
@@ -510,7 +514,7 @@ impl<'a> Display<'a> for BasicCommand {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		self.command.fmt(f, context)?;
+		self.program.fmt(f, context)?;
 
 		for arg in self.arguments.iter() {
 			" ".fmt(f)?;
@@ -536,24 +540,16 @@ impl<'a> Display<'a> for Command {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		let mut commands = self.0.iter();
+		self.head.fmt(f, context)?;
 
-		match commands.next() {
-			Some(command) => {
-				command.fmt(f, context)?;
-
-				for command in commands {
-					" ".fmt(f)?;
-					TokenKind::Pipe.fmt(f, context)?;
-					" ".fmt(f)?;
-					command.fmt(f, context)?;
-				}
-
-				Ok(())
-			}
-
-			None => ILL_FORMED.fmt(f)
+		for command in self.tail.iter() {
+			" ".fmt(f)?;
+			TokenKind::Pipe.fmt(f, context)?;
+			" ".fmt(f)?;
+			command.fmt(f, context)?;
 		}
+
+		Ok(())
 	}
 }
 

@@ -17,9 +17,11 @@ let my_dict = @[ # dict
 ]
 
 let x # Introduces the variable in the local scope
-let y = 5 # Shortcut for assignment
+let y = 5 # Syntax sugar for assignment
 
 x = 1
+
+let expression = true
 
 if expression then
   # body
@@ -40,11 +42,11 @@ for identifier in expression do
 end
 
 let iter = expression
-let arr = iter()
-while arr[0] do
-  let identifier = arr[1]
+let iteration = iter()
+while not iteration.finished do
+  let identifier = iteration.value
   # body
-  arr = iter()
+  iteration = iter()
 end
 
 # Simple function definition.
@@ -52,7 +54,7 @@ function sum(a, b, c)
   return a + b + c
 end
 
-function sum(a)
+function sum_curried(a)
   return function(b) # Closure!
     return a + b  # Here, `a` is captured from the outer scope.
   end
@@ -229,7 +231,7 @@ for job in std.iter(jobs) do
   end
 end
 
-let result = std.cd("/non-existing/directory")
+result = std.cd("/non-existing/directory")
 
 if std.type(result) == "error" then
    std.print("Failed to change directory:")
@@ -285,7 +287,7 @@ function StepCounter(initial_value, step)
 end
 
 
-let counter = StepCounter(0, 2)
+counter = StepCounter(0, 2)
 counter.increment()
 counter.increment()
 counter.print() # Prints 4

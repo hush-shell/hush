@@ -132,6 +132,10 @@
     have =nil= or an empty array as conditions, like in /Lua/. All conditionals operate with a
     =bool=. If one supplies a condition that is not a boolean, a [[#Panics][panic]] occurs.
 
+    #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh :exports none
+      let expression = true
+    #+end_src
+
     The =if= statement can have two forms:
     #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
       if expression then
@@ -251,7 +255,7 @@
       end
     #+end_src
     #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
-      function sum(a)
+      function sum_curried(a)
         return function(b) # Closure!
           return a + b  # Here, `a` is captured from the outer scope.
         end
@@ -697,7 +701,7 @@
     built-in functions will report errors by returning values of such type, instead of the
     expected return value.
     #+begin_src bash :tangle ../examples/hush/spec-snippets.hsh
-      let result = std.cd("/non-existing/directory")
+      result = std.cd("/non-existing/directory")
 
       if std.type(result) == "error" then
          std.print("Failed to change directory:")
@@ -850,7 +854,7 @@
      end
 
 
-     let counter = StepCounter(0, 2)
+     counter = StepCounter(0, 2)
      counter.increment()
      counter.increment()
      counter.print() # Prints 4

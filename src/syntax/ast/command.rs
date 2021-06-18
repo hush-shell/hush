@@ -42,6 +42,10 @@ impl IllFormed for Argument {
 			pos: SourcePos::ill_formed(),
 		}
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		self.pos.is_ill_formed()
+	}
 }
 
 
@@ -80,13 +84,17 @@ impl IllFormed for Redirection {
 	fn ill_formed() -> Self {
 		Self::IllFormed
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		matches!(self, Self::IllFormed)
+	}
 }
 
 
 /// A single command, including possible redirections and try operator.
 #[derive(Debug)]
 pub struct BasicCommand {
-	pub command: Argument,
+	pub program: Argument,
 	pub arguments: Box<[Argument]>,
 	pub redirections: Box<[Redirection]>,
 	pub abort_on_error: bool,
@@ -97,31 +105,38 @@ pub struct BasicCommand {
 impl IllFormed for BasicCommand {
 	fn ill_formed() -> Self {
 		Self {
-			command: Argument::ill_formed(),
+			program: Argument::ill_formed(),
 			arguments: Default::default(),
 			redirections: Default::default(),
 			abort_on_error: Default::default(),
 			pos: SourcePos::ill_formed(),
 		}
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		self.pos.is_ill_formed()
+	}
 }
 
 
 /// Commands may be pipelines, or a single BasicCommand.
 #[derive(Debug)]
-pub struct Command(pub Box<[BasicCommand]>);
-
-
-impl From<Box<[BasicCommand]>> for Command {
-	fn from(commands: Box<[BasicCommand]>) -> Self {
-		Self(commands)
-	}
+pub struct Command {
+	pub head: BasicCommand,
+	pub tail: Box<[BasicCommand]>,
 }
 
 
 impl IllFormed for Command {
 	fn ill_formed() -> Self {
-		Self(Default::default())
+		Self {
+			head: BasicCommand::ill_formed(),
+			tail: Default::default(),
+		}
+	}
+
+	fn is_ill_formed(&self) -> bool {
+		self.head.is_ill_formed()
 	}
 }
 
@@ -143,6 +158,10 @@ impl IllFormed for CommandBlock {
 			tail: Default::default(),
 		}
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		self.head.is_ill_formed()
+	}
 }
 
 
@@ -163,5 +182,11 @@ impl CommandBlockKind {
 			lexer::TokenKind::CaptureCommand => Some(Self::Capture),
 			_ => None,
 		}
+	}
+
+
+	/// Check whether the command block should be executed synchronously.
+	pub fn is_sync(&self) -> bool {
+		matches!(self, Self::Synchronous)
 	}
 }

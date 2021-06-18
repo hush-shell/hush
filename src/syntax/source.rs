@@ -44,7 +44,7 @@ impl Source {
 
 
 /// A human readable position in the source code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourcePos {
 	pub line: u32,
 	pub column: u32,

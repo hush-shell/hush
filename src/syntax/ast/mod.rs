@@ -21,7 +21,13 @@ pub use command::{
 /// A trait for types that can be produced from ill-formed syntax.
 /// The resulting value should not be considered value for any use but a placeholder.
 pub trait IllFormed {
+	/// Create an ill-formed instance.
 	fn ill_formed() -> Self;
+
+	/// Check if the instance is ill-formed.
+	/// This defaults to false for convenience in types where the ill-formed instance can
+	/// actually be used.
+	fn is_ill_formed(&self) -> bool { false }
 }
 
 
@@ -43,12 +49,20 @@ where
 			B::ill_formed()
 		)
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		self.0.is_ill_formed() || self.1.is_ill_formed()
+	}
 }
 
 
 impl IllFormed for SourcePos {
 	fn ill_formed() -> Self {
 		Self { line: 0, column: 0 }
+	}
+
+	fn is_ill_formed(&self) -> bool {
+		*self == Self::ill_formed()
 	}
 }
 
@@ -57,24 +71,49 @@ impl IllFormed for Symbol {
 	fn ill_formed() -> Self {
 		Symbol::default()
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		*self == Self::ill_formed()
+	}
 }
 
 
 /// A block is a list of statements, constituting a new scope.
-#[derive(Debug, Default)]
-pub struct Block(pub Box<[Statement]>);
+#[derive(Debug)]
+pub enum Block {
+	IllFormed,
+	Block(Box<[Statement]>),
+}
+
+
+impl Block {
+	pub fn is_empty(&self) -> bool {
+		matches!(self, Self::Block(block) if block.is_empty())
+	}
+}
+
+
+impl Default for Block {
+	fn default() -> Self {
+		Self::Block(Default::default())
+	}
+}
 
 
 impl From<Box<[Statement]>> for Block {
 	fn from(block: Box<[Statement]>) -> Self {
-		Self(block)
+		Self::Block(block)
 	}
 }
 
 
 impl IllFormed for Block {
 	fn ill_formed() -> Self {
-		Self::default()
+		Self::IllFormed
+	}
+
+	fn is_ill_formed(&self) -> bool {
+		matches!(self, Self::IllFormed)
 	}
 }
 
@@ -252,6 +291,10 @@ impl IllFormed for Expr {
 	fn ill_formed() -> Self {
 		Self::IllFormed
 	}
+
+	fn is_ill_formed(&self) -> bool {
+		matches!(self, Self::IllFormed)
+	}
 }
 
 
@@ -298,6 +341,10 @@ pub enum Statement {
 impl IllFormed for Statement {
 	fn ill_formed() -> Self {
 		Self::IllFormed
+	}
+
+	fn is_ill_formed(&self) -> bool {
+		matches!(self, Self::IllFormed)
 	}
 }
 

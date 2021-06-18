@@ -1,5 +1,5 @@
 use super::{
-	word::IsWord,
+	word::{self, IsWord},
 	ArgPart,
 	ArgUnit,
 	Command,
@@ -122,6 +122,8 @@ pub(super) trait DollarContext {
 	fn error(self, error: Error) -> Transition;
 	/// Non-consuming variant of produce.
 	fn resume(self, symbol: Symbol) -> Transition;
+	/// Non-consuming variant of error.
+	fn resume_error(self, error: Error) -> Transition;
 }
 
 
@@ -141,6 +143,10 @@ impl DollarContext for Argument {
 
 		Transition::resume(self)
 	}
+
+	fn resume_error(self, error: Error) -> Transition {
+		Transition::resume_error(self, error)
+	}
 }
 
 
@@ -159,6 +165,10 @@ impl DollarContext for DoubleQuoted {
 		self.parts.push(ArgUnit::Dollar(symbol));
 
 		Transition::resume(self)
+	}
+
+	fn resume_error(self, error: Error) -> Transition {
+		Transition::resume_error(self, error)
 	}
 }
 
@@ -201,18 +211,29 @@ where
 				// If no characters have been read, the identifier is empty, which is an error.
 				let offset = self.start_offset.unwrap_or(cursor.offset());
 				let identifier = &cursor.slice()[offset .. cursor.offset()];
-				let identifier_str =
-					std::str::from_utf8(identifier).expect("invalid utf8 identifier");
-				let symbol = interner.get_or_intern(identifier_str);
 
 				if identifier.is_empty() || self.error {
-					self.context
+					return self.context
 						.error(Error::invalid_identifier(identifier, self.pos))
-				} else {
-					if $consume {
-						self.context.produce(symbol)
-					} else {
-						self.context.resume(symbol)
+				}
+
+				match word::to_token(identifier, interner) {
+					TokenKind::Identifier(symbol) => {
+						if $consume {
+							self.context.produce(symbol)
+						} else {
+							self.context.resume(symbol)
+						}
+					}
+
+					_ => {
+						let error = Error::invalid_identifier(identifier, self.pos);
+
+						if $consume {
+							self.context.error(error)
+						} else {
+							self.context.resume_error(error)
+						}
 					}
 				}
 			}};

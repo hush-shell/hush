@@ -730,12 +730,6 @@ where
 	fn parse_function(
 		&mut self
 	) -> sync::Result<(Box<[(ast::Symbol, SourcePos)]>, ast::Block), Error> {
-		impl ast::IllFormed for Box<[ast::Symbol]> {
-			fn ill_formed() -> Self {
-				Self::default()
-			}
-		}
-
 		let result = self.expect(TokenKind::OpenParens)
 			.with_sync(sync::Strategy::keep());
 

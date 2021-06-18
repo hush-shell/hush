@@ -6,6 +6,8 @@ mod semantic;
 mod symbol;
 mod syntax;
 mod term;
+#[cfg(test)]
+mod tests;
 
 use std::path::Path;
 
@@ -33,7 +35,7 @@ fn lexer(source: syntax::Source, interner: &mut symbol::Interner) {
 		match result {
 			Ok(token) => println!("{}", fmt::Show(token, &*interner)),
 			Err(error) => {
-				eprintln!("\n{}: {}", source.path.display(), error)
+				eprintln!("{}: {}", source.path.display(), error)
 			}
 		}
 	}

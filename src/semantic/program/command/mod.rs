@@ -1,5 +1,7 @@
+pub mod builtin;
+
 use crate::{io::FileDescriptor, symbol::Symbol};
-use super::SourcePos;
+use super::{ast, SourcePos};
 
 
 /// The most basic part of an argument.
@@ -7,6 +9,16 @@ use super::SourcePos;
 pub enum ArgUnit {
 	Literal(Box<[u8]>),
 	Dollar(Symbol),
+}
+
+
+impl From<ast::ArgUnit> for ArgUnit {
+	fn from(op: ast::ArgUnit) -> Self {
+		match op {
+			ast::ArgUnit::Literal(lit) => ArgUnit::Literal(lit),
+			ast::ArgUnit::Dollar(symbol) => ArgUnit::Dollar(symbol),
+		}
+	}
 }
 
 
@@ -24,6 +36,27 @@ pub enum ArgPart {
 	Star, // *
 	Question, // ?
 	CharClass(Box<[u8]>), // [...]
+}
+
+
+impl From<ast::ArgPart> for ArgPart {
+	fn from(op: ast::ArgPart) -> Self {
+		match op {
+			ast::ArgPart::Unit(unit) => ArgPart::Unit(unit.into()),
+			ast::ArgPart::Home => ArgPart::Home,
+			ast::ArgPart::Range(from, to) => ArgPart::Range(from, to),
+			ast::ArgPart::Collection(items) => ArgPart::Collection(
+				items
+					.into_vec() // Use vec's owned iterator.
+					.into_iter()
+					.map(Into::into)
+					.collect()
+			),
+			ast::ArgPart::Star => ArgPart::Star,
+			ast::ArgPart::Question => ArgPart::Question,
+			ast::ArgPart::CharClass(chars) => ArgPart::CharClass(chars),
+		}
+	}
 }
 
 
@@ -67,7 +100,7 @@ pub enum Redirection {
 /// A single command, including possible redirections and try operator.
 #[derive(Debug)]
 pub struct BasicCommand {
-	pub command: Argument,
+	pub program: Argument,
 	pub arguments: Box<[Argument]>,
 	pub redirections: Box<[Redirection]>,
 	pub abort_on_error: bool,
@@ -84,7 +117,6 @@ pub struct Command {
 
 
 /// A command block.
-/// An empty command block is ill-formed.
 #[derive(Debug)]
 pub struct CommandBlock {
 	pub kind: CommandBlockKind,
@@ -99,4 +131,15 @@ pub enum CommandBlockKind {
 	Synchronous,  // {}
 	Asynchronous, // &{}
 	Capture,      // ${}
+}
+
+
+impl From<ast::CommandBlockKind> for CommandBlockKind {
+	fn from(op: ast::CommandBlockKind) -> Self {
+		match op {
+			ast::CommandBlockKind::Synchronous => CommandBlockKind::Synchronous,
+			ast::CommandBlockKind::Asynchronous => CommandBlockKind::Asynchronous,
+			ast::CommandBlockKind::Capture => CommandBlockKind::Capture,
+		}
+	}
 }

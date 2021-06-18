@@ -1,4 +1,4 @@
-mod command;
+pub mod command;
 pub mod fmt;
 
 use std::path::Path;
