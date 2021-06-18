@@ -1,0 +1,66 @@
+function fun()
+	let x = 0
+
+	let fun = function()
+		let fun = function()
+			return x
+		end
+
+		x = 2
+		return fun
+	end
+
+	x = 1
+	return fun
+end
+
+fun()()() # returns 2
+
+
+fun = function ()
+	let x = "Hello world!"
+
+	return @[
+		foo: function ()
+			x = "Foo"
+		end,
+
+		bar: function ()
+			x = "Bar"
+		end,
+
+		print: function ()
+			std.print(x)
+		end,
+	]
+end
+
+
+let obj = fun()
+
+obj.print() # Hello world!
+obj.foo()
+obj.print() # Foo
+obj.bar()
+obj.print() # Bar
+
+
+fun = function ()
+	let x = 1
+
+	function foo()
+		# Both functions below capture x, which implies that foo captures x too.
+		@[
+			bar: function ()
+				x
+			end,
+			baz: function()
+				x
+			end
+		]
+	end
+
+	foo
+end
+
+fun()().bar() # 1

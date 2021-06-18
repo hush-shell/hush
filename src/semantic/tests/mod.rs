@@ -16,6 +16,11 @@ where
 		move |path, file| {
 			let source = syntax::Source::from_reader(path, file)?;
 			let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
+
+			if !syntactic_analysis.errors.is_empty() {
+				panic!("{}", fmt::Show(syntactic_analysis, &interner));
+			}
+
 			let result = Analyzer::analyze(syntactic_analysis.ast, &mut interner);
 
 			if !check(&result) {
@@ -47,13 +52,13 @@ fn test_examples() -> io::Result<()> {
 }
 
 
-// #[test]
-// fn test_positive() -> io::Result<()> {
-// 	test_dir(
-// 		"src/syntax/tests/data/positive",
-// 		|analysis| analysis.errors.is_empty(),
-// 	)
-// }
+#[test]
+fn test_positive() -> io::Result<()> {
+	test_dir(
+		"src/semantic/tests/data/positive",
+		Result::is_ok
+	)
+}
 
 
 #[test]
