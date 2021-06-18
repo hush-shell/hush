@@ -1,0 +1,8 @@
+function ()
+	if true then
+		let x = 1
+		x
+	else
+		x
+	end
+end

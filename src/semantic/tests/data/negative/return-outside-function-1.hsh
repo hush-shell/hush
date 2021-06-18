@@ -1,0 +1,5 @@
+let condition
+
+if condition then
+	return
+end

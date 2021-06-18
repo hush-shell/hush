@@ -1,0 +1,9 @@
+function ()
+	while true do
+		function test()
+			break
+		end
+
+		test()
+	end
+end
