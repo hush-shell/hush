@@ -1,5 +1,4 @@
 mod error;
-mod mem;
 mod scope;
 pub mod program;
 #[cfg(test)]
@@ -13,6 +12,7 @@ use crate::{
 };
 use super::syntax::{ast, lexer, SourcePos};
 use program::{
+	mem,
 	ArgPart,
 	ArgUnit,
 	Argument,
@@ -42,8 +42,6 @@ pub struct Analyzer<'a> {
 	dict_keys: &'a mut HashSet<Symbol>,
 	/// The symbol interner.
 	interner: &'a mut symbol::Interner,
-	/// The symbol for the self keyword.
-	self_symbol: Symbol,
 	/// Whether the analyzer is inside a function.
 	in_function: bool,
 	/// Whether the analyzer is inside a loop.
@@ -65,17 +63,20 @@ impl<'a> Analyzer<'a> {
 		let mut dict_keys = HashSet::default();
 		let mut errors = Errors::default();
 
-		let result = {
+		let (result, root_frame) = {
 			let mut analyzer = Analyzer::new(interner, &mut scope, &mut dict_keys, &mut errors);
-			analyzer.analyze_block(ast.statements)
-			// Drop self before proceeding, closing opened scopes.
+			let result = analyzer.analyze_block(ast.statements);
+			let root_frame = analyzer.exit_frame();
+			(result, root_frame)
+			// Drop analyzer before proceeding, making sure everything is clean.
 		};
 
 		match result {
 			Some(statements) if errors.0.is_empty() => Ok(
 				Program {
 					source: ast.path,
-					statements
+					statements,
+					root_frame,
 				}
 			),
 
@@ -228,7 +229,7 @@ impl<'a> Analyzer<'a> {
 			// Self
 			ast::Expr::Self_ { pos } => {
 				if self.in_function {
-					let slot_ix = self.scope.resolve_or_declare(self.self_symbol);
+					let slot_ix = self.scope.resolve_or_insert_self();
 					Some(Expr::Identifier { slot_ix, pos })
 				} else {
 					self.report(Error::self_outside_function(pos));
@@ -472,7 +473,7 @@ impl<'a> Analyzer<'a> {
 
 			// Function.
 			ast::Literal::Function { params, body } => {
-				let mut analyzer = self.enter_function();
+				let mut analyzer = self.enter_frame();
 
 				let params = analyzer.analyze_items(
 					|analyzer, (symbol, pos)| {
@@ -492,7 +493,7 @@ impl<'a> Analyzer<'a> {
 
 				let body = analyzer.analyze_block(body);
 
-				let frame_info = analyzer.exit_function();
+				let frame_info = analyzer.exit_frame();
 
 				let (params, body) = params.zip(body)?;
 
@@ -745,7 +746,6 @@ impl<'a> Analyzer<'a> {
 		dict_keys: &'a mut HashSet<Symbol>,
 		errors: &'a mut Errors
 	) -> Self {
-		let self_symbol = interner.get_or_intern("self");
 		let std_symbol = interner.get_or_intern("std");
 
 		scope.enter_frame();
@@ -758,7 +758,6 @@ impl<'a> Analyzer<'a> {
 			scope,
 			dict_keys,
 			interner,
-			self_symbol,
 			in_function: false,
 			in_loop: false,
 			in_async: false,
@@ -776,7 +775,6 @@ impl<'a> Analyzer<'a> {
 			scope: self.scope,
 			dict_keys: self.dict_keys,
 			interner: self.interner,
-			self_symbol: self.self_symbol,
 			in_function: self.in_function,
 			in_loop: self.in_loop,
 			in_async: self.in_async,
@@ -794,7 +792,6 @@ impl<'a> Analyzer<'a> {
 			scope: self.scope,
 			dict_keys: self.dict_keys,
 			interner: self.interner,
-			self_symbol: self.self_symbol,
 			in_function: self.in_function,
 			in_loop: true,
 			in_async: self.in_async,
@@ -804,7 +801,7 @@ impl<'a> Analyzer<'a> {
 
 
 	/// Enter a function, including block scope.
-	fn enter_function<'b>(&'b mut self) -> Analyzer<'b> {
+	fn enter_frame<'b>(&'b mut self) -> Analyzer<'b> {
 		self.scope.enter_frame();
 
 		Analyzer {
@@ -812,7 +809,6 @@ impl<'a> Analyzer<'a> {
 			scope: self.scope,
 			dict_keys: self.dict_keys,
 			interner: self.interner,
-			self_symbol: self.self_symbol,
 			in_function: true,
 			in_loop: false,
 			in_async: self.in_async,
@@ -822,7 +818,7 @@ impl<'a> Analyzer<'a> {
 
 
 	/// Exit a function, dropping it's scope and returning the generated FrameInfo.
-	fn exit_function<'b>(mut self) -> mem::FrameInfo {
+	fn exit_frame<'b>(mut self) -> mem::FrameInfo {
 		self.dropped = true;
 		self.scope.exit_frame()
 	}

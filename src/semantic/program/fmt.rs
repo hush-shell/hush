@@ -580,6 +580,8 @@ impl<'a> Display<'a> for Program {
 			writeln!(f, "{} for {}", color::Fg(color::Yellow, "Program"), self.source.display())?;
 		}
 
+		self.root_frame.fmt(f, context.indentation)?;
+		step(f, context)?;
 		self.statements.fmt(f, context)
 	}
 }

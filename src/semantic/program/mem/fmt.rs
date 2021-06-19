@@ -1,6 +1,6 @@
 use std::fmt::Display as _;
 
-use super::{lexer, FrameInfo, SlotIx, SlotKind};
+use super::{lexer, Capture, FrameInfo, SlotIx, SlotKind};
 use crate::{
 	fmt::{self, Display, Indentation},
 	term::color
@@ -19,15 +19,32 @@ impl<'a> Display<'a> for FrameInfo {
 	type Context = Option<Indentation>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		let iter = self.slots
+		enum Slot {
+			Regular,
+			Closed,
+			Capture { from: SlotIx },
+		}
+
+		let mut slots: Box<[(SlotIx, Slot)]> = self.slots
 			.iter()
 			.enumerate()
 			.map(
-				|(ix, slot)| (SlotIx(ix as u32), slot)
-			);
+				|(ix, slot)| (
+					SlotIx(ix as u32),
+					match slot {
+						SlotKind::Regular => Slot::Regular,
+						SlotKind::Closed => Slot::Closed,
+					}
+				)
+			)
+			.collect();
+
+		for Capture { from, to } in self.captures.iter().copied() {
+			slots[to.0 as usize].1 = Slot::Capture { from };
+		}
 
 		fmt::sep_by(
-			iter,
+			slots.iter(),
 			f,
 			|(slot_ix, slot), f| {
 				if let Some(indent) = context {
@@ -42,14 +59,20 @@ impl<'a> Display<'a> for FrameInfo {
 				": ".fmt(f)?;
 
 				match slot {
-					SlotKind::Regular => color::Fg(color::Blue, "auto").fmt(f),
-					SlotKind::Closed => color::Fg(color::Blue, "closed").fmt(f),
-					SlotKind::Capture { from } => {
+					Slot::Regular => color::Fg(color::Blue, "auto").fmt(f)?,
+					Slot::Closed => color::Fg(color::Blue, "closed").fmt(f)?,
+					Slot::Capture { from } => {
 						color::Fg(color::Blue, "capture").fmt(f)?;
 						" ".fmt(f)?;
-						from.fmt(f)
+						from.fmt(f)?;
 					}
 				}
+
+				if Some(*slot_ix) == self.self_slot {
+					color::Fg(color::Blue, " self").fmt(f)?;
+				}
+
+				Ok(())
 			},
 			if context.is_some() { "\n" } else { ";" },
 		)

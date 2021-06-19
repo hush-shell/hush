@@ -2,7 +2,7 @@ use std::collections::hash_map::{HashMap, Entry};
 
 use crate::symbol::{self, Symbol};
 use super::{
-	mem::{SlotIx, SlotKind, FrameInfo},
+	mem::{Capture, FrameInfo, SlotIx, SlotKind},
 	Error,
 	SourcePos,
 };
@@ -45,6 +45,10 @@ impl Scope {
 struct Frame {
 	/// A memory slot for each variable.
 	slots: Vec<SlotKind>,
+	/// Captured slots.
+	captures: Vec<Capture>,
+	/// The slot index of `self`.
+	self_slot: Option<SlotIx>,
 	/// Stack of scopes in the frame.
 	scopes: Vec<Scope>,
 }
@@ -55,6 +59,8 @@ impl Frame {
 	fn new() -> Self {
 		Self {
 			slots: Vec::new(),
+			captures: Vec::new(),
+			self_slot: None,
 			scopes: Vec::new(),
 		}
 	}
@@ -101,8 +107,9 @@ impl Frame {
 	}
 
 
-	/// Resolve or declare a symbol in the current scope.
-	fn resolve_or_declare(&mut self, symbol: Symbol, slot_kind: SlotKind) -> SlotIx {
+	/// Capture a variable from a parent scope.
+	/// If the variable was already captured, just returns the slot index.
+	fn capture(&mut self, symbol: Symbol, parent_slot_ix: SlotIx) -> SlotIx {
 		let scope = self.scopes.first_mut().expect("frame missing root scope");
 
 		match scope.variables.entry(symbol) {
@@ -111,8 +118,30 @@ impl Frame {
 			Entry::Vacant(entry) => {
 				let slot_ix = SlotIx(self.slots.len() as u32);
 				entry.insert(slot_ix);
-				self.slots.push(slot_kind);
+				self.slots.push(SlotKind::Closed);
+				self.captures.push(
+					Capture {
+						from: parent_slot_ix,
+						to: slot_ix,
+					}
+				);
 
+				slot_ix
+			}
+		}
+	}
+
+
+	/// Resolve or insert a slot for `self`
+	fn resolve_or_insert_self(&mut self) -> SlotIx {
+		match self.self_slot {
+			Some(slot_ix) => slot_ix,
+
+			None => {
+				let slot_ix = SlotIx(self.slots.len() as u32);
+				// `self` is always local, and therefore cannot be closed or captured.
+				self.slots.push(SlotKind::Regular);
+				self.self_slot = Some(slot_ix);
 				slot_ix
 			}
 		}
@@ -126,10 +155,19 @@ impl Frame {
 }
 
 
+impl Drop for Frame {
+	fn drop(&mut self) {
+		debug_assert!(self.scopes.is_empty())
+	}
+}
+
+
 impl Into<FrameInfo> for Frame {
-	fn into(self) -> FrameInfo {
+	fn into(mut self) -> FrameInfo {
 		FrameInfo {
-			slots: self.slots.into(),
+			slots: std::mem::take(&mut self.slots).into(),
+			captures: std::mem::take(&mut self.captures).into(),
+			self_slot: self.self_slot,
 		}
 	}
 }
@@ -237,10 +275,7 @@ impl Stack {
 			let range = frame_ix + 1 .. self.frames.len();
 
 			for frame in &mut self.frames[range] {
-				slot_ix = frame.resolve_or_declare(
-					symbol_captured,
-					SlotKind::Capture { from: slot_ix }
-				);
+				slot_ix = frame.capture(symbol_captured, slot_ix);
 			}
 		}
 
@@ -248,14 +283,21 @@ impl Stack {
 	}
 
 
-	/// Resolve or declare a regular variable in the current scope.
-	pub fn resolve_or_declare(&mut self, symbol: Symbol) -> SlotIx {
-		self.top().resolve_or_declare(symbol, SlotKind::Regular)
+	/// Resolve or insert a slot for `self`
+	pub fn resolve_or_insert_self(&mut self) -> SlotIx {
+		self.top().resolve_or_insert_self()
 	}
 
 
 	/// Get the top frame in the stack.
 	fn top(&mut self) -> &mut Frame {
 		self.frames.last_mut().expect("empty stack")
+	}
+}
+
+
+impl Drop for Stack {
+	fn drop(&mut self) {
+		debug_assert!(self.frames.is_empty())
 	}
 }

@@ -1,9 +1,10 @@
 pub mod command;
 pub mod fmt;
+pub mod mem;
 
 use std::path::Path;
 
-use super::{ast, lexer, mem, SourcePos};
+use super::{ast, lexer, SourcePos};
 pub use crate::symbol::Symbol;
 pub use command::{
 	ArgPart,
@@ -221,4 +222,6 @@ pub struct Program {
 	pub source: Box<Path>,
 	/// The program.
 	pub statements: Block,
+	/// The root frame information
+	pub root_frame: mem::FrameInfo,
 }
