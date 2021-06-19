@@ -44,8 +44,8 @@ pub enum Literal {
 	Array(Box<[Expr]>),
 	Dict(Box<[(Symbol, Expr)]>),
 	Function {
-		/// A list of parameters.
-		params: Box<[mem::SlotIx]>,
+		/// The number of parameters.
+		params: u32,
 		frame_info: mem::FrameInfo,
 		body: Block,
 	},

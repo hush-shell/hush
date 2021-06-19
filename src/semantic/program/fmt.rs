@@ -153,17 +153,12 @@ impl<'a> Display<'a> for Literal {
 				Keyword::Function.fmt(f)?;
 				"(".fmt(f)?;
 
-				fmt::sep_by(
-					params.iter(),
-					f,
-					|slot_ix, f| slot_ix.fmt(f),
-					", "
-				)?;
+				params.fmt(f)?;
+
+				")".fmt(f)?;
 
 				if context.indentation.is_some() {
-					")\n".fmt(f)?;
-				} else {
-					")".fmt(f)?;
+					"\n".fmt(f)?;
 				}
 
 				frame_info.fmt(f, context.indent().indentation)?;

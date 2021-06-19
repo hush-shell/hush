@@ -475,30 +475,39 @@ impl<'a> Analyzer<'a> {
 			ast::Literal::Function { params, body } => {
 				let mut analyzer = self.enter_frame();
 
-				let params = analyzer.analyze_items(
-					|analyzer, (symbol, pos)| {
-						if symbol.is_ill_formed() {
-							None
-						} else {
-							analyzer.scope
-								.declare(symbol, pos)
-								.map_err(
-									|error| analyzer.report(error)
-								)
-								.ok()
+				let params_result = params
+					.iter()
+					.fold(
+						Some(()),
+						|acc, &(symbol ,pos)| {
+							let result = if symbol.is_ill_formed() {
+								None
+							} else {
+								analyzer.scope
+									.declare(symbol, pos)
+									.map_err(
+										|error| analyzer.report(error)
+									)
+									.ok()
+									.map(|_| ())
+							};
+
+							acc.and(result)
 						}
-					},
-					params.into_vec(), // Use vec's owned iterator.
-				);
+					);
 
 				let body = analyzer.analyze_block(body);
 
 				let frame_info = analyzer.exit_frame();
 
-				let (params, body) = params.zip(body)?;
+				let (_, body) = params_result.zip(body)?;
 
 				Some(
-					Literal::Function { params, frame_info, body }
+					Literal::Function {
+						params: params.len() as u32,
+						frame_info,
+						body
+					}
 				)
 			}
 
