@@ -2,6 +2,7 @@
 
 mod fmt;
 mod io;
+mod runtime;
 mod semantic;
 mod symbol;
 mod syntax;
@@ -18,7 +19,7 @@ fn main() -> std::io::Result<()> {
 	let mut interner = symbol::Interner::new();
 	let source = syntax::Source::from_reader(Path::new("<stdin>"), std::io::stdin().lock())?;
 
-	semantic(source, &mut interner);
+	runtime(source, &mut interner);
 
 	Ok(())
 }
@@ -67,26 +68,64 @@ fn syntax(source: syntax::Source, interner: &mut symbol::Interner) -> syntax::An
 }
 
 
-fn semantic(source: syntax::Source, interner: &mut symbol::Interner) {
+fn semantic(
+	source: syntax::Source,
+	interner: &mut symbol::Interner
+) -> Option<semantic::program::Program> {
 	let syntactic_analysis = syntax(source, interner);
 
 	println!("{}", color::Fg(color::Yellow, "semantic analysis"));
 
 	match semantic::Analyzer::analyze(syntactic_analysis.ast, interner) {
-		Err(errors) => for error in errors.into_iter().take(20) {
-			eprintln!(
-				"{}: {}",
-				color::Fg(color::Red, "Error"),
-				fmt::Show(error, &*interner)
-			);
-		},
+		Err(errors) => {
+			for error in errors.into_iter().take(20) {
+				eprintln!(
+					"{}: {}",
+					color::Fg(color::Red, "Error"),
+					fmt::Show(error, &*interner)
+				);
+			}
 
-		Ok(program) => println!(
-			"{}",
-			fmt::Show(
-				&program,
-				semantic::program::fmt::Context::from(&*interner)
-			)
-		),
+			None
+		}
+
+		Ok(program) => {
+			println!(
+				"{}",
+				fmt::Show(
+					&program,
+					semantic::program::fmt::Context::from(&*interner)
+				)
+			);
+
+			Some(program)
+		},
+	}
+}
+
+
+fn runtime(
+	source: syntax::Source,
+	interner: &mut symbol::Interner
+) -> Option<runtime::value::Value> {
+	if let Some(program) = semantic(source, interner) {
+		println!("{}", color::Fg(color::Yellow, "runtime"));
+
+		let program = Box::leak(Box::new(program));
+
+		match runtime::Runtime::eval(program, interner) {
+			Ok(value) => Some(value),
+			Err(panic) => {
+				eprintln!(
+					"{}: {}",
+					color::Fg(color::Red, "Panic"),
+					panic
+				);
+
+				None
+			}
+		}
+	} else {
+		None
 	}
 }

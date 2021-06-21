@@ -4,8 +4,11 @@ pub mod mem;
 
 use std::path::Path;
 
-use super::{ast, lexer, SourcePos};
-pub use crate::symbol::Symbol;
+use super::{ast, lexer};
+pub use crate::{
+	syntax::SourcePos,
+	symbol::Symbol,
+};
 pub use command::{
 	ArgPart,
 	ArgUnit,
@@ -222,6 +225,6 @@ pub struct Program {
 	pub source: Box<Path>,
 	/// The program.
 	pub statements: Block,
-	/// The root frame information
-	pub root_frame: mem::FrameInfo,
+	/// How many slots in the root scope.
+	pub root_slots: mem::SlotIx,
 }

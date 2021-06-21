@@ -2,7 +2,7 @@ use std::collections::hash_map::{HashMap, Entry};
 
 use crate::symbol::{self, Symbol};
 use super::{
-	mem::{Capture, FrameInfo, SlotIx, SlotKind},
+	mem::{Capture, FrameInfo, SlotIx},
 	Error,
 	SourcePos,
 };
@@ -43,8 +43,8 @@ impl Scope {
 /// Includes information about local variables.
 #[derive(Debug)]
 struct Frame {
-	/// A memory slot for each variable.
-	slots: Vec<SlotKind>,
+	/// How many slots in the frame.
+	slots: SlotIx,
 	/// Captured slots.
 	captures: Vec<Capture>,
 	/// The slot index of `self`.
@@ -58,7 +58,7 @@ impl Frame {
 	/// Create a new frame. The root scope must be entered manually.
 	fn new() -> Self {
 		Self {
-			slots: Vec::new(),
+			slots: SlotIx(0),
 			captures: Vec::new(),
 			self_slot: None,
 			scopes: Vec::new(),
@@ -85,11 +85,9 @@ impl Frame {
 	/// Panics if the stack is empty.
 	fn declare(&mut self, symbol: Symbol, pos: SourcePos) -> Result<SlotIx, Error> {
 		let scope = self.scopes.last_mut().expect("attempt to declare in empty stack");
-		let slot_ix = SlotIx(self.slots.len() as u32);
 
-		if scope.declare(symbol, slot_ix) {
-			self.slots.push(SlotKind::Regular);
-			Ok(slot_ix)
+		if scope.declare(symbol, self.slots) {
+			Ok(self.bump())
 		} else {
 			Err(Error::duplicate_variable(symbol, pos))
 		}
@@ -116,9 +114,9 @@ impl Frame {
 			Entry::Occupied(entry) => *entry.get(),
 
 			Entry::Vacant(entry) => {
-				let slot_ix = SlotIx(self.slots.len() as u32);
-				entry.insert(slot_ix);
-				self.slots.push(SlotKind::Closed);
+				let slot_ix = self.slots;
+				self.slots.0 += 1;
+				entry.insert(self.slots);
 				self.captures.push(
 					Capture {
 						from: parent_slot_ix,
@@ -138,9 +136,7 @@ impl Frame {
 			Some(slot_ix) => slot_ix,
 
 			None => {
-				let slot_ix = SlotIx(self.slots.len() as u32);
-				// `self` is always local, and therefore cannot be closed or captured.
-				self.slots.push(SlotKind::Regular);
+				let slot_ix = self.bump();
 				self.self_slot = Some(slot_ix);
 				slot_ix
 			}
@@ -148,9 +144,11 @@ impl Frame {
 	}
 
 
-	/// Close over the variable in the given scope.
-	fn close(&mut self, slot_ix: SlotIx) {
-		self.slots[slot_ix.0 as usize] = SlotKind::Closed;
+	/// Add a slot to the frame.
+	fn bump(&mut self) -> SlotIx {
+		let slot_ix = self.slots;
+		self.slots.0 += 1;
+		slot_ix
 	}
 }
 
@@ -165,7 +163,7 @@ impl Drop for Frame {
 impl Into<FrameInfo> for Frame {
 	fn into(mut self) -> FrameInfo {
 		FrameInfo {
-			slots: std::mem::take(&mut self.slots).into(),
+			slots: self.slots,
 			captures: std::mem::take(&mut self.captures).into(),
 			self_slot: self.self_slot,
 		}
@@ -265,10 +263,6 @@ impl Stack {
 
 				interner.get_or_intern(identifier)
 			};
-
-			// Close over the slot in the originating frame.
-			let base_frame = &mut self.frames[frame_ix];
-			base_frame.close(slot_ix);
 
 			// Insert the captured slot in the intermediate frames between the origin and the
 			// destination.

@@ -2,6 +2,7 @@ use std::fmt::Display as _;
 
 use super::{
 	lexer::{CommandOperator, Keyword, Operator},
+	mem,
 	ArgPart,
 	ArgUnit,
 	Argument,
@@ -575,7 +576,13 @@ impl<'a> Display<'a> for Program {
 			writeln!(f, "{} for {}", color::Fg(color::Yellow, "Program"), self.source.display())?;
 		}
 
-		self.root_frame.fmt(f, context.indentation)?;
+		let root_frame = mem::FrameInfo {
+			slots: self.root_slots,
+			captures: Box::default(),
+			self_slot: None,
+		};
+
+		root_frame.fmt(f, context.indentation)?;
 		step(f, context)?;
 		self.statements.fmt(f, context)
 	}

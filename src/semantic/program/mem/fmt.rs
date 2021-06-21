@@ -1,6 +1,6 @@
 use std::fmt::Display as _;
 
-use super::{lexer, Capture, FrameInfo, SlotIx, SlotKind};
+use super::{lexer, Capture, FrameInfo, SlotIx};
 use crate::{
 	fmt::{self, Display, Indentation},
 	term::color
@@ -19,23 +19,18 @@ impl<'a> Display<'a> for FrameInfo {
 	type Context = Option<Indentation>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		#[derive(Clone)]
 		enum Slot {
 			Regular,
-			Closed,
 			Capture { from: SlotIx },
 		}
 
-		let mut slots: Box<[(SlotIx, Slot)]> = self.slots
-			.iter()
+		let mut slots: Box<[(SlotIx, Slot)]> = std::iter
+			::repeat(Slot::Regular)
+			.take(self.slots.0 as usize)
 			.enumerate()
 			.map(
-				|(ix, slot)| (
-					SlotIx(ix as u32),
-					match slot {
-						SlotKind::Regular => Slot::Regular,
-						SlotKind::Closed => Slot::Closed,
-					}
-				)
+				|(ix, slot)| (SlotIx(ix as u32), slot)
 			)
 			.collect();
 
@@ -60,7 +55,6 @@ impl<'a> Display<'a> for FrameInfo {
 
 				match slot {
 					Slot::Regular => color::Fg(color::Blue, "auto").fmt(f)?,
-					Slot::Closed => color::Fg(color::Blue, "closed").fmt(f)?,
 					Slot::Capture { from } => {
 						color::Fg(color::Blue, "capture").fmt(f)?;
 						" ".fmt(f)?;

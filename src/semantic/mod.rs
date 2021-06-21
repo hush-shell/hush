@@ -76,7 +76,7 @@ impl<'a> Analyzer<'a> {
 				Program {
 					source: ast.path,
 					statements,
-					root_frame,
+					root_slots: root_frame.slots,
 				}
 			),
 
