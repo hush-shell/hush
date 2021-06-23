@@ -38,12 +38,16 @@ impl From<RustFun> for Function {
 }
 
 
+/// A function object implemented in Hush code.
+/// May contain captured variables.
 #[derive(Debug, Clone)]
 #[derive(Trace, Finalize)]
 pub struct HushFun {
+	/// How many parameters the function expects.
 	pub params: u32,
 	pub frame_info: &'static program::mem::FrameInfo,
 	pub body: &'static program::Block,
+	/// Captured variables, if any.
 	pub context: Box<[(Gc<GcCell<Value>>, mem::SlotIx)]>,
 	pub pos: SourcePos,
 }
@@ -51,6 +55,8 @@ pub struct HushFun {
 
 impl PartialEq for HushFun {
 	fn eq(&self, other: &Self) -> bool {
+		// As the functions are defined in the source code, two functions can't share the same
+		// body.
 		std::ptr::eq(self.body, other.body)
 			&& self.context == other.context
 	}
@@ -69,6 +75,8 @@ impl PartialOrd for HushFun {
 
 impl Ord for HushFun {
 	fn cmp(&self, other: &Self) -> Ordering {
+		// As the functions are defined in the source code, two functions can't share the same
+		// source position.
 		self.pos.cmp(&other.pos)
 	}
 }
@@ -76,15 +84,20 @@ impl Ord for HushFun {
 
 impl Hash for HushFun {
 	fn hash<H: Hasher>(&self, state: &mut H) {
+		// As the functions are defined in the source code, two functions can't share the same
+		// source position.
 		self.pos.hash(state)
 	}
 }
 
 
+/// A function object implemented in Rust.
 #[derive(Clone)]
 #[derive(Finalize)]
 pub struct RustFun {
+	/// The fully qualified name of the function. E.g.: std.print
 	pub name: &'static str,
+	/// The function implementation.
 	pub fun: fn(&mut mem::Stack, mem::SlotIx) -> Result<Value, Panic>,
 }
 

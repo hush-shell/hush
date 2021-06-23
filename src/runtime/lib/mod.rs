@@ -43,5 +43,5 @@ fn print(stack: &mut mem::Stack, args: mem::SlotIx) -> Result<Value, Panic> {
 
 	writeln!(stdout)?;
 
-	Ok(Value::Nil)
+	Ok(Value::default())
 }

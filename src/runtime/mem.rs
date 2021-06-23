@@ -1,14 +1,11 @@
-mod error;
-
 use std::{
-	fmt::{self, Debug},
+	fmt::{self, Debug, Display},
 	ops::Deref,
 };
 
 use gc::{Gc, GcCell, Finalize, Trace};
 
 use super::{program, Value};
-pub use error::StackOverflow;
 
 
 /// The index of a memory slot in the stack, relative to the top.
@@ -86,7 +83,7 @@ impl Slot {
 impl Default for Slot {
 	/// A default slot is a regular Nil value.
 	fn default() -> Self {
-		Self::Regular(Value::Nil)
+		Self::Regular(Value::default())
 	}
 }
 
@@ -197,3 +194,18 @@ impl Debug for Stack {
 		Ok(())
   }
 }
+
+
+/// Stack overflow error.
+#[derive(Debug)]
+pub struct StackOverflow;
+
+
+impl Display for StackOverflow {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "stack overflow")
+  }
+}
+
+
+impl std::error::Error for StackOverflow { }

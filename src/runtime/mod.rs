@@ -68,7 +68,7 @@ impl<'a> Runtime<'a> {
 
 
 	fn eval_block(&mut self, block: &'static program::Block) -> Result<Flow, Panic> {
-		let mut value = Value::Nil;
+		let mut value = Value::default();
 
 		for statement in block.0.iter() {
 			match self.eval_statement(statement)? {
@@ -208,7 +208,7 @@ impl<'a> Runtime<'a> {
 				};
 
 				let value: Value = match (op, value) {
-					(Minus, Value::Float(ref f)) => Ok(f.negate().into()),
+					(Minus, Value::Float(ref f)) => Ok((-f).into()),
 					(Minus, Value::Int(i)) => Ok((-i).into()),
 					(Minus, value) => Err(Panic::invalid_operand(value, operand_pos)),
 
@@ -254,11 +254,11 @@ impl<'a> Runtime<'a> {
 				let value = match (obj, field) {
 					(Value::Dict(ref dict), field) => dict
 						.get(&field)
-						.ok_or(Panic::index_out_of_bounds(field, field_pos)),
+						.map_err(|_| Panic::index_out_of_bounds(field, field_pos)),
 
 					(Value::Array(ref array), Value::Int(ix)) => array
 						.index(ix)
-						.ok_or(Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
+						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
 
 					(Value::Array(_), field) => Err(Panic::invalid_operand(field, field_pos)),
 
@@ -358,7 +358,7 @@ impl<'a> Runtime<'a> {
 				match left {
 					program::Lvalue::Identifier { slot_ix, .. } => self.stack.store(slot_ix.into(), value),
 
-					program::Lvalue::Access { object, field, .. } => {
+					program::Lvalue::Access { object, field, pos } => {
 						let (obj, obj_pos) = match self.eval_expr(object)? {
 							(Flow::Regular(obj), pos) => (obj, pos),
 							(flow, _) => return Ok(flow),
@@ -376,7 +376,10 @@ impl<'a> Runtime<'a> {
 								Panic::index_out_of_bounds(Value::Int(ix), field_pos)
 							),
 
-							(Value::Array(ref array), Value::Int(ix)) => array.deref().set(ix, value),
+							(Value::Array(ref array), Value::Int(ix)) => array
+								.deref()
+								.set(ix, value)
+								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), self.pos(*pos)))?,
 
 							(Value::Array(_), field) => return Err(Panic::invalid_operand(field, field_pos)),
 
@@ -385,7 +388,7 @@ impl<'a> Runtime<'a> {
 					}
 				}
 
-				Ok(Flow::Regular(Value::Nil))
+				Ok(Flow::Regular(Value::default()))
 			}
 
 			program::Statement::Return { expr } => {
@@ -416,7 +419,7 @@ impl<'a> Runtime<'a> {
 					}
 				}
 
-				Ok(Flow::Regular(Value::Nil))
+				Ok(Flow::Regular(Value::default()))
 			}
 
 			program::Statement::For { slot_ix, expr, block } => todo!(),
