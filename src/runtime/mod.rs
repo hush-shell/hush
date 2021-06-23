@@ -29,6 +29,7 @@ use source::SourcePos;
 
 pub struct Runtime<'a> {
 	stack: Stack,
+	arguments: Vec<(mem::SlotIx, Value)>,
 	path: &'static Path,
 	interner: &'a mut symbol::Interner,
 }
@@ -40,14 +41,16 @@ impl<'a> Runtime<'a> {
 		interner: &'a mut symbol::Interner
 	) -> Result<Value, Panic> {
 		let mut runtime = Self {
-			stack: Stack::new(),
+			stack: Stack::default(),
+			arguments: Vec::new(),
 			path: &program.source,
 			interner,
 		};
 
 		let slots: mem::SlotIx = program.root_slots.into();
 
-		runtime.stack.extend(slots.clone());
+		runtime.stack.extend(slots.clone())
+			.map_err(|_| Panic::stack_overflow(SourcePos::file(runtime.path)))?;
 
 		let std = lib::new();
 
@@ -161,7 +164,7 @@ impl<'a> Runtime<'a> {
 								frame_info,
 								body,
 								context,
-								pos: SourcePos::new(pos, self.path),
+								pos: self.pos(pos),
 							}
 						).into()
 					)
@@ -186,13 +189,13 @@ impl<'a> Runtime<'a> {
 			// Identifier.
 			program::Expr::Identifier { slot_ix, pos } => {
 				let value = self.stack.fetch(slot_ix.into());
-				self.ok(Flow::Regular(value), *pos)
+				Ok((Flow::Regular(value), self.pos(*pos)))
 			},
 
 			// Literal.
 			program::Expr::Literal { literal, pos } => {
 				let flow = self.eval_literal(literal, *pos)?;
-				self.ok(flow, *pos)
+				Ok((flow, self.pos(*pos)))
 			},
 
 			// UnaryOp.
@@ -201,7 +204,7 @@ impl<'a> Runtime<'a> {
 
 				let (value, operand_pos) = match self.eval_expr(operand)? {
 					(Flow::Regular(value), pos) => (value, pos),
-					(flow, _) => return self.ok(flow, *pos)
+					(flow, _) => return Ok((flow, self.pos(*pos)))
 				};
 
 				let value: Value = match (op, value) {
@@ -213,7 +216,7 @@ impl<'a> Runtime<'a> {
 					(Not, value) => Err(Panic::invalid_operand(value, operand_pos)),
 				}?;
 
-				self.ok(Flow::Regular(value), *pos)
+				Ok((Flow::Regular(value), self.pos(*pos)))
 			}
 
 			// BinaryOp.
@@ -224,7 +227,7 @@ impl<'a> Runtime<'a> {
 				let condition = match self.eval_expr(condition)? {
 					(Flow::Regular(Value::Bool(b)), _) => b,
 					(Flow::Regular(value), pos) => return Err(Panic::invalid_condition(value, pos)),
-					(flow, _) => return self.ok(flow, *pos)
+					(flow, _) => return Ok((flow, self.pos(*pos)))
 				};
 
 				let value = if condition {
@@ -233,19 +236,19 @@ impl<'a> Runtime<'a> {
 					self.eval_block(otherwise)
 				}?;
 
-				self.ok(value, *pos)
+				Ok((value, self.pos(*pos)))
 			}
 
 			// Access.
 			program::Expr::Access { object, field, pos } => {
 				let (obj, obj_pos) = match self.eval_expr(object)? {
 					(Flow::Regular(obj), pos) => (obj, pos),
-					(flow, _) => return self.ok(flow, *pos)
+					(flow, _) => return Ok((flow, self.pos(*pos)))
 				};
 
 				let (field, field_pos) = match self.eval_expr(field)? {
 					(Flow::Regular(field), pos) => (field, pos),
-					(flow, _) => return self.ok(flow, *pos)
+					(flow, _) => return Ok((flow, self.pos(*pos)))
 				};
 
 				let value = match (obj, field) {
@@ -262,7 +265,7 @@ impl<'a> Runtime<'a> {
 					(obj, _) => Err(Panic::invalid_operand(obj, obj_pos)),
 				}?;
 
-				self.ok(Flow::Regular(value), *pos)
+				Ok((Flow::Regular(value), self.pos(*pos)))
 			}
 
 			// Call.
@@ -270,7 +273,7 @@ impl<'a> Runtime<'a> {
 				let function = match self.eval_expr(function)? {
 					(Flow::Regular(Value::Function(ref fun)), _) => fun.clone(),
 					(Flow::Regular(value), pos) => return Err(Panic::invalid_call(value, pos)),
-					(flow, _) => return self.ok(flow, *pos),
+					(flow, _) => return Ok((flow, self.pos(*pos))),
 				};
 
 				// TODO: how can we avoid this extra allocation?
@@ -281,18 +284,19 @@ impl<'a> Runtime<'a> {
 
 					match self.eval_expr(expr)? {
 						(Flow::Regular(value), _) => arguments.push((slot_ix, value)),
-						(flow, _) => return self.ok(flow, *pos),
+						(flow, _) => return Ok((flow, self.pos(*pos))),
 					}
 				}
 
 				let value = match function.deref() {
 					Function::Hush(HushFun { params, frame_info, body, context, .. }) => {
 						if args.len() as u32 != *params {
-							return Err(Panic::MissingParameters { pos: SourcePos::new(*pos, self.path) });
+							return Err(Panic::MissingParameters { pos: self.pos(*pos) });
 						}
 
 						let slots: mem::SlotIx = frame_info.slots.into();
-						self.stack.extend(slots.clone());
+						self.stack.extend(slots.clone())
+							.map_err(|_| Panic::stack_overflow(self.pos(*pos)))?;
 
 						// Place arguments
 						for (slot_ix, value) in arguments {
@@ -318,7 +322,8 @@ impl<'a> Runtime<'a> {
 
 					Function::Rust(RustFun { fun, .. }) => {
 						let slots = mem::SlotIx(args.len() as u32);
-						self.stack.extend(slots.clone());
+						self.stack.extend(slots.clone())
+							.map_err(|_| Panic::stack_overflow(self.pos(*pos)))?;
 
 						// Place arguments
 						for (slot_ix, value) in arguments {
@@ -333,7 +338,7 @@ impl<'a> Runtime<'a> {
 					}
 				};
 
-				self.ok(Flow::Regular(value), *pos)
+				Ok((Flow::Regular(value), self.pos(*pos)))
 			}
 
 			// CommandBlock.
@@ -423,10 +428,7 @@ impl<'a> Runtime<'a> {
 	}
 
 
-	fn ok<T, E>(&self, value: T, pos: program::SourcePos) -> Result<(T, SourcePos), E> {
-		Ok((
-			value,
-			SourcePos::new(pos, self.path)
-		))
+	fn pos(&self, pos: program::SourcePos) -> SourcePos {
+		SourcePos::new(pos, self.path)
 	}
 }

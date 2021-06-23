@@ -26,6 +26,15 @@ impl SourcePos {
 			path,
 		}
 	}
+
+
+	pub fn file(path: &'static Path) -> Self {
+		Self {
+			line: 0,
+			column: 0,
+			path,
+		}
+	}
 }
 
 

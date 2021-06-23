@@ -8,6 +8,7 @@ use super::{Value, SourcePos};
 
 #[derive(Debug)]
 pub enum Panic {
+	StackOverflow { pos: SourcePos },
 	DivisionByZero { pos: SourcePos },
 	IndexOutOfBounds {
 		index: Value,
@@ -31,6 +32,11 @@ pub enum Panic {
 
 
 impl Panic {
+	pub fn stack_overflow(pos: SourcePos) -> Self {
+		Self::StackOverflow { pos }
+	}
+
+
 	pub fn invalid_call(function: Value, pos: SourcePos) -> Self {
 		Self::InvalidCall { function, pos }
 	}
