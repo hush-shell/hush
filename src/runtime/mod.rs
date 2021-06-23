@@ -45,16 +45,22 @@ impl<'a> Runtime<'a> {
 			interner,
 		};
 
-		runtime.stack.extend(program.root_slots.into());
+		let slots: mem::SlotIx = program.root_slots.into();
+
+		runtime.stack.extend(slots.clone());
 
 		let std = lib::new();
 
 		runtime.stack.store(mem::SlotIx(0), std);
 
-		match runtime.eval_block(&program.statements)? {
-			Flow::Regular(value) => Ok(value),
+		let value = match runtime.eval_block(&program.statements)? {
+			Flow::Regular(value) => value,
 			flow => panic!("invalid flow in root state: {:#?}", flow)
-		}
+		};
+
+		runtime.stack.shrink(slots);
+
+		Ok(value)
 	}
 
 
@@ -267,36 +273,35 @@ impl<'a> Runtime<'a> {
 					(flow, _) => return self.ok(flow, *pos),
 				};
 
-				let mut slots = mem::SlotIx(args.len() as u32);
-
-				self.stack.extend(slots.clone());
+				// TODO: how can we avoid this extra allocation?
+				let mut arguments = Vec::with_capacity(args.len());
 
 				for (ix, expr) in args.iter().enumerate() {
 					let slot_ix = mem::SlotIx(ix as u32);
 
 					match self.eval_expr(expr)? {
-						(Flow::Regular(value), _) => self.stack.store(slot_ix, value),
-						(flow, _) => {
-							self.stack.shrink(slots);
-							return self.ok(flow, *pos);
-						}
+						(Flow::Regular(value), _) => arguments.push((slot_ix, value)),
+						(flow, _) => return self.ok(flow, *pos),
 					}
 				}
 
 				let value = match function.deref() {
-					Function::Rust(RustFun { name, fun }) => fun(&mut self.stack, slots.clone())?,
-
-					Function::Hush(HushFun { params, frame_info, body, context, pos }) => {
-						if slots.0 != *params {
-							return Err(Panic::MissingParameters { pos: pos.clone() });
+					Function::Hush(HushFun { params, frame_info, body, context, .. }) => {
+						if args.len() as u32 != *params {
+							return Err(Panic::MissingParameters { pos: SourcePos::new(*pos, self.path) });
 						}
 
-						let locals: mem::SlotIx = frame_info.slots.into();
-						self.stack.extend(locals.clone());
-						slots += locals;
+						let slots: mem::SlotIx = frame_info.slots.into();
+						self.stack.extend(slots.clone());
 
-						for (value, slot_ix) in context.iter() {
-							self.stack.place(slot_ix.clone(), value.clone());
+						// Place arguments
+						for (slot_ix, value) in arguments {
+							self.stack.store(slot_ix, value);
+						}
+
+						// Place captured variables.
+						for (value, slot_ix) in context.iter().cloned() {
+							self.stack.place(slot_ix, value);
 						}
 						// TODO: place self parameter.
 
@@ -306,11 +311,27 @@ impl<'a> Runtime<'a> {
 							Flow::Break => panic!("break outside loop"),
 						};
 
+						self.stack.shrink(slots);
+
+						value
+					}
+
+					Function::Rust(RustFun { fun, .. }) => {
+						let slots = mem::SlotIx(args.len() as u32);
+						self.stack.extend(slots.clone());
+
+						// Place arguments
+						for (slot_ix, value) in arguments {
+							self.stack.store(slot_ix, value);
+						}
+
+						let value = fun(&mut self.stack, slots.clone())?;
+
+						self.stack.shrink(slots);
+
 						value
 					}
 				};
-
-				self.stack.shrink(slots);
 
 				self.ok(Flow::Regular(value), *pos)
 			}
@@ -331,7 +352,8 @@ impl<'a> Runtime<'a> {
 
 				match left {
 					program::Lvalue::Identifier { slot_ix, .. } => self.stack.store(slot_ix.into(), value),
-					program::Lvalue::Access { object, field, pos } => {
+
+					program::Lvalue::Access { object, field, .. } => {
 						let (obj, obj_pos) = match self.eval_expr(object)? {
 							(Flow::Regular(obj), pos) => (obj, pos),
 							(flow, _) => return Ok(flow),

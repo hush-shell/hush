@@ -116,7 +116,7 @@ impl Frame {
 			Entry::Vacant(entry) => {
 				let slot_ix = self.slots;
 				self.slots.0 += 1;
-				entry.insert(self.slots);
+				entry.insert(slot_ix);
 				self.captures.push(
 					Capture {
 						from: parent_slot_ix,

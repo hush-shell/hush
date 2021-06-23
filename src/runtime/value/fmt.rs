@@ -19,7 +19,7 @@ impl Display for RustFun {
 
 impl Display for HushFun {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.pos)
+		write!(f, "function<{}>", self.pos)
 	}
 }
 

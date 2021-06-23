@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign, Deref};
+use std::{
+	fmt::{self, Debug},
+	ops::{Add, AddAssign, Sub, SubAssign, Deref},
+};
 
 use super::{program, Value};
 
@@ -110,7 +113,6 @@ impl Default for Slot {
 
 
 /// The call stack.
-#[derive(Debug)]
 pub struct Stack(Vec<Slot>);
 
 
@@ -173,4 +175,15 @@ impl Stack {
 
 		vec[len - 1 - offset].store(value)
 	}
+}
+
+
+impl Debug for Stack {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    for (ix, val) in self.0.iter().rev().enumerate() {
+			writeln!(f, "{}: {}", ix, val.fetch())?;
+		}
+
+		Ok(())
+  }
 }
