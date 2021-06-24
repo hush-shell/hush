@@ -8,6 +8,15 @@ use super::lexer;
 pub struct SlotIx(pub u32);
 
 
+impl SlotIx {
+	pub(in crate::semantic) fn bump(&mut self) -> SlotIx {
+		let previous = *self;
+		self.0 += 1;
+		previous
+	}
+}
+
+
 /// How to capture a value from the parent scope.
 #[derive(Debug, Copy, Clone)]
 pub struct Capture {

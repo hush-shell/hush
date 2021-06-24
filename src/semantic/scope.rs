@@ -87,7 +87,7 @@ impl Frame {
 		let scope = self.scopes.last_mut().expect("attempt to declare in empty stack");
 
 		if scope.declare(symbol, self.slots) {
-			Ok(self.bump())
+			Ok(self.slots.bump())
 		} else {
 			Err(Error::duplicate_variable(symbol, pos))
 		}
@@ -114,8 +114,7 @@ impl Frame {
 			Entry::Occupied(entry) => *entry.get(),
 
 			Entry::Vacant(entry) => {
-				let slot_ix = self.slots;
-				self.slots.0 += 1;
+				let slot_ix = self.slots.bump();
 				entry.insert(slot_ix);
 				self.captures.push(
 					Capture {
@@ -136,19 +135,11 @@ impl Frame {
 			Some(slot_ix) => slot_ix,
 
 			None => {
-				let slot_ix = self.bump();
+				let slot_ix = self.slots.bump();
 				self.self_slot = Some(slot_ix);
 				slot_ix
 			}
 		}
-	}
-
-
-	/// Add a slot to the frame.
-	fn bump(&mut self) -> SlotIx {
-		let slot_ix = self.slots;
-		self.slots.0 += 1;
-		slot_ix
 	}
 }
 
