@@ -7,8 +7,8 @@ mod mem;
 
 use std::{
 	collections::HashMap,
-	path::Path,
 	ops::Deref,
+	path::Path,
 };
 
 use crate::symbol;
@@ -16,6 +16,7 @@ use super::semantic::program;
 use value::{
 	Array,
 	Dict,
+	Float,
 	Function,
 	HushFun,
 	RustFun,
@@ -199,6 +200,15 @@ impl<'a> Runtime<'a> {
 	fn eval_expr(
 		&mut self, expr: &'static program::Expr
 	) -> Result<(Flow, SourcePos, Option<Value>), Panic> {
+		macro_rules! regular_expr {
+			($expr: expr, $pos: expr) => {
+				match self.eval_expr($expr)? {
+					(Flow::Regular(value), pos, _) => (value, pos),
+					(flow, _, _) => return Ok((flow, $pos, None))
+				};
+			}
+		}
+
 		match expr {
 			// Identifier.
 			program::Expr::Identifier { slot_ix, pos } => {
@@ -218,10 +228,7 @@ impl<'a> Runtime<'a> {
 
 				let pos = self.pos(*pos);
 
-				let (value, operand_pos) = match self.eval_expr(operand)? {
-					(Flow::Regular(value), pos, _) => (value, pos),
-					(flow, _, _) => return Ok((flow, pos, None))
-				};
+				let (value, operand_pos) = regular_expr!(operand, pos);
 
 				let value = match (op, value) {
 					(Minus, Value::Float(ref f)) => Ok((-f).into()),
@@ -238,53 +245,114 @@ impl<'a> Runtime<'a> {
 			// BinaryOp.
 			program::Expr::BinaryOp { left, op, right, pos } => {
 				use program::BinaryOp::*;
+				use std::ops::{Add, Sub, Mul, Div, Rem};
 
 				let pos = self.pos(*pos);
 
-				let (left, left_pos) = match self.eval_expr(left)? {
-					(Flow::Regular(value), pos, _) => (value, pos),
-					(flow, _, _) => return Ok((flow, pos, None))
-				};
+				let (left, left_pos) = regular_expr!(left, pos);
 
-				let value = match op {
-					op if op.is_arithmetic() => {
-						let (right, right_pos) = match self.eval_expr(right)? {
-							(Flow::Regular(value), pos, _) => (value, pos),
-							(flow, _, _) => return Ok((flow, pos, None))
-						};
+				let value = if matches!(op, And | Or) { // Short circuit operators.
+					match (left, op) {
+						(Value::Bool(false), And) => Value::Bool(false),
+						(Value::Bool(true), Or) => Value::Bool(true),
 
-						match (left, op, right) {
-							// int + int
-							(Value::Int(int1), Plus, Value::Int(int2)) => {
-								let val = int1
-									.checked_add(int2)
-									.ok_or(Panic::integer_overflow(pos.clone()))?;
-
-								Value::Int(val)
-							},
-
-							// float + int, int + float
-							(Value::Int(int), Plus, Value::Float(ref float))
-								| (Value::Float(ref float), Plus, Value::Int(int)) => {
-								Value::Float(float.clone() + int.into())
-							},
-
-							// ? + ?
-							(left, Plus, right) => {
-								return Err(
-									if matches!(left, Value::Int(_) | Value::Float(_)) {
-										Panic::invalid_operand(right, right_pos)
-									} else {
-										Panic::invalid_operand(left, left_pos)
-									}
-								)
-							},
-
-							_ => todo!(),
+						(Value::Bool(_), _) => {
+							let (right, right_pos) = regular_expr!(right, pos);
+							match right {
+								right @ Value::Bool(_) => right,
+								right => return Err(Panic::invalid_operand(right, right_pos)),
+							}
 						}
-					},
 
-					_ => todo!(),
+						(left, _) => return Err(Panic::invalid_operand(left, left_pos)),
+					}
+				} else {
+					let (right, right_pos) = regular_expr!(right, pos);
+
+					macro_rules! arith_operator {
+						($left: expr, $right: expr, $op_float: expr, $op_int: ident, $err_int: expr) => {
+							match ($left, $right) {
+								// int + int
+								(Value::Int(int1), Value::Int(int2)) => {
+									let val = int1.$op_int(int2).ok_or($err_int)?;
+									Value::Int(val)
+								},
+
+								// float + int, int + float
+								(Value::Int(int), Value::Float(ref float))
+									| (Value::Float(ref float), Value::Int(int)) => {
+										let val = $op_float(float.clone(), int.into());
+										Value::Float(val)
+									},
+
+								// ? + ?
+								(left, right) => {
+									return Err(
+										if matches!(left, Value::Int(_) | Value::Float(_)) {
+											Panic::invalid_operand(right, right_pos)
+										} else {
+											Panic::invalid_operand(left, left_pos)
+										}
+									)
+								},
+							}
+						}
+					}
+
+					match (left, op, right) {
+						(left, Plus, right) => arith_operator!(
+							left, right,
+							Add::add,
+							checked_add,
+							Panic::integer_overflow(pos.clone())
+						),
+
+						(left, Minus, right) => arith_operator!(
+							left, right,
+							Sub::sub,
+							checked_sub,
+							Panic::integer_overflow(pos.clone())
+						),
+
+						(left, Times, right) => arith_operator!(
+							left, right,
+							Mul::mul,
+							checked_mul,
+							Panic::integer_overflow(pos.clone())
+						),
+
+						(left, Div, right) => arith_operator!(
+							left, right,
+							Div::div,
+							checked_div,
+							Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
+						),
+
+						(left, Mod, right) => arith_operator!(
+							left, right,
+							Rem::rem,
+							checked_rem,
+							Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
+						),
+
+						(left, Equals, right) => Value::Bool(left == right),
+						(left, NotEquals, right) => Value::Bool(left != right),
+
+						(Value::String(ref str1), Concat, Value::String(ref str2)) => {
+							let string: Vec<u8> =
+								[
+									str1.deref().as_ref(),
+									str2.deref().as_ref()
+								]
+								.concat();
+
+							string.into_boxed_slice().into()
+						}
+
+						// TODO: relational.
+
+						(left, _, _) => return Err(Panic::invalid_operand(left, left_pos)),
+					}
 				};
 
 				Ok((Flow::Regular(value), pos, None))
@@ -313,15 +381,8 @@ impl<'a> Runtime<'a> {
 			program::Expr::Access { object, field, pos } => {
 				let pos = self.pos(*pos);
 
-				let (obj, obj_pos) = match self.eval_expr(object)? {
-					(Flow::Regular(obj), pos, _) => (obj, pos),
-					(flow, _, _) => return Ok((flow, pos, None))
-				};
-
-				let (field, field_pos) = match self.eval_expr(field)? {
-					(Flow::Regular(field), pos, _) => (field, pos),
-					(flow, _, _) => return Ok((flow, pos, None))
-				};
+				let (obj, obj_pos) = regular_expr!(object, pos);
+				let (field, field_pos) = regular_expr!(field, pos);
 
 				let value = match (&obj, field) {
 					(&Value::Dict(ref dict), field) => dict

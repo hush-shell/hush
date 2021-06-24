@@ -86,6 +86,24 @@ from_variant!(Array, Array);
 from_variant!(Dict, Dict);
 
 
+impl<'a> From<&'a [u8]> for Value {
+	fn from(string: &'a [u8]) -> Self {
+		Self::String(
+			Gc::new(string.into())
+		)
+	}
+}
+
+
+impl From<Box<[u8]>> for Value {
+	fn from(string: Box<[u8]>) -> Self {
+		Self::String(
+			Gc::new(string)
+		)
+	}
+}
+
+
 impl<'a> From<&'a str> for Value {
 	fn from(string: &'a str) -> Self {
 		string.as_bytes().into()
@@ -93,11 +111,17 @@ impl<'a> From<&'a str> for Value {
 }
 
 
-impl<'a> From<&'a [u8]> for Value {
-	fn from(string: &'a [u8]) -> Self {
-		Self::String(
-			Gc::new(string.into())
-		)
+impl From<Box<str>> for Value {
+	fn from(string: Box<str>) -> Self {
+		let boxed: Box<[u8]> = string.into();
+		boxed.into()
+	}
+}
+
+
+impl From<String> for Value {
+	fn from(string: String) -> Self {
+		string.into_boxed_str().into()
 	}
 }
 
