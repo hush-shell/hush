@@ -102,6 +102,34 @@ pub enum BinaryOp {
 }
 
 
+impl BinaryOp {
+	/// Check if the operator is arithmetic (+, -, *, /, %).
+	pub fn is_arithmetic(&self) -> bool {
+		matches!(
+			self,
+			Self::Plus | Self::Minus | Self::Times | Self::Div | Self::Mod
+		)
+	}
+
+
+	/// Check if the operator is relational (==, !=, >, >=, <, <=).
+	pub fn is_relational(&self) -> bool {
+		matches!(
+			self,
+			Self::Equals | Self::NotEquals
+				| Self::Greater | Self::GreaterEquals
+				| Self::Lower | Self::LowerEquals
+		)
+	}
+
+
+	/// Check if the operator is boolean (and, or).
+	pub fn is_boolean(&self) -> bool {
+		matches!(self, Self::And | Self::Or)
+	}
+}
+
+
 impl From<ast::BinaryOp> for BinaryOp {
 	fn from(op: ast::BinaryOp) -> Self {
 		match op {

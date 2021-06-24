@@ -76,6 +76,13 @@ impl From<f64> for Float {
 }
 
 
+impl From<i64> for Float {
+	fn from(int: i64) -> Self {
+		Self(int as f64)
+	}
+}
+
+
 op_impl!(Float, unary, Neg, neg);
 op_impl!(Float, binary, Add, add);
 op_impl!(Float, binary, Sub, sub);

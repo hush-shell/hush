@@ -167,6 +167,12 @@ impl Stack {
 	}
 
 
+	/// Check if the stack is empty.
+	pub fn is_empty(&self) -> bool {
+		self.slots.is_empty()
+	}
+
+
 	/// Get the stack length.
 	fn len(&self) -> usize {
 		self.slots.len()

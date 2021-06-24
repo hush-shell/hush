@@ -1,22 +1,15 @@
 use std::collections::HashSet;
 
-use lazy_static::lazy_static;
-
-
-const BUILTINS: &'static [&'static [u8]] = &[
-	b"cd",
-	b"alias",
-];
-
 
 pub fn is_builtin(command: &[u8]) -> bool {
-	lazy_static! {
-		static ref BUILTINS_SET: HashSet<&'static [u8]> = {
-			let mut set = HashSet::new();
-			set.extend(BUILTINS);
-			set
-		};
+	const BUILTINS: &'static [&'static [u8]] = &[
+		b"cd",
+		b"alias",
+	];
+
+	thread_local! {
+		static BUILTINS_SET: HashSet<&'static [u8]> = BUILTINS.iter().cloned().collect();
 	}
 
-	BUILTINS_SET.contains(command)
+	BUILTINS_SET.with(|set| set.contains(command))
 }

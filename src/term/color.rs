@@ -5,26 +5,24 @@ use std::{
 
 pub use termion::color::{Black, Blue, Green, Red, Yellow};
 
-use lazy_static::lazy_static;
 
-
-lazy_static! {
-	static ref IS_TTY: bool = {
-		termion::is_tty(&io::stdout())
-			&& termion::is_tty(&io::stderr())
-	};
+thread_local! {
+	static IS_TTY: bool = termion::is_tty(&io::stdout())
+		&& termion::is_tty(&io::stderr());
 }
 
 
 macro_rules! tty_fmt {
 	($f: expr, $open: expr, $value: expr, $close: expr) => {
-		if *IS_TTY {
-			write!($f, "{}", $open)?;
-			$value.fmt($f)?;
-			write!($f, "{}", $close)
-		} else {
-			$value.fmt($f)
-		}
+		IS_TTY.with(
+			|&is_tty| if is_tty {
+				write!($f, "{}", $open)?;
+				$value.fmt($f)?;
+				write!($f, "{}", $close)
+			} else {
+				$value.fmt($f)
+			}
+		)
 	}
 }
 

@@ -12,6 +12,8 @@ use super::{Value, SourcePos};
 pub enum Panic {
 	/// Attempt to increase the stack past it's maximum size.
 	StackOverflow { pos: SourcePos },
+	/// Integer overflow.
+	IntegerOverflow { pos: SourcePos },
 	/// Integer division by zero.
 	DivisionByZero { pos: SourcePos },
 	/// Array or dict index out of bounds.
@@ -45,6 +47,12 @@ impl Panic {
 	/// Attempt to increase the stack past it's maximum size.
 	pub fn stack_overflow(pos: SourcePos) -> Self {
 		Self::StackOverflow { pos }
+	}
+
+
+	/// Integer division by zero.
+	pub fn integer_overflow(pos: SourcePos) -> Self {
+		Self::IntegerOverflow { pos }
 	}
 
 
@@ -94,18 +102,23 @@ impl From<io::Error> for Panic {
 
 impl Display for Panic {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let panic = color::Fg(color::Red, "Panic");
+
 		match self {
 			Self::StackOverflow { pos } =>
-				write!(f, "{} in {}: stack overflow", color::Fg(color::Red, "Panic"), pos),
+				write!(f, "{} in {}: stack overflow", panic, pos),
+
+			Self::IntegerOverflow { pos } =>
+				write!(f, "{} in {}: integer overflow", panic, pos),
 
 			Self::DivisionByZero { pos } =>
-				write!(f, "{} in {}: division by zero", color::Fg(color::Red, "Panic"), pos),
+				write!(f, "{} in {}: division by zero", panic, pos),
 
 			Self::IndexOutOfBounds { index, pos } =>
 				write!(
 					f,
 					"{} in {}: index ({}) out of bounds",
-					color::Fg(color::Red, "Panic"),
+					panic,
 					pos,
 					color::Fg(color::Yellow, index)
 				),
@@ -114,19 +127,19 @@ impl Display for Panic {
 				write!(
 					f,
 					"{} in {}: attempt to call ({}), which is not a function",
-					color::Fg(color::Red, "Panic"),
+					panic,
 					pos,
 					color::Fg(color::Yellow, function)
 				),
 
 			Self::MissingParameters { pos } =>
-				write!(f, "{} in {}: missing function parameters", color::Fg(color::Red, "Panic"), pos),
+				write!(f, "{} in {}: missing function parameters", panic, pos),
 
 			Self::InvalidCondition { value, pos } =>
 				write!(
 					f,
 					"{} in {}: condition ({}) is not a boolean",
-					color::Fg(color::Red, "Panic"),
+					panic,
 					pos,
 					color::Fg(color::Yellow, value)
 				),
@@ -135,13 +148,13 @@ impl Display for Panic {
 				write!(
 					f,
 					"{} in {}: operand ({}) has an invalid type",
-					color::Fg(color::Red, "Panic"),
+					panic,
 					pos,
 					color::Fg(color::Yellow, value)
 				),
 
 			Self::Io(error) =>
-				write!(f, "{}: {}", color::Fg(color::Red, "Panic"), error),
+				write!(f, "{}: {}", panic, error),
 		}
 	}
 }
