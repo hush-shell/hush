@@ -116,12 +116,7 @@ fn runtime(
 		match runtime::Runtime::eval(program, interner) {
 			Ok(value) => Some(value),
 			Err(panic) => {
-				eprintln!(
-					"{}: {}",
-					color::Fg(color::Red, "Panic"),
-					panic
-				);
-
+				eprintln!("{}", panic);
 				None
 			}
 		}

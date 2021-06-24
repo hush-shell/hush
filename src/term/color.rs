@@ -1,6 +1,32 @@
-use std::fmt::{self, Debug, Display};
+use std::{
+	io,
+	fmt::{self, Debug, Display},
+};
 
 pub use termion::color::{Black, Blue, Green, Red, Yellow};
+
+use lazy_static::lazy_static;
+
+
+lazy_static! {
+	static ref IS_TTY: bool = {
+		termion::is_tty(&io::stdout())
+			&& termion::is_tty(&io::stderr())
+	};
+}
+
+
+macro_rules! tty_fmt {
+	($f: expr, $open: expr, $value: expr, $close: expr) => {
+		if *IS_TTY {
+			write!($f, "{}", $open)?;
+			$value.fmt($f)?;
+			write!($f, "{}", $close)
+		} else {
+			$value.fmt($f)
+		}
+	}
+}
 
 
 /// Paint the foreground with a given color when formatting the value.
@@ -13,9 +39,12 @@ where
 	T: Debug,
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", termion::color::Fg(self.0))?;
-		self.1.fmt(f)?;
-		write!(f, "{}", termion::color::Fg(termion::color::Reset))
+		tty_fmt!(
+			f,
+			termion::color::Fg(self.0),
+			self.1,
+			termion::color::Fg(termion::color::Reset)
+		)
 	}
 }
 
@@ -26,9 +55,8 @@ where
 	T: Display,
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(
+		tty_fmt!(
 			f,
-			"{}{}{}",
 			termion::color::Fg(self.0),
 			self.1,
 			termion::color::Fg(termion::color::Reset)
@@ -47,9 +75,12 @@ where
 	T: Debug,
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.0)?;
-		self.1.fmt(f)?;
-		write!(f, "{}", termion::style::Reset)
+		tty_fmt!(
+			f,
+			self.0,
+			self.1,
+			termion::style::Reset
+		)
 	}
 }
 
@@ -60,7 +91,12 @@ where
 	T: Display,
 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}{}{}", self.0, self.1, termion::style::Reset)
+		tty_fmt!(
+			f,
+			self.0,
+			self.1,
+			termion::style::Reset
+		)
 	}
 }
 

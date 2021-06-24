@@ -19,6 +19,7 @@ pub struct SourcePos {
 
 
 impl SourcePos {
+	/// Create a new SourcePos from the given AST SourcePos and source file path.
 	pub fn new(pos: syntax::SourcePos, path: &'static Path) -> Self {
 		Self {
 			line: pos.line,
@@ -28,6 +29,7 @@ impl SourcePos {
 	}
 
 
+	/// Create a new SourcePos refering to the beginning of the file.
 	pub fn file(path: &'static Path) -> Self {
 		Self {
 			line: 0,
@@ -40,6 +42,6 @@ impl SourcePos {
 
 impl Display for SourcePos {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}:{},{}", self.path.display(), self.line, self.column)
+		write!(f, "{} (line {}, column {})", self.path.display(), self.line, self.column)
 	}
 }
