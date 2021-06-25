@@ -16,6 +16,7 @@ use super::semantic::program;
 use value::{
 	Array,
 	Dict,
+	Float,
 	Function,
 	HushFun,
 	RustFun,
@@ -223,138 +224,20 @@ impl<'a> Runtime<'a> {
 
 			// UnaryOp.
 			program::Expr::UnaryOp { op, operand, pos } => {
-				use program::UnaryOp::{Minus, Not};
-
 				let pos = self.pos(*pos);
 
-				let (value, operand_pos) = regular_expr!(operand, pos);
+				let flow = self.unary_op(op, operand)?;
 
-				let value = match (op, value) {
-					(Minus, Value::Float(ref f)) => Ok((-f).into()),
-					(Minus, Value::Int(i)) => Ok((-i).into()),
-					(Minus, value) => Err(Panic::invalid_operand(value, operand_pos)),
-
-					(Not, Value::Bool(b)) => Ok((!b).into()),
-					(Not, value) => Err(Panic::invalid_operand(value, operand_pos)),
-				}?;
-
-				Ok((Flow::Regular(value), pos, None))
+				Ok((flow, pos, None))
 			}
 
 			// BinaryOp.
 			program::Expr::BinaryOp { left, op, right, pos } => {
-				use program::BinaryOp::*;
-				use std::ops::{Add, Sub, Mul, Div, Rem};
-
 				let pos = self.pos(*pos);
 
-				let (left, left_pos) = regular_expr!(left, pos);
+				let flow = self.binary_op(left, op, right, &pos)?;
 
-				let value = if matches!(op, And | Or) { // Short circuit operators.
-					match (left, op) {
-						(Value::Bool(false), And) => Value::Bool(false),
-						(Value::Bool(true), Or) => Value::Bool(true),
-
-						(Value::Bool(_), _) => {
-							let (right, right_pos) = regular_expr!(right, pos);
-							match right {
-								right @ Value::Bool(_) => right,
-								right => return Err(Panic::invalid_operand(right, right_pos)),
-							}
-						}
-
-						(left, _) => return Err(Panic::invalid_operand(left, left_pos)),
-					}
-				} else {
-					let (right, right_pos) = regular_expr!(right, pos);
-
-					macro_rules! arith_operator {
-						($left: expr, $right: expr, $op_float: expr, $op_int: ident, $err_int: expr) => {
-							match ($left, $right) {
-								// int + int
-								(Value::Int(int1), Value::Int(int2)) => {
-									let val = int1.$op_int(int2).ok_or($err_int)?;
-									Value::Int(val)
-								},
-
-								// float + int, int + float
-								(Value::Int(int), Value::Float(ref float))
-									| (Value::Float(ref float), Value::Int(int)) => {
-										let val = $op_float(float.clone(), int.into());
-										Value::Float(val)
-									},
-
-								// ? + ?
-								(left, right) => {
-									return Err(
-										if matches!(left, Value::Int(_) | Value::Float(_)) {
-											Panic::invalid_operand(right, right_pos)
-										} else {
-											Panic::invalid_operand(left, left_pos)
-										}
-									)
-								},
-							}
-						}
-					}
-
-					match (left, op, right) {
-						(left, Plus, right) => arith_operator!(
-							left, right,
-							Add::add,
-							checked_add,
-							Panic::integer_overflow(pos.clone())
-						),
-
-						(left, Minus, right) => arith_operator!(
-							left, right,
-							Sub::sub,
-							checked_sub,
-							Panic::integer_overflow(pos.clone())
-						),
-
-						(left, Times, right) => arith_operator!(
-							left, right,
-							Mul::mul,
-							checked_mul,
-							Panic::integer_overflow(pos.clone())
-						),
-
-						(left, Div, right) => arith_operator!(
-							left, right,
-							Div::div,
-							checked_div,
-							Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
-						),
-
-						(left, Mod, right) => arith_operator!(
-							left, right,
-							Rem::rem,
-							checked_rem,
-							Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
-						),
-
-						(left, Equals, right) => Value::Bool(left == right),
-						(left, NotEquals, right) => Value::Bool(left != right),
-
-						(Value::String(ref str1), Concat, Value::String(ref str2)) => {
-							let string: Vec<u8> =
-								[
-									str1.deref().as_ref(),
-									str2.deref().as_ref()
-								]
-								.concat();
-
-							string.into_boxed_slice().into()
-						}
-
-						// TODO: relational.
-
-						(left, _, _) => return Err(Panic::invalid_operand(left, left_pos)),
-					}
-				};
-
-				Ok((Flow::Regular(value), pos, None))
+				Ok((flow, pos, None))
 			}
 
 			// If.
@@ -639,6 +522,258 @@ impl<'a> Runtime<'a> {
 	}
 
 
+	/// Execute a unary operator expression.
+	fn unary_op(
+		&mut self,
+		op: &'static program::UnaryOp,
+		operand: &'static program::Expr,
+	) -> Result<Flow, Panic> {
+		use program::UnaryOp::{Minus, Not};
+
+		let (value, operand_pos) = match self.eval_expr(operand)? {
+			(Flow::Regular(value), pos, _) => (value, pos),
+			(flow, _, _) => return Ok(flow),
+		};
+
+		let value = match (op, value) {
+			(Minus, Value::Float(ref f)) => Ok((-f).into()),
+			(Minus, Value::Int(i)) => Ok((-i).into()),
+			(Minus, value) => Err(Panic::invalid_operand(value, operand_pos)),
+
+			(Not, Value::Bool(b)) => Ok((!b).into()),
+			(Not, value) => Err(Panic::invalid_operand(value, operand_pos)),
+		}?;
+
+		Ok(Flow::Regular(value))
+	}
+
+
+	/// Execute a binary operator expression.
+	fn binary_op(
+		&mut self,
+		left: &'static program::Expr,
+		op: &'static program::BinaryOp,
+		right: &'static program::Expr,
+		pos: &SourcePos,
+	) -> Result<Flow, Panic> {
+		use program::BinaryOp::*;
+
+		macro_rules! regular_expr {
+			($expr: expr) => {
+				match self.eval_expr($expr)? {
+					(Flow::Regular(value), pos, _) => (value, pos),
+					(flow, _, _) => return Ok(flow)
+				};
+			}
+		}
+
+		let (left, left_pos) = regular_expr!(left);
+
+		let value = match op {
+			And | Or => match (left, op) {
+				(Value::Bool(false), And) => Value::Bool(false),
+				(Value::Bool(true), Or) => Value::Bool(true),
+
+				(Value::Bool(_), _) => {
+					let (right, right_pos) = regular_expr!(right);
+					match right {
+						right @ Value::Bool(_) => right,
+						right => return Err(Panic::invalid_operand(right, right_pos)),
+					}
+				}
+
+				(left, _) => return Err(Panic::invalid_operand(left, left_pos)),
+			}
+
+			Plus | Minus | Times | Div | Mod => {
+				let (right, right_pos) = regular_expr!(right);
+
+				self.arithmetic_op(left, left_pos, op, &pos, right, right_pos)?
+			}
+
+			Greater | GreaterEquals | Lower | LowerEquals => {
+				let (right, right_pos) = regular_expr!(right);
+
+				self.ord_op(left, left_pos, op, right, right_pos)?
+			}
+
+			Equals => Value::Bool(left == regular_expr!(right).0),
+			NotEquals => Value::Bool(left != regular_expr!(right).0),
+
+			Concat => {
+				let (right, right_pos) = regular_expr!(right);
+
+				match (left, right) {
+					(Value::String(ref str1), Value::String(ref str2)) => {
+						let string: Vec<u8> =
+							[
+								str1.deref().as_ref(),
+								str2.deref().as_ref()
+							]
+							.concat();
+
+						string.into_boxed_slice().into()
+					}
+
+					(Value::String(_), right) => return Err(Panic::invalid_operand(right, right_pos)),
+					(left, _) => return Err(Panic::invalid_operand(left, left_pos)),
+				}
+			}
+		};
+
+		Ok(Flow::Regular(value))
+	}
+
+
+	/// Execute a binary arithmetic operator expression.
+	/// Panics if op is not arithmetic (+, -, *, /, %).
+	fn arithmetic_op(
+		&mut self,
+		left: Value,
+		left_pos: SourcePos,
+		op: &'static program::BinaryOp,
+		pos: &SourcePos,
+		right: Value,
+		right_pos: SourcePos,
+	) -> Result<Value, Panic> {
+		use program::BinaryOp::*;
+		use std::ops::{Add, Sub, Mul, Div, Rem};
+
+		macro_rules! arith_operator {
+			($op_float: expr, $op_int: ident, $err_int: expr) => {
+				match (left, right) {
+					// int . int
+					(Value::Int(int1), Value::Int(int2)) => {
+						let val = int1.$op_int(int2).ok_or($err_int)?;
+						Ok(Value::Int(val))
+					},
+
+					// float . int, int . float
+					(Value::Int(int), Value::Float(ref float))
+						| (Value::Float(ref float), Value::Int(int)) => {
+							let val = $op_float(float.clone(), int.into());
+							Ok(Value::Float(val))
+						},
+
+					// ? . ?
+					(left, right) => Err(
+						if matches!(left, Value::Int(_) | Value::Float(_)) {
+							Panic::invalid_operand(right, right_pos)
+						} else {
+							Panic::invalid_operand(left, left_pos)
+						}
+					),
+				}
+			}
+		}
+
+		match op {
+			Plus => arith_operator!(
+				Add::add,
+				checked_add,
+				Panic::integer_overflow(pos.clone())
+			),
+
+			Minus => arith_operator!(
+				Sub::sub,
+				checked_sub,
+				Panic::integer_overflow(pos.clone())
+			),
+
+			Times => arith_operator!(
+				Mul::mul,
+				checked_mul,
+				Panic::integer_overflow(pos.clone())
+			),
+
+			Div => arith_operator!(
+				Div::div,
+				checked_div,
+				Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
+			),
+
+			Mod => arith_operator!(
+				Rem::rem,
+				checked_rem,
+				Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
+			),
+
+			_ => unreachable!("operator is not arithmetic"),
+		}
+	}
+
+
+	/// Execute a binary ord operator expression.
+	/// Panics if op is not ord (<, <=, >, >=).
+	fn ord_op(
+		&mut self,
+		left: Value,
+		left_pos: SourcePos,
+		op: &'static program::BinaryOp,
+		right: Value,
+		right_pos: SourcePos,
+	) -> Result<Value, Panic> {
+		use program::BinaryOp::*;
+		use std::cmp::Ordering;
+
+		let ord_operator = |order: fn(Ordering) -> bool| {
+			match (left, right) {
+				// int . int
+				(Value::Int(int1), Value::Int(int2)) => Ok(
+					Value::Bool(
+						order(int1.cmp(&int2))
+					)
+				),
+
+				// float . int, int . float
+				(Value::Int(int), Value::Float(ref float)) => Ok(
+					Value::Bool(
+						order(float.clone().cmp(&int.into()))
+					)
+				),
+
+				(Value::Float(ref float), Value::Int(int)) => Ok(
+					Value::Bool(
+						order(Float::from(int).cmp(&float.clone()))
+					)
+				),
+
+				// char . char
+				(Value::Byte(b1), Value::Byte(b2)) => Ok(
+					Value::Bool(
+						order(b1.cmp(&b2))
+					)
+				),
+
+				// string . string
+				(Value::String(ref str1), Value::String(ref str2)) => Ok(
+					Value::Bool(
+						order(str1.cmp(&str2))
+					)
+				),
+
+				// ? + ?
+				(left, right) => Err(
+					if matches!(left, Value::Int(_) | Value::Float(_) | Value::Byte(_) | Value::String(_)) {
+						Panic::invalid_operand(right, right_pos)
+					} else {
+						Panic::invalid_operand(left, left_pos)
+					}
+				),
+			}
+		};
+
+		match op {
+			Lower => ord_operator(|ordering| ordering == Ordering::Less),
+			LowerEquals => ord_operator(|ordering| ordering != Ordering::Greater),
+			Greater => ord_operator(|ordering| ordering == Ordering::Greater),
+			GreaterEquals => ord_operator(|ordering| ordering != Ordering::Less),
+			_ => unreachable!("operator is not ord"),
+		}
+	}
+
+
+	/// Make a SourcePos from the current Path.
 	fn pos(&self, pos: program::SourcePos) -> SourcePos {
 		SourcePos::new(pos, self.path)
 	}
