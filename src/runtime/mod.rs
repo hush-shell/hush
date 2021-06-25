@@ -16,7 +16,6 @@ use super::semantic::program;
 use value::{
 	Array,
 	Dict,
-	Float,
 	Function,
 	HushFun,
 	RustFun,
@@ -31,7 +30,7 @@ use source::SourcePos;
 /// A runtime instance to execute Hush programs.
 pub struct Runtime<'a> {
 	stack: Stack,
-	arguments: Vec<(mem::SlotIx, Value)>,
+	arguments: Vec<Value>,
 	path: &'static Path,
 	interner: &'a mut symbol::Interner,
 }
@@ -413,11 +412,9 @@ impl<'a> Runtime<'a> {
 				};
 
 				// Eval arguments.
-				for (ix, expr) in args.iter().enumerate() {
-					let slot_ix = mem::SlotIx(ix as u32);
-
+				for expr in args.iter() {
 					match self.eval_expr(expr)? {
-						(Flow::Regular(value), _, _) => self.arguments.push((slot_ix, value)),
+						(Flow::Regular(value), _, _) => self.arguments.push(value),
 						(flow, _, _) => {
 							self.arguments.clear();
 							return Ok((flow, pos, None));
@@ -590,11 +587,11 @@ impl<'a> Runtime<'a> {
 	) -> Result<Value, Panic> {
 		let args_count = self.arguments.len() as u32;
 
-		// Make sure we clean the arguments vector even when early returning.
-		let arguments = self.arguments.drain(..);
-
 		let value = match function {
 			Function::Hush(HushFun { params, frame_info, body, context, .. }) => {
+				// Make sure we clean the arguments vector even when early returning.
+				let arguments = self.arguments.drain(..);
+
 				if args_count != *params {
 					return Err(Panic::missing_parameters(pos));
 				}
@@ -604,8 +601,8 @@ impl<'a> Runtime<'a> {
 					.map_err(|_| Panic::stack_overflow(pos))?;
 
 				// Place arguments
-				for (slot_ix, value) in arguments {
-					self.stack.store(slot_ix, value);
+				for (ix, value) in arguments.enumerate() {
+					self.stack.store(mem::SlotIx(ix as u32), value);
 				}
 
 				// Place captured variables.
@@ -613,10 +610,10 @@ impl<'a> Runtime<'a> {
 					self.stack.place(slot_ix, value);
 				}
 
-				match (obj, frame_info.self_slot) {
-					(Some(obj), Some(slot_ix)) => self.stack.store(slot_ix.into(), obj),
-					_ => ()
-				};
+				// Place self.
+				if let (Some(obj), Some(slot_ix)) = (obj, frame_info.self_slot) {
+					self.stack.store(slot_ix.into(), obj);
+				}
 
 				let value = match self.eval_block(body)? {
 					Flow::Regular(value) => value,
@@ -630,20 +627,11 @@ impl<'a> Runtime<'a> {
 			}
 
 			Function::Rust(RustFun { fun, .. }) => {
-				let slots = mem::SlotIx(args_count);
-				self.stack.extend(slots.clone())
-					.map_err(|_| Panic::stack_overflow(pos))?;
+				let result = fun(&mut self.arguments);
 
-				// Place arguments
-				for (slot_ix, value) in arguments {
-					self.stack.store(slot_ix, value);
-				}
+				self.arguments.clear();
 
-				let value = fun(&mut self.stack, slots.clone())?;
-
-				self.stack.shrink(slots);
-
-				value
+				result?
 			}
 		};
 

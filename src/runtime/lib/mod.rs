@@ -4,7 +4,6 @@ use std::{
 };
 
 use super::{
-	mem,
 	Dict,
 	Panic,
 	RustFun,
@@ -25,19 +24,17 @@ pub fn new() -> Value {
 
 
 /// std.print
-fn print(stack: &mut mem::Stack, args: mem::SlotIx) -> Result<Value, Panic> {
+fn print(args: &mut [Value]) -> Result<Value, Panic> {
 	let stdout = io::stdout();
 	let mut stdout = stdout.lock();
 
-	let mut iter = (0 .. args.0).into_iter().map(mem::SlotIx);
+	let mut iter = args.iter();
 
-	if let Some(slot_ix) = iter.next() {
-		let value = stack.fetch(slot_ix);
+	if let Some(value) = iter.next() {
 		write!(stdout, "{}", value)?;
 	}
 
-	for slot_ix in iter {
-		let value = stack.fetch(slot_ix);
+	for value in iter {
 		write!(stdout, "\t{}", value)?;
 	}
 

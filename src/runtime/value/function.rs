@@ -98,7 +98,7 @@ pub struct RustFun {
 	/// The fully qualified name of the function. E.g.: std.print
 	pub name: &'static str,
 	/// The function implementation.
-	pub fun: fn(&mut mem::Stack, mem::SlotIx) -> Result<Value, Panic>,
+	pub fun: fn(&mut [Value]) -> Result<Value, Panic>,
 }
 
 unsafe impl Trace for RustFun {
