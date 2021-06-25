@@ -1,9 +1,10 @@
+mod command;
 mod flow;
-pub mod value;
-mod panic;
-mod source;
 mod lib;
 mod mem;
+mod panic;
+mod source;
+pub mod value;
 
 use std::{
 	collections::HashMap,
@@ -311,7 +312,10 @@ impl<'a> Runtime<'a> {
 			}
 
 			// CommandBlock.
-			program::Expr::CommandBlock { block, pos } => todo!(),
+			program::Expr::CommandBlock { block, pos } => {
+				let value = self.eval_command_block(block)?;
+				Ok((Flow::Regular(value), self.pos(*pos), None))
+			}
 		}
 	}
 
