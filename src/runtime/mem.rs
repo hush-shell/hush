@@ -192,13 +192,13 @@ impl Default for Stack {
 
 
 impl Debug for Stack {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    for (ix, val) in self.slots.iter().rev().enumerate() {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for (ix, val) in self.slots.iter().rev().enumerate() {
 			writeln!(f, "{}: {}", ix, val.fetch())?;
 		}
 
 		Ok(())
-  }
+	}
 }
 
 

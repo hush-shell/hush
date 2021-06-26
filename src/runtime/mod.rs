@@ -276,9 +276,9 @@ impl<'a> Runtime<'a> {
 						.index(ix)
 						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
 
-					(Value::Array(_), field) => Err(Panic::invalid_operand(field, field_pos)),
+					(Value::Array(_), field) => Err(Panic::type_error(field, field_pos)),
 
-					(_, _) => return Err(Panic::invalid_operand(obj, obj_pos)),
+					(_, _) => return Err(Panic::type_error(obj, obj_pos)),
 				}?;
 
 				Ok((Flow::Regular(value), pos, Some(obj)))
@@ -356,9 +356,9 @@ impl<'a> Runtime<'a> {
 								.set(ix, value)
 								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), self.pos(*pos)))?,
 
-							(Value::Array(_), field) => return Err(Panic::invalid_operand(field, field_pos)),
+							(Value::Array(_), field) => return Err(Panic::type_error(field, field_pos)),
 
-							(obj, _) => return Err(Panic::invalid_operand(obj, obj_pos)),
+							(obj, _) => return Err(Panic::type_error(obj, obj_pos)),
 						};
 					}
 				}
@@ -411,7 +411,7 @@ impl<'a> Runtime<'a> {
 
 				let (iter, pos) = match self.eval_expr(expr)? {
 					(Flow::Regular(Value::Function(ref iter)), pos, _) => (iter.clone(), pos),
-					(Flow::Regular(value), pos, _) => return Err(Panic::invalid_operand(value, pos)),
+					(Flow::Regular(value), pos, _) => return Err(Panic::type_error(value, pos)),
 					(flow, _, _) => return Ok(flow)
 				};
 
@@ -437,13 +437,13 @@ impl<'a> Runtime<'a> {
 
 								Value::Bool(true) => break,
 
-								other => return Err(Panic::invalid_operand(other, pos))
+								other => return Err(Panic::type_error(other, pos))
 							}
 
 							Value::Nil
 						},
 
-						other => return Err(Panic::invalid_operand(other, pos)),
+						other => return Err(Panic::type_error(other, pos)),
 					};
 
 					match self.eval_block(block)? {
@@ -480,7 +480,7 @@ impl<'a> Runtime<'a> {
 				let arguments = self.arguments.drain(..);
 
 				if args_count != *params {
-					return Err(Panic::missing_parameters(pos));
+					return Err(Panic::invalid_args(args_count, *params, pos));
 				}
 
 				let slots: mem::SlotIx = frame_info.slots.into();
@@ -514,7 +514,7 @@ impl<'a> Runtime<'a> {
 			}
 
 			Function::Rust(RustFun { fun, .. }) => {
-				let result = fun(&mut self.arguments);
+				let result = fun(&mut self.arguments, pos);
 
 				self.arguments.clear();
 
@@ -542,10 +542,10 @@ impl<'a> Runtime<'a> {
 		let value = match (op, value) {
 			(Minus, Value::Float(ref f)) => Ok((-f).into()),
 			(Minus, Value::Int(i)) => Ok((-i).into()),
-			(Minus, value) => Err(Panic::invalid_operand(value, operand_pos)),
+			(Minus, value) => Err(Panic::type_error(value, operand_pos)),
 
 			(Not, Value::Bool(b)) => Ok((!b).into()),
-			(Not, value) => Err(Panic::invalid_operand(value, operand_pos)),
+			(Not, value) => Err(Panic::type_error(value, operand_pos)),
 		}?;
 
 		Ok(Flow::Regular(value))
@@ -582,11 +582,11 @@ impl<'a> Runtime<'a> {
 					let (right, right_pos) = regular_expr!(right);
 					match right {
 						right @ Value::Bool(_) => right,
-						right => return Err(Panic::invalid_operand(right, right_pos)),
+						right => return Err(Panic::type_error(right, right_pos)),
 					}
 				}
 
-				(left, _) => return Err(Panic::invalid_operand(left, left_pos)),
+				(left, _) => return Err(Panic::type_error(left, left_pos)),
 			}
 
 			Plus | Minus | Times | Div | Mod => {
@@ -619,8 +619,8 @@ impl<'a> Runtime<'a> {
 						string.into_boxed_slice().into()
 					}
 
-					(Value::String(_), right) => return Err(Panic::invalid_operand(right, right_pos)),
-					(left, _) => return Err(Panic::invalid_operand(left, left_pos)),
+					(Value::String(_), right) => return Err(Panic::type_error(right, right_pos)),
+					(left, _) => return Err(Panic::type_error(left, left_pos)),
 				}
 			}
 		};
@@ -662,9 +662,9 @@ impl<'a> Runtime<'a> {
 					// ? . ?
 					(left, right) => Err(
 						if matches!(left, Value::Int(_) | Value::Float(_)) {
-							Panic::invalid_operand(right, right_pos)
+							Panic::type_error(right, right_pos)
 						} else {
-							Panic::invalid_operand(left, left_pos)
+							Panic::type_error(left, left_pos)
 						}
 					),
 				}
@@ -759,9 +759,9 @@ impl<'a> Runtime<'a> {
 				// ? + ?
 				(left, right) => Err(
 					if matches!(left, Value::Int(_) | Value::Float(_) | Value::Byte(_) | Value::String(_)) {
-						Panic::invalid_operand(right, right_pos)
+						Panic::type_error(right, right_pos)
 					} else {
-						Panic::invalid_operand(left, left_pos)
+						Panic::type_error(left, left_pos)
 					}
 				),
 			}

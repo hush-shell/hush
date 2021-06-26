@@ -26,20 +26,27 @@ pub enum Panic {
 		function: Value,
 		pos: SourcePos
 	},
-	/// Missing parameters in function call.
-	MissingParameters { pos: SourcePos },
+	/// Ammount of supplied arguments in function call is different than expected.
+	InvalidArgs {
+		supplied: u32,
+		expected: u32,
+		pos: SourcePos
+	},
 	/// Conditional expression is not a boolean.
 	InvalidCondition {
 		value: Value,
 		pos: SourcePos,
 	},
-	/// Invalid type for operator.
-	InvalidOperand {
+	/// Unexpected type.
+	TypeError {
 		value: Value,
 		pos: SourcePos,
 	},
 	/// IO error in the standard library.
-	Io(io::Error),
+	Io {
+		error: io::Error,
+		pos: SourcePos,
+	},
 }
 
 
@@ -74,9 +81,9 @@ impl Panic {
 	}
 
 
-	/// Missing parameters in function call.
-	pub fn missing_parameters(pos: SourcePos) -> Self {
-		Self::MissingParameters { pos }
+	/// Ammount of supplied arguments in function call is different than expected.
+	pub fn invalid_args(supplied: u32, expected: u32, pos: SourcePos) -> Self {
+		Self::InvalidArgs { supplied, expected, pos }
 	}
 
 
@@ -86,16 +93,15 @@ impl Panic {
 	}
 
 
-	/// Invalid type for operator.
-	pub fn invalid_operand(value: Value, pos: SourcePos) -> Self {
-		Self::InvalidOperand { value, pos }
+	/// Unexpected type.
+	pub fn type_error(value: Value, pos: SourcePos) -> Self {
+		Self::TypeError { value, pos }
 	}
-}
 
 
-impl From<io::Error> for Panic {
-	fn from(error: io::Error) -> Self {
-		Self::Io(error)
+	/// IO error.
+	pub fn io(error: io::Error, pos: SourcePos) -> Self {
+		Self::Io { error, pos }
 	}
 }
 
@@ -132,8 +138,15 @@ impl Display for Panic {
 					color::Fg(color::Yellow, function)
 				),
 
-			Self::MissingParameters { pos } =>
-				write!(f, "{} in {}: missing function parameters", panic, pos),
+			Self::InvalidArgs { supplied, expected, pos } =>
+				write!(
+					f,
+					"{} in {}: incorrect ammount of function parameters -- supplied {}, expected {}",
+					panic,
+					pos,
+					supplied,
+					expected
+				),
 
 			Self::InvalidCondition { value, pos } =>
 				write!(
@@ -144,17 +157,17 @@ impl Display for Panic {
 					color::Fg(color::Yellow, value)
 				),
 
-			Self::InvalidOperand { value, pos } =>
+			Self::TypeError { value, pos } =>
 				write!(
 					f,
-					"{} in {}: operand ({}) has an invalid type",
+					"{} in {}: value ({}) has unexpected type",
 					panic,
 					pos,
 					color::Fg(color::Yellow, value)
 				),
 
-			Self::Io(error) =>
-				write!(f, "{}: {}", panic, error),
+			Self::Io { error, pos } =>
+				write!(f, "{} in {}: {}", panic, pos, error),
 		}
 	}
 }

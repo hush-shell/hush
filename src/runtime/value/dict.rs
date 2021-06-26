@@ -55,6 +55,12 @@ impl Dict {
 			.map(Value::copy)
 			.ok_or(IndexOutOfBounds)
 	}
+
+
+	/// Get the dict length.
+	pub fn len(&self) -> i64 {
+		self.borrow().len() as i64
+	}
 }
 
 
