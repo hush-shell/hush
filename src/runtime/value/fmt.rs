@@ -5,14 +5,14 @@ use super::{Array, Dict, Float, Function, HushFun, RustFun, Value};
 
 impl Debug for RustFun {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self)
+		write!(f, "{}", self.name())
 	}
 }
 
 
 impl Display for RustFun {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.name)
+		write!(f, "{}", self.name())
 	}
 }
 
@@ -74,8 +74,8 @@ impl Display for Value {
 			Self::Bool(b) => write!(f, "{}", b),
 			Self::Int(int) => write!(f, "{}", int),
 			Self::Float(float) => write!(f, "{}", float),
-			Self::Byte(byte) => write!(f, "{}", byte),
-			Self::String(string) => write!(f, "{}", String::from_utf8_lossy(string).escape_debug()),
+			Self::Byte(byte) => write!(f, "{}", *byte as char),
+			Self::String(string) => write!(f, "{}", String::from_utf8_lossy(string.as_ref()).escape_debug()),
 			Self::Array(array) => write!(f, "{}", array),
 			Self::Dict(dict) => write!(f, "{}", dict),
 			Self::Function(fun) => write!(f, "{}", fun),

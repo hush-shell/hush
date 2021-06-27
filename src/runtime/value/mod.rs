@@ -6,8 +6,9 @@ mod errors;
 mod float;
 mod fmt;
 mod function;
+mod string;
 
-use gc::{Gc, Finalize, Trace};
+use gc::{Finalize, Trace};
 
 use super::{
 	program,
@@ -16,10 +17,11 @@ use super::{
 	source::SourcePos,
 };
 pub use array::Array;
-pub use dict::Dict;
-pub use function::{Function, HushFun, RustFun};
+pub use dict::{keys, Dict};
+pub use function::{Function, HushFun, RustFun, NativeFun};
 pub use float::Float;
 pub use errors::IndexOutOfBounds;
+pub use string::Str;
 
 
 /// A value of dynamic type in the language.
@@ -32,10 +34,10 @@ pub enum Value {
 	Float(Float),
 	Byte(u8),
 	/// Strings are immutable.
-	String(Gc<Box<[u8]>>),
+	String(Str),
 	Array(Array),
 	Dict(Dict),
-	Function(Gc<Function>),
+	Function(Function),
 	Error(), // TODO
 }
 
@@ -82,24 +84,24 @@ from_variant!(Int, i64);
 from_variant!(Float, f64);
 from_variant!(Float, Float);
 from_variant!(Byte, u8);
+from_variant!(String, Str);
 from_variant!(Array, Array);
 from_variant!(Dict, Dict);
+from_variant!(Function, Function);
 
 
 impl<'a> From<&'a [u8]> for Value {
 	fn from(string: &'a [u8]) -> Self {
-		Self::String(
-			Gc::new(string.into())
-		)
+		let string: Str = string.into();
+		string.into()
 	}
 }
 
 
 impl From<Box<[u8]>> for Value {
 	fn from(string: Box<[u8]>) -> Self {
-		Self::String(
-			Gc::new(string)
-		)
+		let string: Str = string.into();
+		string.into()
 	}
 }
 
@@ -126,13 +128,6 @@ impl From<String> for Value {
 }
 
 
-impl From<Function> for Value {
-	fn from(fun: Function) -> Self {
-		Self::Function(Gc::new(fun))
-	}
-}
-
-
 impl From<HushFun> for Value {
 	fn from(fun: HushFun) -> Self {
 		let fun: Function = fun.into();
@@ -141,8 +136,8 @@ impl From<HushFun> for Value {
 }
 
 
-impl From<RustFun> for Value {
-	fn from(fun: RustFun) -> Self {
+impl<T: NativeFun> From<T> for Value {
+	fn from(fun: T) -> Self {
 		let fun: Function = fun.into();
 		fun.into()
 	}

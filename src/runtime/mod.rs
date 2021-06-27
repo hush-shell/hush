@@ -15,12 +15,14 @@ use std::{
 use crate::symbol;
 use super::semantic::program;
 use value::{
+	keys,
 	Array,
 	Dict,
 	Float,
 	Function,
 	HushFun,
-	RustFun,
+	NativeFun,
+	Str,
 	Value,
 };
 pub use panic::Panic;
@@ -170,15 +172,7 @@ impl<'a> Runtime<'a> {
 
 				Ok(
 					Flow::Regular(
-						Function::Hush(
-							HushFun {
-								params: *params,
-								frame_info,
-								body,
-								context,
-								pos: self.pos(pos),
-							}
-						).into()
+						HushFun::new(*params, frame_info, body, context, self.pos(pos)).into()
 					)
 				)
 			},
@@ -306,7 +300,7 @@ impl<'a> Runtime<'a> {
 					}
 				}
 
-				let value = self.call(obj, function.deref(), pos.clone())?;
+				let value = self.call(obj, &function, pos.clone())?;
 
 				Ok((Flow::Regular(value), pos, None))
 			}
@@ -402,11 +396,6 @@ impl<'a> Runtime<'a> {
 
 			// For.
 			program::Statement::For { slot_ix, expr, block } => {
-				thread_local! {
-					static FINISHED: Value = "finished".into();
-					static VALUE: Value = "value".into();
-				}
-
 				let slot_ix: mem::SlotIx = slot_ix.into();
 
 				let (iter, pos) = match self.eval_expr(expr)? {
@@ -418,7 +407,7 @@ impl<'a> Runtime<'a> {
 				loop {
 					match self.call(None, &iter, pos.clone())? {
 						Value::Dict(ref dict) => {
-							let finished = FINISHED.with(
+							let finished = keys::FINISHED.with(
 								|finished| dict
 									.get(finished)
 									.map_err(|_| Panic::index_out_of_bounds(finished.copy(), pos.clone()))
@@ -426,7 +415,7 @@ impl<'a> Runtime<'a> {
 
 							match finished {
 								Value::Bool(false) => {
-									let value = VALUE.with(
+									let value = keys::VALUE.with(
 										|value| dict
 											.get(value)
 											.map_err(|_| Panic::index_out_of_bounds(value.copy(), pos.clone()))
@@ -513,8 +502,8 @@ impl<'a> Runtime<'a> {
 				value
 			}
 
-			Function::Rust(RustFun { fun, .. }) => {
-				let result = fun(&mut self.arguments, pos);
+			Function::Rust(fun) => {
+				let result = fun.call(&mut self.arguments, pos);
 
 				self.arguments.clear();
 

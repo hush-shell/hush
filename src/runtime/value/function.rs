@@ -1,6 +1,7 @@
 use std::{
 	cmp::Ordering,
-	hash::{Hash, Hasher}
+	hash::{Hash, Hasher},
+	ops::Deref,
 };
 
 use gc::{Gc, GcCell, Finalize, Trace};
@@ -31,9 +32,9 @@ impl From<HushFun> for Function {
 }
 
 
-impl From<RustFun> for Function {
-	fn from(fun: RustFun) -> Self {
-		Self::Rust(fun)
+impl<T: NativeFun> From<T> for Function {
+	fn from(fun: T) -> Self {
+		Self::Rust(fun.into())
 	}
 }
 
@@ -48,8 +49,27 @@ pub struct HushFun {
 	pub frame_info: &'static program::mem::FrameInfo,
 	pub body: &'static program::Block,
 	/// Captured variables, if any.
-	pub context: Box<[(Gc<GcCell<Value>>, mem::SlotIx)]>,
+	pub context: Gc<Box<[(Gc<GcCell<Value>>, mem::SlotIx)]>>,
 	pub pos: SourcePos,
+}
+
+
+impl HushFun {
+	pub fn new (
+		params: u32,
+		frame_info: &'static program::mem::FrameInfo,
+		body: &'static program::Block,
+		context: Box<[(Gc<GcCell<Value>>, mem::SlotIx)]>,
+		pos: SourcePos,
+	) -> Self {
+		Self {
+			params,
+			frame_info,
+			body,
+			context: Gc::new(context),
+			pos,
+		}
+	}
 }
 
 
@@ -91,29 +111,53 @@ impl Hash for HushFun {
 }
 
 
-/// A function object implemented in Rust.
-#[derive(Clone)]
-#[derive(Finalize)]
-pub struct RustFun {
-	/// The fully qualified name of the function. E.g.: std.print
-	pub name: &'static str,
-	/// The function implementation.
+/// A native function implementation.
+pub trait NativeFun: Trace + Finalize + 'static {
+	/// Get a human-readable name for the function.
+	/// This is also used for equality, ordering and hashing, and therefore must be a
+	/// globally unique name.
+	fn name(&self) -> &'static str;
+	/// Invoke the function.
 	/// Parameters:
 	/// - A slice of arguments.
 	/// - The source position of the call, which allows proper location of panics.
-	pub fun: fn(&mut [Value], SourcePos) -> Result<Value, Panic>,
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic>;
 }
 
-unsafe impl Trace for RustFun {
-	gc::unsafe_empty_trace!();
+
+/// A garbage-collected native function.
+#[derive(Clone)]
+#[derive(Trace, Finalize)]
+pub struct RustFun(Gc<GcCell<Box<dyn NativeFun>>>);
+
+
+impl RustFun {
+	/// Get a human-readable name for the function.
+	pub fn name(&self) -> &'static str {
+		self.0.deref().borrow().name()
+	}
+
+
+	/// Invoke the function.
+	/// Parameters:
+	/// - A slice of arguments.
+	/// - The source position of the call, which allows proper location of panics.
+	pub fn call(&self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		self.0.deref().borrow_mut().call(args, pos)
+	}
+}
+
+
+impl<T: NativeFun> From<T> for RustFun {
+	fn from(fun: T) -> Self {
+		Self(Gc::new(GcCell::new(Box::new(fun))))
+	}
 }
 
 
 impl PartialEq for RustFun {
 	fn eq(&self, other: &Self) -> bool {
-		let _self = self.fun as *const ();
-		let _other = other.fun as *const ();
-		std::ptr::eq(_self, _other)
+		self.0.deref().borrow().name() == other.0.deref().borrow().name()
 	}
 }
 
@@ -123,23 +167,20 @@ impl Eq for RustFun { }
 
 impl PartialOrd for RustFun {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		Some(self.cmp(other))
+		self.0.deref().borrow().name().partial_cmp(other.0.deref().borrow().name())
 	}
 }
 
 
 impl Ord for RustFun {
 	fn cmp(&self, other: &Self) -> Ordering {
-		let _self = self.fun as usize;
-		let _other = other.fun as usize;
-		_self.cmp(&_other)
+		self.0.deref().borrow().name().cmp(other.0.deref().borrow().name())
 	}
 }
 
 
 impl Hash for RustFun {
 	fn hash<H: Hasher>(&self, state: &mut H) {
-		let fun = self.fun as *const ();
-		std::ptr::hash(fun, state)
+		self.0.deref().borrow().name().hash(state);
 	}
 }

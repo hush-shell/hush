@@ -10,6 +10,21 @@ use gc::{Gc, GcCell, GcCellRef, GcCellRefMut, Finalize, Trace};
 use super::{IndexOutOfBounds, Value};
 
 
+/// Common dict keys
+pub mod keys {
+	use super::Value;
+
+	thread_local! {
+		/// FINISHED string key.
+		pub static FINISHED: Value = "finished".into();
+		/// FINISHED string key.
+		pub static KEY: Value = "key".into();
+		/// VALUE string key.
+		pub static VALUE: Value = "value".into();
+	}
+}
+
+
 /// A dict in the language.
 #[derive(Debug, PartialEq, Eq)]
 #[derive(Trace, Finalize)]
