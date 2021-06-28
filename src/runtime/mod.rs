@@ -290,17 +290,21 @@ impl<'a> Runtime<'a> {
 				};
 
 				// Eval arguments.
+				// While evaluating arguments, we may need to call other functions, so we must
+				// keep track of when our arguments start.
+				let args_start = self.arguments.len();
+
 				for expr in args.iter() {
 					match self.eval_expr(expr)? {
 						(Flow::Regular(value), _, _) => self.arguments.push(value),
 						(flow, _, _) => {
-							self.arguments.clear();
+							self.arguments.truncate(args_start);
 							return Ok((flow, pos, None));
 						}
 					}
 				}
 
-				let value = self.call(obj, &function, pos.clone())?;
+				let value = self.call(obj, &function, args_start, pos.clone())?;
 
 				Ok((Flow::Regular(value), pos, None))
 			}
@@ -405,7 +409,10 @@ impl<'a> Runtime<'a> {
 				};
 
 				loop {
-					match self.call(None, &iter, pos.clone())? {
+					// While evaluating arguments, we may need to call other functions, so we must
+					// keep track of when our arguments start.
+					let args_start = self.arguments.len();
+					match self.call(None, &iter, args_start, pos.clone())? {
 						Value::Dict(ref dict) => {
 							let finished = keys::FINISHED.with(
 								|finished| dict
@@ -459,6 +466,7 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		obj: Option<Value>,
 		function: &Function,
+		args_start: usize,
 		pos: SourcePos,
 	) -> Result<Value, Panic> {
 		let args_count = self.arguments.len() as u32;
@@ -466,7 +474,7 @@ impl<'a> Runtime<'a> {
 		let value = match function {
 			Function::Hush(HushFun { params, frame_info, body, context, .. }) => {
 				// Make sure we clean the arguments vector even when early returning.
-				let arguments = self.arguments.drain(..);
+				let arguments = self.arguments.drain(args_start..);
 
 				if args_count != *params {
 					return Err(Panic::invalid_args(args_count, *params, pos));
@@ -503,9 +511,9 @@ impl<'a> Runtime<'a> {
 			}
 
 			Function::Rust(fun) => {
-				let result = fun.call(&mut self.arguments, pos);
+				let result = fun.call(&mut self.arguments[args_start..], pos);
 
-				self.arguments.clear();
+				self.arguments.truncate(args_start);
 
 				result?
 			}
