@@ -558,7 +558,7 @@ impl<'a> Display<'a> for CommandBlock {
 				step(f, nested)?;
 				cmd.fmt(f)
 			},
-			if context.indentation.is_some() { ";" } else { ";" },
+			";",
 		)?;
 
 		step(f, context)?;

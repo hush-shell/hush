@@ -85,6 +85,8 @@ impl Array {
 }
 
 
+// GcCell does not implement Eq because `borrow` might panic.
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Array {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.borrow().hash(state)

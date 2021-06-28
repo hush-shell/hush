@@ -77,7 +77,7 @@ impl std::fmt::Display for Indentation {
 
 
 /// Format a sequence of items with a separator.
-pub fn sep_by<'a, T, I, F>(
+pub fn sep_by<T, I, F>(
 	mut iter: I,
 	f: &mut std::fmt::Formatter,
 	mut format: F,

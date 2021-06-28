@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 
 pub fn is_builtin(command: &[u8]) -> bool {
-	const BUILTINS: &'static [&'static [u8]] = &[
+	const BUILTINS: &[&[u8]] = &[
 		b"cd",
 		b"alias",
 	];

@@ -495,7 +495,7 @@ where
 
 					expr = ast::Expr::Call {
 						function: expr.into(),
-						args: args.into(),
+						args,
 						pos,
 					}
 				},
@@ -585,7 +585,7 @@ where
 					.with_sync(sync::Strategy::token(TokenKind::CloseBracket))?;
 
 				Ok(ast::Expr::Literal {
-					literal: ast::Literal::Array(items.into()),
+					literal: ast::Literal::Array(items),
 					pos,
 				})
 			}
@@ -727,6 +727,7 @@ where
 
 	/// Parse a function literal after the function keyword.
 	/// Returns a pair of parameters and body.
+	#[allow(clippy::type_complexity)]
 	fn parse_function(
 		&mut self
 	) -> sync::Result<(Box<[(ast::Symbol, SourcePos)]>, ast::Block), Error> {

@@ -32,9 +32,7 @@ pub trait IllFormed {
 
 
 impl IllFormed for () {
-	fn ill_formed() -> Self {
-		()
-	}
+	fn ill_formed() -> Self { }
 }
 
 

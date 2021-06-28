@@ -151,12 +151,12 @@ impl Drop for Frame {
 }
 
 
-impl Into<FrameInfo> for Frame {
-	fn into(mut self) -> FrameInfo {
+impl From<Frame> for FrameInfo {
+	fn from(mut frame: Frame) -> FrameInfo {
 		FrameInfo {
-			slots: self.slots,
-			captures: std::mem::take(&mut self.captures).into(),
-			self_slot: self.self_slot,
+			slots: frame.slots,
+			captures: std::mem::take(&mut frame.captures).into(),
+			self_slot: frame.self_slot,
 		}
 	}
 }

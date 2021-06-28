@@ -31,12 +31,9 @@ where
 			.with_sync(sync::Strategy::skip_one())?;
 
 		// Check empty command block.
-		match &self.token {
-			Some(Token { kind: TokenKind::CloseCommand, pos }) => {
-				return Err(Error::empty_command_block(*pos))
-					.with_sync(sync::Strategy::skip_one())?;
-			}
-			_ => (),
+		if let Some(Token { kind: TokenKind::CloseCommand, pos }) = &self.token {
+			return Err(Error::empty_command_block(*pos))
+				.with_sync(sync::Strategy::skip_one())?;
 		}
 
 		let head = self.parse_command();
@@ -126,7 +123,7 @@ where
 			ast::BasicCommand {
 				program: command,
 				arguments: arguments.into(),
-				redirections: redirections.into(),
+				redirections,
 				abort_on_error,
 				pos,
 			}
@@ -251,7 +248,7 @@ where
 			Some(_) => {
 				let source_fd = self
 					.parse_file_descriptor()
-					.unwrap_or(io::stdout_fd());
+					.unwrap_or_else(io::stdout_fd);
 
 				let redirection = self.parse_output_redirection(source_fd)?;
 
@@ -305,7 +302,7 @@ where
 		match &self.token {
 			Some(Token { kind: TokenKind::Argument(parts), .. }) => {
 				match parts.as_ref() {
-					&[ArgPart::Unquoted(ArgUnit::Literal(ref lit))] => {
+					[ArgPart::Unquoted(ArgUnit::Literal(ref lit))] => {
 						let lit = std::str::from_utf8(&lit).ok()?;
 						let number: u8 = lit.parse().ok()?;
 

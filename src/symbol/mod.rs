@@ -21,9 +21,9 @@ impl Default for Symbol {
 }
 
 
-impl Into<usize> for Symbol {
-	fn into(self) -> usize {
-		self.0.to_usize()
+impl From<Symbol> for usize {
+	fn from(symbol: Symbol) -> usize {
+		symbol.0.to_usize()
 	}
 }
 

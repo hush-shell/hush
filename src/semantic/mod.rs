@@ -776,7 +776,7 @@ impl<'a> Analyzer<'a> {
 
 
 	/// Enter a new block scope.
-	fn enter_block<'b>(&'b mut self) -> Analyzer<'b> {
+	fn enter_block(&mut self) -> Analyzer {
 		self.scope.enter_block();
 
 		Analyzer {
@@ -793,7 +793,7 @@ impl<'a> Analyzer<'a> {
 
 
 	/// Enter a loop, including block scope.
-	fn enter_loop<'b>(&'b mut self) -> Analyzer<'b> {
+	fn enter_loop(&mut self) -> Analyzer {
 		self.scope.enter_block();
 
 		Analyzer {
@@ -810,7 +810,7 @@ impl<'a> Analyzer<'a> {
 
 
 	/// Enter a function, including block scope.
-	fn enter_frame<'b>(&'b mut self) -> Analyzer<'b> {
+	fn enter_frame(&mut self) -> Analyzer {
 		self.scope.enter_frame();
 
 		Analyzer {
@@ -827,7 +827,7 @@ impl<'a> Analyzer<'a> {
 
 
 	/// Exit a function, dropping it's scope and returning the generated FrameInfo.
-	fn exit_frame<'b>(mut self) -> mem::FrameInfo {
+	fn exit_frame(mut self) -> mem::FrameInfo {
 		self.dropped = true;
 		self.scope.exit_frame()
 	}

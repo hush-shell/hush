@@ -110,10 +110,10 @@ impl NativeFun for Length {
 
 	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
 		match &args {
-			&[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
-			&[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
-			&[ Value::String(ref string) ] => Ok(Value::Int(string.len() as i64)),
-			&[ ref other ] => Err(Panic::type_error(other.copy(), pos)),
+			[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
+			[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
+			[ Value::String(ref string) ] => Ok(Value::Int(string.len() as i64)),
+			[ ref other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
 	}
@@ -129,14 +129,14 @@ impl NativeFun for Iter {
 
 	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
 		match &args {
-			&[ Value::Array(ref array) ] => Ok(
+			[ Value::Array(ref array) ] => Ok(
 				IterImpl::Array {
 					array: array.copy(),
 					ix: 0,
 				}.into()
 			),
 
-			&[ Value::Dict(ref dict) ] => Ok(
+			[ Value::Dict(ref dict) ] => Ok(
 				IterImpl::Dict {
 					entries: dict
 						.borrow()
@@ -146,14 +146,14 @@ impl NativeFun for Iter {
 				}.into()
 			),
 
-			&[ Value::String(ref string) ] => Ok(
+			[ Value::String(ref string) ] => Ok(
 				IterImpl::String {
 					string: string.copy(),
 					ix: 0,
 				}.into()
 			),
 
-			&[ ref other ] => Err(Panic::type_error(other.copy(), pos)),
+			[ ref other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
 	}

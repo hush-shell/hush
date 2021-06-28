@@ -49,6 +49,7 @@ pub struct HushFun {
 	pub frame_info: &'static program::mem::FrameInfo,
 	pub body: &'static program::Block,
 	/// Captured variables, if any.
+	#[allow(clippy::type_complexity)]
 	pub context: Gc<Box<[(Gc<GcCell<Value>>, mem::SlotIx)]>>,
 	pub pos: SourcePos,
 }

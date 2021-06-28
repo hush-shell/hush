@@ -1,3 +1,7 @@
+// Hashmaps are used for the dict implementation, which allows mutable keys.
+#![allow(clippy::mutable_key_type)]
+
+
 mod command;
 mod flow;
 mod lib;

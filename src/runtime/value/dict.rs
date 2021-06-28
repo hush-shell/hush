@@ -103,6 +103,8 @@ impl Ord for Dict {
 
 
 /// We need Hash in order to be able to store dicts as keys in other dicts.
+// GcCell does not implement Eq because `borrow` might panic.
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Dict {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		// This is very expensive, but there is no better way to correctly compare.
