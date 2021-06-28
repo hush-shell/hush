@@ -24,6 +24,7 @@ pub fn new() -> Value {
 	dict.insert("print".into(), Print.into());
 	dict.insert("length".into(), Length.into());
 	dict.insert("iter".into(), Iter.into());
+	dict.insert("type".into(), Type.into());
 
 	Dict::new(dict).into()
 }
@@ -56,6 +57,46 @@ impl NativeFun for Print {
 			.map_err(|error| Panic::io(error, pos))?;
 
 		Ok(Value::default())
+	}
+}
+
+
+/// std.type
+#[derive(Trace, Finalize)]
+struct Type;
+
+impl NativeFun for Type {
+	fn name(&self) -> &'static str { "std.type" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		thread_local! {
+			pub static NIL: Value = "nil".into();
+			pub static BOOL: Value = "bool".into();
+			pub static INT: Value = "int".into();
+			pub static FLOAT: Value = "float".into();
+			pub static BYTE: Value = "byte".into();
+			pub static STRING: Value = "string".into();
+			pub static ARRAY: Value = "array".into();
+			pub static DICT: Value = "dict".into();
+			pub static FUNCTION: Value = "function".into();
+			pub static ERROR: Value = "error".into();
+		}
+
+		let typename = match &args {
+			&[ Value::Nil ] => &NIL,
+			&[ Value::Bool(_) ] => &BOOL,
+			&[ Value::Int(_) ] => &INT,
+			&[ Value::Float(_) ] => &FLOAT,
+			&[ Value::Byte(_) ] => &BYTE,
+			&[ Value::String(_) ] => &STRING,
+			&[ Value::Array(_) ] => &ARRAY,
+			&[ Value::Dict(_) ] => &DICT,
+			&[ Value::Function(_) ] => &FUNCTION,
+			&[ Value::Error() ] => &ERROR,
+			&[] | &[_, _, ..] => return Err(Panic::invalid_args(args.len() as u32, 1, pos)),
+		};
+
+		Ok(typename.with(Value::copy))
 	}
 }
 
@@ -182,17 +223,13 @@ impl NativeFun for IterImpl {
 				)
 		};
 
-		if let Some(next) = next {
-			keys::FINISHED.with(
-				|finished| iteration.insert(finished.copy(), false.into())
-			);
+		keys::FINISHED.with(
+			|finished| iteration.insert(finished.copy(), next.is_none().into())
+		);
 
+		if let Some(next) = next {
 			keys::VALUE.with(
 				|value| iteration.insert(value.copy(), next)
-			);
-		} else {
-			keys::FINISHED.with(
-				|finished| iteration.insert(finished.copy(), true.into())
 			);
 		}
 
