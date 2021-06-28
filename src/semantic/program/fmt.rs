@@ -1,6 +1,7 @@
 use std::fmt::Display as _;
 
 use super::{
+	command,
 	lexer::{CommandOperator, Keyword, Operator},
 	mem,
 	ArgPart,
@@ -487,6 +488,35 @@ impl std::fmt::Display for Redirection {
 				"<<".fmt(f)?;
 				source.fmt(f)
 			}
+		}
+	}
+}
+
+
+impl std::fmt::Display for command::Builtin {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		let command = match self {
+			command::Builtin::Alias => "alias",
+			command::Builtin::Cd => "cd",
+		};
+
+		color::Fg(color::Green, command).fmt(f)
+	}
+}
+
+
+impl std::fmt::Display for command::InvalidBuiltin {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		"invalid built-in command".fmt(f)
+	}
+}
+
+
+impl std::fmt::Display for command::Program {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			command::Program::Builtin(program) => program.fmt(f),
+			command::Program::External(program) => program.fmt(f),
 		}
 	}
 }

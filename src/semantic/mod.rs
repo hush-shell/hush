@@ -4,7 +4,10 @@ pub mod program;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::{
+	collections::HashSet,
+	convert::TryInto,
+};
 
 use crate::{
 	symbol::{self, Symbol},
@@ -12,6 +15,7 @@ use crate::{
 };
 use super::syntax::{ast, lexer, SourcePos};
 use program::{
+	command,
 	mem,
 	ArgPart,
 	ArgUnit,
@@ -572,25 +576,21 @@ impl<'a> Analyzer<'a> {
 	/// Analyze a basic command.
 	/// None is returned if any error is detected.
 	fn analyze_basic_command(&mut self, command: ast::BasicCommand) -> Option<BasicCommand> {
-		let is_builtin = matches!(
-			&command.program,
-			ast::Argument { parts, .. }
-			if matches!(
-				parts.as_ref(),
-				&[ ast::ArgPart::Unit(ast::ArgUnit::Literal(ref program)) ]
-				if program::command::builtin::is_builtin(program)
-			)
-		);
-
 		let previous_async = self.in_async;
 		self.in_async |= !command.redirections.is_empty();
+
+		let program = self.analyze_program(command.program);
+
+		let is_builtin = program
+			.as_ref()
+			.map(command::Program::is_builtin)
+			.unwrap_or(false);
 
 		let error = self.in_async && is_builtin;
 		if error {
 			self.report(Error::async_builtin(command.pos));
 		}
 
-		let program = self.analyze_argument(command.program);
 		let arguments = self.analyze_items(
 			Self::analyze_argument,
 			command.arguments.into_vec(), // Use vec's owned iterator.
@@ -616,6 +616,23 @@ impl<'a> Analyzer<'a> {
 					pos: command.pos,
 				}
 			)
+		}
+	}
+
+
+	/// Analyze a command program.
+	/// None is returned if any error is detected.
+	fn analyze_program(&mut self, argument: ast::Argument) -> Option<command::Program> {
+		match argument.parts.as_ref() {
+			[ ast::ArgPart::Unit(ast::ArgUnit::Literal(ref program)) ] => {
+				if let Ok(builtin) = program.as_ref().try_into() {
+					Some(command::Program::Builtin(builtin))
+				} else {
+					self.analyze_argument(argument).map(command::Program::External)
+				}
+			}
+
+			_ => self.analyze_argument(argument).map(command::Program::External)
 		}
 	}
 

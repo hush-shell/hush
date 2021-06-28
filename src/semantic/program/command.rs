@@ -1,4 +1,4 @@
-pub mod builtin;
+use std::convert::TryFrom;
 
 use crate::io::FileDescriptor;
 use super::{ast, mem, SourcePos};
@@ -69,10 +69,53 @@ pub enum Redirection {
 }
 
 
+/// Built-in commands.
+#[derive(Debug)]
+pub enum Builtin {
+	Alias,
+	Cd,
+}
+
+
+#[derive(Debug)]
+pub struct InvalidBuiltin;
+
+
+impl std::error::Error for InvalidBuiltin { }
+
+
+impl<'a> TryFrom<&'a [u8]> for Builtin {
+	type Error = InvalidBuiltin;
+
+	fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+		match value {
+			b"alias" => Ok(Self::Alias),
+			b"cd" => Ok(Self::Cd),
+			_ => Err(InvalidBuiltin)
+		}
+	}
+}
+
+
+/// A program to be executed. May be built-in or external.
+#[derive(Debug)]
+pub enum Program {
+	Builtin(Builtin),
+	External(Argument),
+}
+
+
+impl Program {
+	pub fn is_builtin(&self) -> bool {
+		matches!(self, Self::Builtin(_))
+	}
+}
+
+
 /// A single command, including possible redirections and try operator.
 #[derive(Debug)]
 pub struct BasicCommand {
-	pub program: Argument,
+	pub program: Program,
 	pub arguments: Box<[Argument]>,
 	pub redirections: Box<[Redirection]>,
 	pub abort_on_error: bool,
