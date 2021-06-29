@@ -88,16 +88,39 @@ impl<'a> Runtime<'a> {
 	/// Execute a block, returning the value of the last statement, or the corresponding
 	/// control flow if returns or breaks are reached.
 	fn eval_block(&mut self, block: &'static program::Block) -> Result<Flow, Panic> {
-		let mut value = Value::default();
+		self.eval_tail_block(block, |_| ())
+	}
 
-		for statement in block.0.iter() {
+
+	/// Execute a block, returning the value of the last statement, or the corresponding
+	/// control flow if returns or breaks are reached.
+	fn eval_tail_block<F>(
+		&mut self,
+		block: &'static program::Block,
+		tail_call: F,
+	) -> Result<Flow, Panic>
+	where
+		F: FnOnce(&mut Self),
+	{
+		let mut iter = block.0.iter();
+
+		let last_statement = iter.next_back();
+
+		for statement in iter {
 			match self.eval_statement(statement)? {
-				Flow::Regular(val) => value = val,
+				Flow::Regular(_) => (),
 				flow => return Ok(flow),
 			}
 		}
 
-		Ok(Flow::Regular(value))
+		let flow =
+			if let Some(last_statement) = last_statement {
+				self.eval_tail_statement(last_statement, tail_call)?
+			} else {
+				Flow::Regular(Value::default())
+			};
+
+		Ok(flow)
 	}
 
 
@@ -199,8 +222,23 @@ impl<'a> Runtime<'a> {
 	/// Execute an expression.
 	/// Returns a triple of (flow, expr pos, optional self value) or panic.
 	fn eval_expr(
-		&mut self, expr: &'static program::Expr
+		&mut self,
+		expr: &'static program::Expr
 	) -> Result<(Flow, SourcePos, Option<Value>), Panic> {
+		self.eval_tail_expr(expr, |_| ())
+	}
+
+
+	/// Execute an expression.
+	/// Returns a triple of (flow, expr pos, optional self value) or panic.
+	fn eval_tail_expr<F>(
+		&mut self,
+		expr: &'static program::Expr,
+		tail_call: F,
+	) -> Result<(Flow, SourcePos, Option<Value>), Panic>
+	where
+		F: FnOnce(&mut Self),
+	{
 		macro_rules! regular_expr {
 			($expr: expr, $pos: expr) => {
 				match self.eval_expr($expr)? {
@@ -318,6 +356,8 @@ impl<'a> Runtime<'a> {
 					}
 				}
 
+				tail_call(self);
+
 				let value = self.call(obj, &function, args_start, pos.copy())?;
 
 				Ok((Flow::Regular(value), pos, None))
@@ -334,6 +374,19 @@ impl<'a> Runtime<'a> {
 
 	/// Execute a statement.
 	fn eval_statement(&mut self, statement: &'static program::Statement) -> Result<Flow, Panic> {
+		self.eval_tail_statement(statement, |_| ())
+	}
+
+
+	/// Execute a statement.
+	fn eval_tail_statement<F>(
+		&mut self,
+		statement: &'static program::Statement,
+		tail_call: F,
+	) -> Result<Flow, Panic>
+	where
+		F: FnOnce(&mut Self),
+	{
 		match statement {
 			// Assign.
 			program::Statement::Assign { left, right } => {
@@ -380,7 +433,7 @@ impl<'a> Runtime<'a> {
 
 			// Return.
 			program::Statement::Return { expr } => {
-				match self.eval_expr(expr)?.0 {
+				match self.eval_tail_expr(expr, tail_call)?.0 {
 					Flow::Regular(value) => Ok(Flow::Return(value)),
 					flow => Ok(flow),
 				}
@@ -468,7 +521,7 @@ impl<'a> Runtime<'a> {
 
 			// Expr.
 			program::Statement::Expr(expr) => self
-				.eval_expr(expr)
+				.eval_tail_expr(expr, tail_call)
 				.map(|(flow, _, _)| flow)
 		}
 	}
@@ -513,13 +566,25 @@ impl<'a> Runtime<'a> {
 					self.stack.store(slot_ix.into(), obj);
 				}
 
-				let value = match self.eval_block(body)? {
+				let mut shrinked = false;
+
+				let flow = self.eval_tail_block(
+					body,
+					|runtime| { // Shrink stack before tail calling.
+						runtime.stack.shrink(slots.copy());
+						shrinked = true;
+					}
+				)?;
+
+				let value = match flow {
 					Flow::Regular(value) => value,
 					Flow::Return(value) => value,
 					Flow::Break => panic!("break outside loop"),
 				};
 
-				self.stack.shrink(slots);
+				if !shrinked { // Only shrink the stack if there was no tail call.
+					self.stack.shrink(slots);
+				}
 
 				value
 			}
