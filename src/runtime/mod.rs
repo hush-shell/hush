@@ -664,11 +664,15 @@ impl<'a> Runtime<'a> {
 					},
 
 					// float . int, int . float
-					(Value::Int(int), Value::Float(ref float))
-						| (Value::Float(ref float), Value::Int(int)) => {
-							let val = $op_float(float.copy(), int.into());
-							Ok(Value::Float(val))
-						},
+					(Value::Int(int), Value::Float(ref float)) => {
+						let val = $op_float(Float::from(int), float.copy());
+						Ok(Value::Float(val))
+					},
+
+					(Value::Float(ref float), Value::Int(int)) => {
+						let val = $op_float(float.copy(), int.into());
+						Ok(Value::Float(val))
+					},
 
 					// ? . ?
 					(left, right) => Err(
