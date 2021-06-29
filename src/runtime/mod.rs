@@ -36,6 +36,7 @@ use source::SourcePos;
 
 
 /// A runtime instance to execute Hush programs.
+#[derive(Debug)]
 pub struct Runtime<'a> {
 	stack: Stack,
 	arguments: Vec<Value>,
@@ -60,7 +61,7 @@ impl<'a> Runtime<'a> {
 		// Global variables.
 		let slots: mem::SlotIx = program.root_slots.into();
 
-		runtime.stack.extend(slots.clone())
+		runtime.stack.extend(slots.copy())
 			.map_err(|_| Panic::stack_overflow(SourcePos::file(runtime.path)))?;
 
 		// Stdlib.
@@ -288,7 +289,7 @@ impl<'a> Runtime<'a> {
 
 				// Eval function.
 				let (function, obj) = match self.eval_expr(function)? {
-					(Flow::Regular(Value::Function(ref fun)), _, obj) => (fun.clone(), obj),
+					(Flow::Regular(Value::Function(ref fun)), _, obj) => (fun.copy(), obj),
 					(Flow::Regular(value), pos, _) => return Err(Panic::invalid_call(value, pos)),
 					(flow, _, _) => return Ok((flow, pos, None)),
 				};
@@ -308,7 +309,7 @@ impl<'a> Runtime<'a> {
 					}
 				}
 
-				let value = self.call(obj, &function, args_start, pos.clone())?;
+				let value = self.call(obj, &function, args_start, pos.copy())?;
 
 				Ok((Flow::Regular(value), pos, None))
 			}
@@ -407,7 +408,7 @@ impl<'a> Runtime<'a> {
 				let slot_ix: mem::SlotIx = slot_ix.into();
 
 				let (iter, pos) = match self.eval_expr(expr)? {
-					(Flow::Regular(Value::Function(ref iter)), pos, _) => (iter.clone(), pos),
+					(Flow::Regular(Value::Function(ref iter)), pos, _) => (iter.copy(), pos),
 					(Flow::Regular(value), pos, _) => return Err(Panic::type_error(value, pos)),
 					(flow, _, _) => return Ok(flow)
 				};
@@ -416,12 +417,12 @@ impl<'a> Runtime<'a> {
 					// While evaluating arguments, we may need to call other functions, so we must
 					// keep track of when our arguments start.
 					let args_start = self.arguments.len();
-					match self.call(None, &iter, args_start, pos.clone())? {
+					match self.call(None, &iter, args_start, pos.copy())? {
 						Value::Dict(ref dict) => {
 							let finished = keys::FINISHED.with(
 								|finished| dict
 									.get(finished)
-									.map_err(|_| Panic::index_out_of_bounds(finished.copy(), pos.clone()))
+									.map_err(|_| Panic::index_out_of_bounds(finished.copy(), pos.copy()))
 							)?;
 
 							match finished {
@@ -429,10 +430,10 @@ impl<'a> Runtime<'a> {
 									let value = keys::VALUE.with(
 										|value| dict
 											.get(value)
-											.map_err(|_| Panic::index_out_of_bounds(value.copy(), pos.clone()))
+											.map_err(|_| Panic::index_out_of_bounds(value.copy(), pos.copy()))
 									)?;
 
-									self.stack.store(slot_ix.clone(), value);
+									self.stack.store(slot_ix.copy(), value);
 								},
 
 								Value::Bool(true) => break,
@@ -485,7 +486,7 @@ impl<'a> Runtime<'a> {
 				}
 
 				let slots: mem::SlotIx = frame_info.slots.into();
-				self.stack.extend(slots.clone())
+				self.stack.extend(slots.copy())
 					.map_err(|_| Panic::stack_overflow(pos))?;
 
 				// Place arguments
@@ -656,7 +657,7 @@ impl<'a> Runtime<'a> {
 					// float . int, int . float
 					(Value::Int(int), Value::Float(ref float))
 						| (Value::Float(ref float), Value::Int(int)) => {
-							let val = $op_float(float.clone(), int.into());
+							let val = $op_float(float.copy(), int.into());
 							Ok(Value::Float(val))
 						},
 
@@ -676,31 +677,31 @@ impl<'a> Runtime<'a> {
 			Plus => arith_operator!(
 				Add::add,
 				checked_add,
-				Panic::integer_overflow(pos.clone())
+				Panic::integer_overflow(pos.copy())
 			),
 
 			Minus => arith_operator!(
 				Sub::sub,
 				checked_sub,
-				Panic::integer_overflow(pos.clone())
+				Panic::integer_overflow(pos.copy())
 			),
 
 			Times => arith_operator!(
 				Mul::mul,
 				checked_mul,
-				Panic::integer_overflow(pos.clone())
+				Panic::integer_overflow(pos.copy())
 			),
 
 			Div => arith_operator!(
 				Div::div,
 				checked_div,
-				Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
+				Panic::division_by_zero(pos.copy()) // TODO: this can be caused by overflow too.
 			),
 
 			Mod => arith_operator!(
 				Rem::rem,
 				checked_rem,
-				Panic::division_by_zero(pos.clone()) // TODO: this can be caused by overflow too.
+				Panic::division_by_zero(pos.copy()) // TODO: this can be caused by overflow too.
 			),
 
 			_ => unreachable!("operator is not arithmetic"),
@@ -733,13 +734,13 @@ impl<'a> Runtime<'a> {
 				// float . int, int . float
 				(Value::Int(int), Value::Float(ref float)) => Ok(
 					Value::Bool(
-						order(float.clone().cmp(&int.into()))
+						order(float.copy().cmp(&int.into()))
 					)
 				),
 
 				(Value::Float(ref float), Value::Int(int)) => Ok(
 					Value::Bool(
-						order(Float::from(int).cmp(&float.clone()))
+						order(Float::from(int).cmp(&float.copy()))
 					)
 				),
 

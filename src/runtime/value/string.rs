@@ -9,7 +9,7 @@ use super::{IndexOutOfBounds, Value};
 
 
 /// Strings in Hush are immutable.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[derive(Trace, Finalize)]
 pub struct Str(Gc<Box<[u8]>>);
 

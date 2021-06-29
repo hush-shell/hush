@@ -29,6 +29,12 @@ impl SourcePos {
 	}
 
 
+	/// Shallow copy.
+	pub fn copy(&self) -> Self {
+		Self { .. *self }
+	}
+
+
 	/// Create a new SourcePos refering to the beginning of the file.
 	pub fn file(path: &'static Path) -> Self {
 		Self {

@@ -17,6 +17,13 @@ pub struct Float(pub f64);
 
 
 impl Float {
+	/// Shallow copy.
+	pub fn copy(&self) -> Self {
+		Self(self.0)
+	}
+
+
+	/// Check if the float is not a number.
 	pub fn is_nan(&self) -> bool {
 		self.0.is_nan()
 	}

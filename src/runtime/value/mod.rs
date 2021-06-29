@@ -2,6 +2,7 @@
 mod ops;
 mod array;
 mod dict;
+mod error;
 mod errors;
 mod float;
 mod fmt;
@@ -18,6 +19,7 @@ use super::{
 };
 pub use array::Array;
 pub use dict::{keys, Dict};
+pub use error::Error;
 pub use function::{Function, HushFun, RustFun, NativeFun};
 pub use float::Float;
 pub use errors::IndexOutOfBounds;
@@ -38,7 +40,7 @@ pub enum Value {
 	Array(Array),
 	Dict(Dict),
 	Function(Function),
-	Error(), // TODO
+	Error(Error),
 }
 
 
@@ -49,13 +51,13 @@ impl Value {
 			Self::Nil => Self::Nil,
 			Self::Bool(b) => Self::Bool(*b),
 			Self::Int(int) => Self::Int(*int),
-			Self::Float(float) => Self::Float(float.clone()),
+			Self::Float(float) => Self::Float(float.copy()),
 			Self::Byte(byte) => Self::Byte(*byte),
-			Self::String(string) => Self::String(string.clone()),
+			Self::String(string) => Self::String(string.copy()),
 			Self::Array(array) => Self::Array(array.copy()),
 			Self::Dict(dict) => Self::Dict(dict.copy()),
-			Self::Function(fun) => Self::Function(fun.clone()),
-			Self::Error() => todo!(),
+			Self::Function(fun) => Self::Function(fun.copy()),
+			Self::Error(error) => Self::Error(error.copy())
 		}
 	}
 }

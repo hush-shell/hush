@@ -14,6 +14,14 @@ use super::{program, Value};
 pub struct SlotIx(pub u32);
 
 
+impl SlotIx {
+	/// Shallow copy.
+	pub fn copy(&self) -> Self {
+		Self(self.0)
+	}
+}
+
+
 impl From<program::mem::SlotIx> for SlotIx {
 	fn from(slot_ix: program::mem::SlotIx) -> Self {
 		Self(slot_ix.0)

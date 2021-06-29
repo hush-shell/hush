@@ -17,11 +17,22 @@ use super::{
 
 /// A function object.
 /// Ord is required in order to be able to have dicts as dict keys.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[derive(Trace, Finalize)]
 pub enum Function {
 	Hush(HushFun),
 	Rust(RustFun),
+}
+
+
+impl Function {
+	/// Shallow copy.
+	pub fn copy(&self) -> Self {
+		match self {
+			Function::Hush(fun) => Function::Hush(fun.copy()),
+			Function::Rust(fun) => Function::Rust(fun.copy()),
+		}
+	}
 }
 
 
@@ -41,7 +52,7 @@ impl<T: NativeFun> From<T> for Function {
 
 /// A function object implemented in Hush code.
 /// May contain captured variables.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[derive(Trace, Finalize)]
 pub struct HushFun {
 	/// How many parameters the function expects.
@@ -69,6 +80,18 @@ impl HushFun {
 			body,
 			context: Gc::new(context),
 			pos,
+		}
+	}
+
+
+	/// Shallow copy.
+	pub fn copy(&self) -> Self {
+		Self {
+			params: self.params,
+			frame_info: self.frame_info,
+			body: self.body,
+			context: self.context.clone(),
+			pos: self.pos.copy(),
 		}
 	}
 }
@@ -127,12 +150,17 @@ pub trait NativeFun: Trace + Finalize + 'static {
 
 
 /// A garbage-collected native function.
-#[derive(Clone)]
 #[derive(Trace, Finalize)]
 pub struct RustFun(Gc<GcCell<Box<dyn NativeFun>>>);
 
 
 impl RustFun {
+	/// Shallow copy.
+	pub fn copy(&self) -> Self {
+		Self(self.0.clone())
+	}
+
+
 	/// Get a human-readable name for the function.
 	pub fn name(&self) -> &'static str {
 		self.0.deref().borrow().name()

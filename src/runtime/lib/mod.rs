@@ -47,12 +47,12 @@ impl NativeFun for Print {
 
 		if let Some(value) = iter.next() {
 			write!(stdout, "{}", value)
-				.map_err(|error| Panic::io(error, pos.clone()))?;
+				.map_err(|error| Panic::io(error, pos.copy()))?;
 		}
 
 		for value in iter {
 			write!(stdout, "\t{}", value)
-				.map_err(|error| Panic::io(error, pos.clone()))?;
+				.map_err(|error| Panic::io(error, pos.copy()))?;
 		}
 
 		writeln!(stdout)
@@ -94,7 +94,7 @@ impl NativeFun for Type {
 			[ Value::Array(_) ] => &ARRAY,
 			[ Value::Dict(_) ] => &DICT,
 			[ Value::Function(_) ] => &FUNCTION,
-			[ Value::Error() ] => &ERROR,
+			[ Value::Error(_) ] => &ERROR,
 			[] | [_, _, ..] => return Err(Panic::invalid_args(args.len() as u32, 1, pos)),
 		};
 
