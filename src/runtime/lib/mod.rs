@@ -22,9 +22,11 @@ pub fn new() -> Value {
 	let mut dict = HashMap::new();
 
 	dict.insert("print".into(), Print.into());
-	dict.insert("length".into(), Length.into());
+	dict.insert("len".into(), Length.into());
 	dict.insert("iter".into(), Iter.into());
 	dict.insert("type".into(), Type.into());
+	dict.insert("push".into(), Push.into());
+	dict.insert("is_empty".into(), IsEmpty.into());
 
 	Dict::new(dict).into()
 }
@@ -82,18 +84,18 @@ impl NativeFun for Type {
 			pub static ERROR: Value = "error".into();
 		}
 
-		let typename = match &args {
-			&[ Value::Nil ] => &NIL,
-			&[ Value::Bool(_) ] => &BOOL,
-			&[ Value::Int(_) ] => &INT,
-			&[ Value::Float(_) ] => &FLOAT,
-			&[ Value::Byte(_) ] => &BYTE,
-			&[ Value::String(_) ] => &STRING,
-			&[ Value::Array(_) ] => &ARRAY,
-			&[ Value::Dict(_) ] => &DICT,
-			&[ Value::Function(_) ] => &FUNCTION,
-			&[ Value::Error() ] => &ERROR,
-			&[] | &[_, _, ..] => return Err(Panic::invalid_args(args.len() as u32, 1, pos)),
+		let typename = match args {
+			[ Value::Nil ] => &NIL,
+			[ Value::Bool(_) ] => &BOOL,
+			[ Value::Int(_) ] => &INT,
+			[ Value::Float(_) ] => &FLOAT,
+			[ Value::Byte(_) ] => &BYTE,
+			[ Value::String(_) ] => &STRING,
+			[ Value::Array(_) ] => &ARRAY,
+			[ Value::Dict(_) ] => &DICT,
+			[ Value::Function(_) ] => &FUNCTION,
+			[ Value::Error() ] => &ERROR,
+			[] | [_, _, ..] => return Err(Panic::invalid_args(args.len() as u32, 1, pos)),
 		};
 
 		Ok(typename.with(Value::copy))
@@ -106,10 +108,10 @@ impl NativeFun for Type {
 struct Length;
 
 impl NativeFun for Length {
-	fn name(&self) -> &'static str { "std.length" }
+	fn name(&self) -> &'static str { "std.len" }
 
 	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
-		match &args {
+		match args {
 			[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
 			[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
 			[ Value::String(ref string) ] => Ok(Value::Int(string.len() as i64)),
@@ -128,7 +130,7 @@ impl NativeFun for Iter {
 	fn name(&self) -> &'static str { "std.iter" }
 
 	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
-		match &args {
+		match args {
 			[ Value::Array(ref array) ] => Ok(
 				IterImpl::Array {
 					array: array.copy(),
@@ -153,7 +155,7 @@ impl NativeFun for Iter {
 				}.into()
 			),
 
-			[ ref other ] => Err(Panic::type_error(other.copy(), pos)),
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
 	}
@@ -234,5 +236,53 @@ impl NativeFun for IterImpl {
 		}
 
 		Ok(Dict::new(iteration).into())
+	}
+}
+
+
+/// std.push
+#[derive(Trace, Finalize)]
+struct Push;
+
+impl NativeFun for Push {
+	fn name(&self) -> &'static str { "std.push" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::Array(ref mut array), value ] => {
+				array.push(value.copy());
+				Ok(Value::Nil)
+			},
+
+			// TODO: should this method work on strings? Remember, strings are immutable.
+			// [ Value::String(ref mut string), value ] => {
+			// 	Ok(Value::Nil)
+			// },
+
+			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
+	}
+}
+
+
+/// std.is_empty
+#[derive(Trace, Finalize)]
+struct IsEmpty;
+
+impl NativeFun for IsEmpty {
+	fn name(&self) -> &'static str { "std.is_empty" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::Array(ref array) ] => Ok(array.is_empty().into()),
+
+			[ Value::Dict(ref dict) ] => Ok(dict.is_empty().into()),
+
+			[ Value::String(ref string) ] => Ok(string.is_empty().into()),
+
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
 	}
 }

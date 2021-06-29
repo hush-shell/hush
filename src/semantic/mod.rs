@@ -745,7 +745,7 @@ impl<'a> Analyzer<'a> {
 		let mut error = false;
 		let mut items = Vec::new();
 
-		for item in iter { // Use vec's owned iterator.
+		for item in iter {
 			if let Some(item) = analyze(self, item) {
 				items.push(item);
 			} else {

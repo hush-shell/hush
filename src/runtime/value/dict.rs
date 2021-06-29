@@ -76,6 +76,12 @@ impl Dict {
 	pub fn len(&self) -> i64 {
 		self.borrow().len() as i64
 	}
+
+
+	/// Whether the dict is empty.
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
 }
 
 

@@ -21,12 +21,6 @@ impl Str {
 	}
 
 
-	/// Get the string length.
-	pub fn len(&self) -> usize {
-		self.0.deref().len()
-	}
-
-
 	/// Get the value at a given index.
 	pub fn index(&self, index: i64) -> Result<Value, IndexOutOfBounds> {
 		let index: usize = index
@@ -38,6 +32,18 @@ impl Str {
 			.copied()
 			.map(Value::Byte)
 			.ok_or(IndexOutOfBounds)
+	}
+
+
+	/// Get the string length.
+	pub fn len(&self) -> usize {
+		self.0.deref().len()
+	}
+
+
+	/// Whether the string is empty.
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
 	}
 }
 
