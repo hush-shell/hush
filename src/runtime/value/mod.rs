@@ -22,7 +22,7 @@ pub use dict::{keys, Dict};
 pub use error::Error;
 pub use function::{Function, HushFun, RustFun, NativeFun};
 pub use float::Float;
-pub use errors::IndexOutOfBounds;
+pub use errors::{EmptyCollection, IndexOutOfBounds};
 pub use string::Str;
 
 
@@ -90,6 +90,7 @@ from_variant!(String, Str);
 from_variant!(Array, Array);
 from_variant!(Dict, Dict);
 from_variant!(Function, Function);
+from_variant!(Error, Error);
 
 
 impl<'a> From<&'a [u8]> for Value {

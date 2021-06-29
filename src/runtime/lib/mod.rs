@@ -1,3 +1,5 @@
+mod util;
+
 use std::{
 	collections::HashMap,
 	io::{self, Write},
@@ -9,10 +11,12 @@ use super::{
 	keys,
 	Array,
 	Dict,
-	Panic,
+	Error,
+	Float,
 	NativeFun,
-	Str,
+	Panic,
 	SourcePos,
+	Str,
 	Value,
 };
 
@@ -26,7 +30,10 @@ pub fn new() -> Value {
 	dict.insert("iter".into(), Iter.into());
 	dict.insert("type".into(), Type.into());
 	dict.insert("push".into(), Push.into());
+	dict.insert("pop".into(), Pop.into());
 	dict.insert("is_empty".into(), IsEmpty.into());
+	dict.insert("error".into(), ErrorFun.into());
+	dict.insert("range".into(), Range.into());
 
 	Dict::new(dict).into()
 }
@@ -254,12 +261,31 @@ impl NativeFun for Push {
 				Ok(Value::Nil)
 			},
 
-			// TODO: should this method work on strings? Remember, strings are immutable.
-			// [ Value::String(ref mut string), value ] => {
-			// 	Ok(Value::Nil)
-			// },
-
 			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 2, pos))
+		}
+	}
+}
+
+
+/// std.pop
+#[derive(Trace, Finalize)]
+struct Pop;
+
+impl NativeFun for Pop {
+	fn name(&self) -> &'static str { "std.pop" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::Array(ref mut array) ] => {
+				let value = array
+					.pop()
+					.map_err(|_| Panic::empty_collection(pos))?;
+
+				Ok(value)
+			},
+
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
 	}
@@ -284,5 +310,108 @@ impl NativeFun for IsEmpty {
 			[ other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
+	}
+}
+
+
+/// std.error
+#[derive(Trace, Finalize)]
+struct ErrorFun;
+
+impl NativeFun for ErrorFun {
+	fn name(&self) -> &'static str { "std.error" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::String(ref string), context ] => Ok(
+				Error
+					::new(string.copy(), context.copy())
+					.into()
+			),
+
+			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 2, pos))
+		}
+	}
+}
+
+
+/// std.range
+#[derive(Trace, Finalize)]
+struct Range;
+
+impl NativeFun for Range {
+	fn name(&self) -> &'static str { "std.range" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ from, to, step ] => {
+				let numbers = util::Numbers
+					::promote([from.copy(), to.copy(), step.copy()])
+					.map_err(|value| Panic::type_error(value, pos))?;
+
+				Ok(
+					match numbers {
+						util::Numbers::Ints([ from, to, step ]) => RangeImpl { from, to, step }.into(),
+						util::Numbers::Floats([ from, to, step ]) => RangeImpl { from, to, step }.into(),
+					}
+				)
+			},
+
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 3, pos))
+		}
+	}
+}
+
+
+#[derive(Trace, Finalize)]
+struct RangeImpl<T> {
+	from: T,
+	to: T,
+	step: T,
+}
+
+impl<T> NativeFun for RangeImpl<T>
+where
+	T: Trace + Finalize + 'static,
+	T: Clone + Default + Ord + std::ops::Add<Output = T>,
+	T: Into<Value>,
+{
+	fn name(&self) -> &'static str { "std.range<impl>" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		if !args.is_empty() {
+			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
+		}
+
+		let mut iteration = HashMap::new();
+
+		let finished =
+			if self.step > T::default() { // Step is positive.
+				self.from >= self.to
+			} else { // Step is negative.
+				self.from <= self.to
+			};
+
+		let next = if finished {
+			None
+		} else {
+			let value = self.from.clone();
+			self.from = self.from.clone() + self.step.clone();
+			Some(value)
+		};
+
+		keys::FINISHED.with(
+			|finished| iteration.insert(finished.copy(), next.is_none().into())
+		);
+
+		if let Some(next) = next {
+			keys::VALUE.with(
+				|value| iteration.insert(value.copy(), next.into())
+			);
+		}
+
+		Ok(Dict::new(iteration).into())
 	}
 }

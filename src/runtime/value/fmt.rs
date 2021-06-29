@@ -1,6 +1,15 @@
 use std::fmt::{self, Display, Debug};
 
-use super::{Array, Dict, Float, Function, HushFun, RustFun, Value};
+use super::{
+	Array,
+	Dict,
+	Float,
+	Function,
+	HushFun,
+	RustFun,
+	Str,
+	Value,
+};
 
 
 impl Debug for RustFun {
@@ -67,6 +76,12 @@ impl Display for Dict {
 }
 
 
+impl Display for Str {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", String::from_utf8_lossy(self.as_ref()).escape_debug())
+	}
+}
+
 impl Display for Value {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
@@ -75,11 +90,11 @@ impl Display for Value {
 			Self::Int(int) => write!(f, "{}", int),
 			Self::Float(float) => write!(f, "{}", float),
 			Self::Byte(byte) => write!(f, "{}", *byte as char),
-			Self::String(string) => write!(f, "{}", String::from_utf8_lossy(string.as_ref()).escape_debug()),
+			Self::String(string) => write!(f, "{}", string),
 			Self::Array(array) => write!(f, "{}", array),
 			Self::Dict(dict) => write!(f, "{}", dict),
 			Self::Function(fun) => write!(f, "{}", fun),
-			Self::Error() => todo!(),
+			Self::Error(error) => write!(f, "error: {}", error.description),
 		}
 	}
 }

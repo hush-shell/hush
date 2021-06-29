@@ -745,8 +745,7 @@
       available through the =cd= [[#Commands-1][command]].
     - =error(description; context)= ::
       Returns a value of type =error=, containing the given description, a backtrace, and
-      the optional context. If =description= is not a =string=, or =context= is not =nil= or a
-      =dict=, then a [[#Panics][panic]] occurs.
+      the optional context. If =description= is not a =string=, then a [[#Panics][panic]] occurs.
     - =exit(status)= ::
       If =status= is an =int=, exits the shell, returning the given status to the operating
       system. [[#Panics][Panics]] otherwise.

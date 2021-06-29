@@ -6,7 +6,7 @@ use std::{
 
 use gc::{Gc, GcCell, GcCellRef, GcCellRefMut, Finalize, Trace};
 
-use super::{IndexOutOfBounds, Value};
+use super::{EmptyCollection, IndexOutOfBounds, Value};
 
 
 /// An array in the language.
@@ -43,6 +43,15 @@ impl Array {
 	/// Push a value into the array.
 	pub fn push(&mut self, value: Value) {
 		self.0.borrow_mut().push(value)
+	}
+
+
+	/// Pop a value from the back of the array.
+	pub fn pop(&mut self) -> Result<Value, EmptyCollection> {
+		self.0
+			.borrow_mut()
+			.pop()
+			.ok_or(EmptyCollection)
 	}
 
 

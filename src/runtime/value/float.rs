@@ -11,7 +11,7 @@ use gc::{Finalize, Trace};
 /// This type supports full ordering and hashing.
 /// NaN is lower and different than every other value, including itself, but the hash is
 /// the same for all NaN values.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[derive(Trace, Finalize)]
 pub struct Float(pub f64);
 
@@ -86,6 +86,13 @@ impl From<f64> for Float {
 impl From<i64> for Float {
 	fn from(int: i64) -> Self {
 		Self(int as f64)
+	}
+}
+
+
+impl From<&i64> for Float {
+	fn from(int: &i64) -> Self {
+		Self(*int as f64)
 	}
 }
 

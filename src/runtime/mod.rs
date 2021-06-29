@@ -22,6 +22,7 @@ use value::{
 	keys,
 	Array,
 	Dict,
+	Error,
 	Float,
 	Function,
 	HushFun,
@@ -267,15 +268,23 @@ impl<'a> Runtime<'a> {
 				let (field, field_pos) = regular_expr!(field, pos);
 
 				let value = match (&obj, field) {
-					(&Value::Dict(ref dict), field) => dict
+					(Value::Dict(ref dict), field) => dict
 						.get(&field)
 						.map_err(|_| Panic::index_out_of_bounds(field, field_pos)),
 
-					(&Value::Array(ref array), Value::Int(ix)) => array
+					(Value::Array(ref array), Value::Int(ix)) => array
 						.index(ix)
 						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
 
 					(Value::Array(_), field) => Err(Panic::type_error(field, field_pos)),
+
+					(Value::String(ref string), Value::Int(ix)) => string
+						.index(ix)
+						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
+
+					(Value::Error(ref error), field) => error
+						.get(&field)
+						.map_err(|_| Panic::index_out_of_bounds(field, field_pos)),
 
 					(_, _) => return Err(Panic::type_error(obj, obj_pos)),
 				}?;

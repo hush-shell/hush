@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 
-/// Array or Dict index out of bounds.
+/// Collection index out of bounds.
 #[derive(Debug)]
 pub struct IndexOutOfBounds;
 
@@ -14,3 +14,18 @@ impl Display for IndexOutOfBounds {
 
 
 impl std::error::Error for IndexOutOfBounds { }
+
+
+/// Collection is empty.
+#[derive(Debug)]
+pub struct EmptyCollection;
+
+
+impl Display for EmptyCollection {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "collection is empty")
+  }
+}
+
+
+impl std::error::Error for EmptyCollection { }

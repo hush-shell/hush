@@ -21,6 +21,8 @@ pub enum Panic {
 		index: Value,
 		pos: SourcePos,
 	},
+	/// Array or dict index out of bounds.
+	EmptyCollection { pos: SourcePos },
 	/// Attempt to call a non-function value.
 	InvalidCall {
 		function: Value,
@@ -40,6 +42,17 @@ pub enum Panic {
 	/// Unexpected type.
 	TypeError {
 		value: Value,
+		pos: SourcePos,
+	},
+	/// Attempt to assign a field of an error value.
+	AssignToErrorField {
+		field: Value,
+		pos: SourcePos,
+	},
+	/// Expansion resulted in zero or multiple items where a single item was expected.
+	InvalidCommandArgs {
+		object: &'static str,
+		items: u32,
 		pos: SourcePos,
 	},
 	/// IO error in the standard library.
@@ -75,6 +88,12 @@ impl Panic {
 	}
 
 
+	/// Array or dict index out of bounds.
+	pub fn empty_collection(pos: SourcePos) -> Self {
+		Self::EmptyCollection { pos }
+	}
+
+
 	/// Attempt to call a non-function value.
 	pub fn invalid_call(function: Value, pos: SourcePos) -> Self {
 		Self::InvalidCall { function, pos }
@@ -99,9 +118,21 @@ impl Panic {
 	}
 
 
+	/// Expansion resulted in zero or multiple items where a single item was expected.
+	pub fn invalid_command_args(object: &'static str, items: u32, pos: SourcePos) -> Self {
+		Self::InvalidCommandArgs { object, items, pos }
+	}
+
+
 	/// IO error.
 	pub fn io(error: io::Error, pos: SourcePos) -> Self {
 		Self::Io { error, pos }
+	}
+
+
+	/// Attempt to assign a field of an error value.
+	pub fn assign_to_error_field(field: Value, pos: SourcePos) -> Self {
+		Self::AssignToErrorField { field, pos }
 	}
 }
 
@@ -128,6 +159,9 @@ impl Display for Panic {
 					pos,
 					color::Fg(color::Yellow, index)
 				),
+
+			Self::EmptyCollection { pos } =>
+				write!(f, "{} in {}: collection is empty", panic, pos),
 
 			Self::InvalidCall { function, pos } =>
 				write!(
@@ -166,8 +200,19 @@ impl Display for Panic {
 					color::Fg(color::Yellow, value)
 				),
 
+			Self::InvalidCommandArgs { object, items, pos } =>
+				write!(f, "{} in {}: {} expansion resulted in {} items", panic, pos, object, items),
+
 			Self::Io { error, pos } =>
 				write!(f, "{} in {}: {}", panic, pos, error),
+
+			Self::AssignToErrorField { field, pos } => write!(
+					f,
+					"{} in {}: attempt to assign field ({}) in an error value, which is immutable",
+					panic,
+					pos,
+					color::Fg(color::Yellow, field)
+				),
 		}
 	}
 }
