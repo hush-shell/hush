@@ -6,7 +6,7 @@ mod tests;
 
 use std::{
 	collections::HashSet,
-	convert::TryInto,
+	convert::TryFrom,
 };
 
 use crate::{
@@ -50,8 +50,6 @@ pub struct Analyzer<'a> {
 	in_function: bool,
 	/// Whether the analyzer is inside a loop.
 	in_loop: bool,
-	/// Whether the analyzer is inside an async context.
-	in_async: bool,
 	/// Whether the scope has been manually dropped.
 	dropped: bool,
 }
@@ -530,15 +528,13 @@ impl<'a> Analyzer<'a> {
 	/// Analyze a command block.
 	/// None is returned if any error is detected.
 	fn analyze_command_block(&mut self, block: ast::CommandBlock) -> Option<CommandBlock> {
-		self.in_async = !block.kind.is_sync();
+		let in_async = !block.kind.is_sync();
 
-		let head = self.analyze_command(block.head);
+		let head = self.analyze_command(block.head, in_async);
 		let tail = self.analyze_items(
-			Self::analyze_command,
+			move |analyzer, cmd| analyzer.analyze_command(cmd, in_async),
 			block.tail.into_vec(), // Use vec's owned iterator.
 		);
-
-		self.in_async = false;
 
 		let (head, tail) = head.zip(tail)?;
 
@@ -554,86 +550,75 @@ impl<'a> Analyzer<'a> {
 
 	/// Analyze a command.
 	/// None is returned if any error is detected.
-	fn analyze_command(&mut self, command: ast::Command) -> Option<Command> {
-		let previous_async = self.in_async;
-		self.in_async |= !command.tail.is_empty();
+	fn analyze_command(&mut self, command: ast::Command, in_async: bool) -> Option<Command> {
+		match command::Builtin::try_from(&command.head.program) {
+			Ok(_)
+				if in_async // Block is async.
+				|| !command.tail.is_empty() // Command is pipeline.
+				|| !command.head.redirections.is_empty() // Command contains redirections.
+				=> {
+				self.report(Error::async_builtin(command.head.pos));
+				None
+			}
 
-		let head = self.analyze_basic_command(command.head);
+			Ok(builtin) => {
+				let arguments = self.analyze_items(
+					Self::analyze_argument,
+					command.head.arguments.into_vec(), // Use vec's owned iterator.
+				)?;
 
-		let tail = self.analyze_items(
-			Self::analyze_basic_command,
-			command.tail.into_vec(), // Use vec's owned iterator.
-		);
+				Some(
+					Command::Builtin {
+						program: builtin,
+						arguments,
+						abort_on_error: command.head.abort_on_error,
+						pos: command.head.pos,
+					}
+				)
+			}
 
-		self.in_async = previous_async;
+			Err(_) => {
+				let head = self.analyze_basic_command(command.head);
 
-		let (head, tail) = head.zip(tail)?;
+				let tail = self.analyze_items(
+					Self::analyze_basic_command,
+					command.tail.into_vec(), // Use vec's owned iterator.
+				);
 
-		Some(Command { head, tail })
+				let (head, tail) = head.zip(tail)?;
+
+				Some(Command::External { head, tail })
+			}
+		}
 	}
 
 
 	/// Analyze a basic command.
 	/// None is returned if any error is detected.
 	fn analyze_basic_command(&mut self, command: ast::BasicCommand) -> Option<BasicCommand> {
-		let previous_async = self.in_async;
-		self.in_async |= !command.redirections.is_empty();
-
-		let program = self.analyze_program(command.program);
-
-		let is_builtin = program
-			.as_ref()
-			.map(command::Program::is_builtin)
-			.unwrap_or(false);
-
-		let error = self.in_async && is_builtin;
-		if error {
-			self.report(Error::async_builtin(command.pos));
-		}
+		let program = self.analyze_argument(command.program);
 
 		let arguments = self.analyze_items(
 			Self::analyze_argument,
 			command.arguments.into_vec(), // Use vec's owned iterator.
 		);
+
 		let redirections = self.analyze_items(
 			Self::analyze_redirection,
 			command.redirections.into_vec(), // Use vec's owned iterator.
 		);
 
-		self.in_async = previous_async;
-
 		let (program, (arguments, redirections)) = program.zip(arguments.zip(redirections))?;
 
-		if error {
-			None
-		} else {
-			Some(
-				BasicCommand {
-					program,
-					arguments,
-					redirections,
-					abort_on_error: command.abort_on_error,
-					pos: command.pos,
-				}
-			)
-		}
-	}
-
-
-	/// Analyze a command program.
-	/// None is returned if any error is detected.
-	fn analyze_program(&mut self, argument: ast::Argument) -> Option<command::Program> {
-		match argument.parts.as_ref() {
-			[ ast::ArgPart::Unit(ast::ArgUnit::Literal(ref program)) ] => {
-				if let Ok(builtin) = program.as_ref().try_into() {
-					Some(command::Program::Builtin(builtin))
-				} else {
-					self.analyze_argument(argument).map(command::Program::External)
-				}
+		Some(
+			BasicCommand {
+				program,
+				arguments,
+				redirections,
+				abort_on_error: command.abort_on_error,
+				pos: command.pos,
 			}
-
-			_ => self.analyze_argument(argument).map(command::Program::External)
-		}
+		)
 	}
 
 
@@ -786,7 +771,6 @@ impl<'a> Analyzer<'a> {
 			interner,
 			in_function: false,
 			in_loop: false,
-			in_async: false,
 			dropped: false,
 		}
 	}
@@ -803,7 +787,6 @@ impl<'a> Analyzer<'a> {
 			interner: self.interner,
 			in_function: self.in_function,
 			in_loop: self.in_loop,
-			in_async: self.in_async,
 			dropped: false,
 		}
 	}
@@ -820,7 +803,6 @@ impl<'a> Analyzer<'a> {
 			interner: self.interner,
 			in_function: self.in_function,
 			in_loop: true,
-			in_async: self.in_async,
 			dropped: false,
 		}
 	}
@@ -837,7 +819,6 @@ impl<'a> Analyzer<'a> {
 			interner: self.interner,
 			in_function: true,
 			in_loop: false,
-			in_async: self.in_async,
 			dropped: false,
 		}
 	}

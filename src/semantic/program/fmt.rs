@@ -512,16 +512,6 @@ impl std::fmt::Display for command::InvalidBuiltin {
 }
 
 
-impl std::fmt::Display for command::Program {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match self {
-			command::Program::Builtin(program) => program.fmt(f),
-			command::Program::External(program) => program.fmt(f),
-		}
-	}
-}
-
-
 impl std::fmt::Display for BasicCommand {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		self.program.fmt(f)?;
@@ -548,14 +538,32 @@ impl std::fmt::Display for BasicCommand {
 
 impl std::fmt::Display for Command {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		self.head.fmt(f)?;
+		match self {
+			Command::Builtin { program, arguments, abort_on_error, .. } => {
+				program.fmt(f)?;
 
-		for command in self.tail.iter() {
-			" ".fmt(f)?;
-			color::Fg(color::Yellow, "|").fmt(f)?;
-			" ".fmt(f)?;
-			command.fmt(f)?;
-		}
+				for arg in arguments.iter() {
+					" ".fmt(f)?;
+					arg.fmt(f)?;
+				}
+
+				if *abort_on_error {
+					" ".fmt(f)?;
+					CommandOperator::Try.fmt(f)?;
+				}
+			},
+
+			Command::External { head, tail } => {
+				head.fmt(f)?;
+
+				for command in tail.iter() {
+					" ".fmt(f)?;
+					color::Fg(color::Yellow, "|").fmt(f)?;
+					" ".fmt(f)?;
+					command.fmt(f)?;
+				}
+			},
+		};
 
 		Ok(())
 	}

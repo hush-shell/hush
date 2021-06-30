@@ -34,6 +34,7 @@ pub fn new() -> Value {
 	dict.insert("is_empty".into(), IsEmpty.into());
 	dict.insert("error".into(), ErrorFun.into());
 	dict.insert("range".into(), Range.into());
+	dict.insert("env".into(), Env.into());
 
 	Dict::new(dict).into()
 }
@@ -413,5 +414,28 @@ where
 		}
 
 		Ok(Dict::new(iteration).into())
+	}
+}
+
+
+/// std.env
+#[derive(Trace, Finalize)]
+struct Env;
+
+impl NativeFun for Env {
+	fn name(&self) -> &'static str { "std.env" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::String(ref string) ] => Ok(
+				std::env
+					::var_os(string)
+					.map(Value::from)
+					.unwrap_or(Value::Nil)
+			),
+
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
 	}
 }

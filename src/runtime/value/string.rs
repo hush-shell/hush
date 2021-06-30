@@ -1,6 +1,8 @@
 use std::{
 	convert::TryInto,
+	ffi::{OsString, OsStr},
 	ops::Deref,
+	os::unix::ffi::{OsStringExt, OsStrExt},
 };
 
 use gc::{Gc, Finalize, Trace};
@@ -55,6 +57,13 @@ impl AsRef<[u8]> for Str {
 }
 
 
+impl AsRef<OsStr> for Str {
+	fn as_ref(&self) -> &OsStr {
+		OsStr::from_bytes(self.as_ref())
+	}
+}
+
+
 impl<'a> From<&'a [u8]> for Str {
 	fn from(string: &'a [u8]) -> Self {
 		Self(
@@ -91,5 +100,12 @@ impl From<Box<str>> for Str {
 impl From<String> for Str {
 	fn from(string: String) -> Self {
 		string.into_boxed_str().into()
+	}
+}
+
+
+impl From<OsString> for Str {
+	fn from(string: OsString) -> Self {
+		string.into_vec().into_boxed_slice().into()
 	}
 }

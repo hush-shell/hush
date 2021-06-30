@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 string-interner = { version = "0.12", default-features = false, features = [ "std", "inline-more", "backends" ] }
 gc = { version = "0.4", features = ["derive"] }
+regex = { version = "1.5", default-features = false, features = [ "std" ]}
 
 termion = "1.5"
 

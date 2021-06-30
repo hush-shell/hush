@@ -70,7 +70,7 @@ pub enum Redirection {
 
 
 /// Built-in commands.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Builtin {
 	Alias,
 	Cd,
@@ -97,17 +97,14 @@ impl<'a> TryFrom<&'a [u8]> for Builtin {
 }
 
 
-/// A program to be executed. May be built-in or external.
-#[derive(Debug)]
-pub enum Program {
-	Builtin(Builtin),
-	External(Argument),
-}
+impl<'a> TryFrom<&'a ast::Argument> for Builtin {
+	type Error = InvalidBuiltin;
 
-
-impl Program {
-	pub fn is_builtin(&self) -> bool {
-		matches!(self, Self::Builtin(_))
+	fn try_from(arg: &'a ast::Argument) -> Result<Self, Self::Error> {
+		match arg.parts.as_ref() {
+			[ ast::ArgPart::Unit(ast::ArgUnit::Literal(ref lit)) ] => Self::try_from(lit.as_ref()),
+			_ => Err(InvalidBuiltin),
+		}
 	}
 }
 
@@ -115,7 +112,7 @@ impl Program {
 /// A single command, including possible redirections and try operator.
 #[derive(Debug)]
 pub struct BasicCommand {
-	pub program: Program,
+	pub program: Argument,
 	pub arguments: Box<[Argument]>,
 	pub redirections: Box<[Redirection]>,
 	pub abort_on_error: bool,
@@ -125,9 +122,17 @@ pub struct BasicCommand {
 
 /// Commands may be pipelines, or a single BasicCommand.
 #[derive(Debug)]
-pub struct Command {
-	pub head: BasicCommand,
-	pub tail: Box<[BasicCommand]>
+pub enum Command {
+	Builtin {
+		program: Builtin,
+		arguments: Box<[Argument]>,
+		abort_on_error: bool,
+		pos: SourcePos,
+	},
+	External {
+		head: BasicCommand,
+		tail: Box<[BasicCommand]>
+	}
 }
 
 

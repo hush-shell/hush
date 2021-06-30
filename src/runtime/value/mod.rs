@@ -9,6 +9,8 @@ mod fmt;
 mod function;
 mod string;
 
+use std::ffi::{OsString};
+
 use gc::{Finalize, Trace};
 
 use super::{
@@ -103,6 +105,14 @@ impl<'a> From<&'a [u8]> for Value {
 
 impl From<Box<[u8]>> for Value {
 	fn from(string: Box<[u8]>) -> Self {
+		let string: Str = string.into();
+		string.into()
+	}
+}
+
+
+impl From<OsString> for Value {
+	fn from(string: OsString) -> Self {
 		let string: Str = string.into();
 		string.into()
 	}

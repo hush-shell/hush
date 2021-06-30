@@ -685,12 +685,12 @@ impl<'a> Runtime<'a> {
 
 				match (left, right) {
 					(Value::String(ref str1), Value::String(ref str2)) => {
-						let string: Vec<u8> =
+						let string =
 							[
 								str1.deref().as_ref(),
-								str2.deref().as_ref()
+								str2.deref().as_ref(),
 							]
-							.concat();
+							.concat::<u8>();
 
 						string.into_boxed_slice().into()
 					}
