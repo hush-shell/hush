@@ -1,5 +1,6 @@
 #![allow(dead_code)] // This is temporarily used for the inital development.
 
+mod args;
 mod fmt;
 mod io;
 mod runtime;
@@ -14,113 +15,115 @@ use std::path::Path;
 
 use term::color;
 
-
-fn main() -> std::io::Result<()> {
-	let mut interner = symbol::Interner::new();
-	let source = syntax::Source::from_reader(Path::new("<stdin>"), std::io::stdin().lock())?;
-
-	runtime(source, &mut interner);
-
-	Ok(())
-}
+use args::{Args, Command};
+use runtime::{Panic, SourcePos};
 
 
-fn lexer(source: syntax::Source, interner: &mut symbol::Interner) {
-	use syntax::lexer::{Cursor, Lexer};
-
-	let cursor = Cursor::from(source.contents.as_ref());
-	let lexer = Lexer::new(cursor, interner);
-	let tokens: Vec<_> = lexer.collect();
-
-	for result in tokens {
-		match result {
-			Ok(token) => println!("{}", fmt::Show(token, &*interner)),
-			Err(error) => {
-				eprintln!("{}: {}", source.path.display(), error)
-			}
+fn main() -> ! {
+	let command = match args::parse(std::env::args_os()) {
+		Ok(command) => command,
+		Err(error) => {
+			eprint!("{}", error);
+			std::process::exit(1)
 		}
-	}
+	};
+
+	let result = match command {
+		Command::Run(args) => run(args),
+		Command::Help(msg) | Command::Version(msg) => {
+			println!("{}", msg);
+			std::process::exit(0)
+		},
+	};
+
+
+	let exit_code = match result {
+		Ok(code) => code,
+		Err(error) => {
+			eprintln!("{}", error);
+			1
+		}
+	};
+
+	std::process::exit(exit_code)
 }
 
 
-fn syntax(source: syntax::Source, interner: &mut symbol::Interner) -> syntax::Analysis {
-	let analysis = syntax::Analysis::analyze(source, interner);
+fn run(args: Args) -> Result<i32, Panic> {
+	let mut interner = symbol::Interner::new();
+	let file_path = &*Box::leak(Path::new("<stdin>").into());
 
-	println!("{}", color::Fg(color::Yellow, "syntactic analysis"));
+	let source = syntax::Source
+		::from_reader(
+			file_path,
+			std::io::stdin().lock()
+		)
+    .map_err(|error| Panic::io(error, SourcePos::file(file_path)))?;
 
-	for error in analysis.errors.iter().take(20) {
+	// ----------------------------------------------------------------------------------------
+	let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
+
+	for error in syntactic_analysis.errors.iter().take(20) {
 		eprintln!(
 			"{}: {}",
 			color::Fg(color::Red, "Error"),
-			fmt::Show(error, &*interner)
+			fmt::Show(error, &interner)
 		);
 	}
 
-	println!(
-		"{}",
-		fmt::Show(
-			&analysis.ast,
-			syntax::ast::fmt::Context::from(&*interner)
-		)
-	);
+	if args.print_ast {
+		println!("{}", color::Fg(color::Yellow, "--------------------------------------------------"));
+		println!(
+			"{}",
+			fmt::Show(
+				&syntactic_analysis.ast,
+				syntax::ast::fmt::Context::from(&interner)
+			)
+		);
+		println!("{}", color::Fg(color::Yellow, "--------------------------------------------------"));
+	}
 
-	analysis
-}
+	// ----------------------------------------------------------------------------------------
+	let program = match semantic::Analyzer::analyze(syntactic_analysis.ast, &mut interner) {
+		Ok(program) => program,
 
-
-fn semantic(
-	source: syntax::Source,
-	interner: &mut symbol::Interner
-) -> Option<semantic::program::Program> {
-	let syntactic_analysis = syntax(source, interner);
-
-	println!("{}", color::Fg(color::Yellow, "semantic analysis"));
-
-	match semantic::Analyzer::analyze(syntactic_analysis.ast, interner) {
 		Err(errors) => {
 			for error in errors.into_iter().take(20) {
 				eprintln!(
 					"{}: {}",
 					color::Fg(color::Red, "Error"),
-					fmt::Show(error, &*interner)
+					fmt::Show(error, &interner)
 				);
 			}
 
-			None
+			return Ok(2);
 		}
+	};
 
-		Ok(program) => {
-			println!(
-				"{}",
-				fmt::Show(
-					&program,
-					semantic::program::fmt::Context::from(&*interner)
-				)
-			);
-
-			Some(program)
-		},
+	if args.print_program {
+		println!("{}", color::Fg(color::Yellow, "--------------------------------------------------"));
+		println!(
+			"{}",
+			fmt::Show(
+				&program,
+				semantic::program::fmt::Context::from(&interner)
+			)
+		);
+		println!("{}", color::Fg(color::Yellow, "--------------------------------------------------"));
 	}
-}
 
-
-fn runtime(
-	source: syntax::Source,
-	interner: &mut symbol::Interner
-) -> Option<runtime::value::Value> {
-	if let Some(program) = semantic(source, interner) {
-		println!("{}", color::Fg(color::Yellow, "runtime"));
-
-		let program = Box::leak(Box::new(program));
-
-		match runtime::Runtime::eval(program, interner) {
-			Ok(value) => Some(value),
-			Err(panic) => {
-				eprintln!("{}", panic);
-				None
-			}
-		}
-	} else {
-		None
+	// ----------------------------------------------------------------------------------------
+	if !syntactic_analysis.errors.is_empty() {
+		return Ok(2);
 	}
+
+	if args.check {
+		return Ok(0)
+	}
+
+	let program = Box::leak(Box::new(program));
+
+	runtime::Runtime::eval(program, &mut interner)?;
+
+	Ok(0)
 }

@@ -119,14 +119,6 @@ pub struct PipelineStatus {
 }
 
 
-impl PipelineStatus {
-	/// Check if the status contains any error.
-	pub fn contains_error(&self) -> bool {
-		self.head.is_error() || self.tail.iter().any(Status::is_error)
-	}
-}
-
-
 impl From<Status> for PipelineStatus {
 	fn from(status: Status) -> Self {
 		Self {
@@ -158,14 +150,6 @@ impl From<PipelineStatus> for Value {
 pub struct BlockStatus {
 	head: PipelineStatus,
 	tail: Box<[PipelineStatus]>,
-}
-
-
-impl BlockStatus {
-	/// Check if the status contains any error.
-	pub fn contains_error(&self) -> bool {
-		self.head.contains_error() || self.tail.iter().any(PipelineStatus::contains_error)
-	}
 }
 
 

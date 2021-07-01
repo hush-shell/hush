@@ -31,9 +31,9 @@ use value::{
 	Value,
 };
 pub use panic::Panic;
+pub use source::SourcePos;
 use flow::Flow;
 use mem::Stack;
-use source::SourcePos;
 
 
 /// A runtime instance to execute Hush programs.
@@ -422,6 +422,8 @@ impl<'a> Runtime<'a> {
 								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), self.pos(*pos)))?,
 
 							(Value::Array(_), field) => return Err(Panic::type_error(field, field_pos)),
+
+							(Value::Error(_), field) => return Err(Panic::assign_to_error_field(field, field_pos)),
 
 							(obj, _) => return Err(Panic::type_error(obj, obj_pos)),
 						};

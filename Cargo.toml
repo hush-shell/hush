@@ -5,11 +5,12 @@ authors = ["gahag <gabriel.s.b@live.com>"]
 edition = "2018"
 
 [dependencies]
+clap = "2.33"
+termion = "1.5"
+
 string-interner = { version = "0.12", default-features = false, features = [ "std", "inline-more", "backends" ] }
 gc = { version = "0.4", features = ["derive"] }
 regex = { version = "1.5", default-features = false, features = [ "std" ]}
-
-termion = "1.5"
 
 [dev-dependencies]
 assert_matches = "1.5"

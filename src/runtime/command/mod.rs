@@ -19,7 +19,6 @@ impl<'a> Runtime<'a> {
 		match block.kind {
 			program::CommandBlockKind::Synchronous => {
 				let command_block = self.build_command_block(&block.head, &block.tail)?;
-				eprintln!("{}", command_block);
 				command_block.exec().map(Into::into)
 			}
 
