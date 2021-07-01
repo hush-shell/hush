@@ -238,6 +238,38 @@ pub enum Builtin {
 }
 
 
+impl Builtin {
+	pub fn exec(self, arguments: Box<[Argument]>, pos: SourcePos) -> Result<Status, ExecError> {
+		let mut arguments = arguments.into_vec();
+
+		match self {
+			Builtin::Alias => todo!(),
+
+			Builtin::Cd => {
+				let arg = arguments
+					.pop()
+					.ok_or(Panic::invalid_command_args("argument", 0, pos.copy()))?;
+
+				if !arguments.is_empty() {
+					Err(Panic::invalid_command_args("argument", arguments.len() as u32 + 1, pos.copy()))?;
+				}
+
+				let args = arg.resolve()?;
+
+				match args.as_ref() {
+					[ dir ] => std::env::set_current_dir(dir.as_ref())?,
+					other => Err(
+						Panic::invalid_command_args("argument", other.len() as u32, pos)
+					)?,
+				};
+
+				Ok(Status::Success)
+			}
+		}
+	}
+}
+
+
 impl<'a> From<&'a program::command::Builtin> for Builtin {
 	fn from(builtin: &'a program::command::Builtin) -> Self {
 		match builtin {
@@ -407,7 +439,11 @@ impl Command {
 	/// Returns a pair of result value and whether to abort.
 	pub fn exec(self) -> Result<(PipelineStatus, bool), ExecError> {
 		match self {
-			Command::Builtin { .. } => todo!(),
+			Command::Builtin { program, arguments, abort_on_error, pos } => {
+				let status = program.exec(arguments, pos)?;
+				let abort = abort_on_error && status.is_error();
+				Ok((status.into(), abort))
+			}
 
 			Command::External { head, tail } => {
 				let mut last_stdout = process::Stdio::inherit();
