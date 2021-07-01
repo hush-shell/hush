@@ -62,6 +62,12 @@ impl Value {
 			Self::Error(error) => Self::Error(error.copy())
 		}
 	}
+
+
+	/// Check if the value is an error.
+	pub fn is_error(&self) -> bool {
+		matches!(self, Self::Error(_))
+	}
 }
 
 
@@ -137,6 +143,13 @@ impl From<Box<str>> for Value {
 impl From<String> for Value {
 	fn from(string: String) -> Self {
 		string.into_boxed_str().into()
+	}
+}
+
+
+impl From<Vec<Value>> for Value {
+	fn from(array: Vec<Value>) -> Self {
+		Self::Array(Array::new(array))
 	}
 }
 

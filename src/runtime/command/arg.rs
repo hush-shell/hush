@@ -4,7 +4,7 @@ use std::{
 	os::unix::ffi::OsStringExt,
 };
 
-use super::Argument;
+use super::command;
 
 use regex::bytes::Regex;
 
@@ -22,6 +22,10 @@ impl Args {
 	pub fn push_literal(&mut self, literal: &[u8]) {
 		match self {
 			Self::Regexes(regexes) => {
+				if regexes.is_empty() {
+					regexes.push(Arg::default());
+				}
+
 				let escaped = Self::regex_escape(literal);
 				let escaped = escaped.as_ref();
 
@@ -31,6 +35,10 @@ impl Args {
 			}
 
 			Self::Literals(literals) => {
+				if literals.is_empty() {
+					literals.push(Arg::default());
+				}
+
 				for lit in literals.iter_mut() {
 					lit.extend(literal);
 				}
@@ -42,12 +50,20 @@ impl Args {
 	pub fn push_regex(&mut self, regex: &[u8]) {
 		match self {
 			Self::Regexes(regexes) => {
+				if regexes.is_empty() {
+					regexes.push(Arg::default());
+				}
+
 				for rx in regexes.iter_mut() {
 					rx.extend(regex);
 				}
 			}
 
 			Self::Literals(literals) => {
+				if literals.is_empty() {
+					literals.push(Arg::default());
+				}
+
 				let mut regexes = std::mem::take(literals);
 
 				for literal in regexes.iter_mut() {
@@ -157,14 +173,14 @@ impl Default for Args {
 }
 
 
-impl Into<Box<[Argument]>> for Args {
-	fn into(self) -> Box<[Argument]> {
+impl Into<Box<[command::Argument]>> for Args {
+	fn into(self) -> Box<[command::Argument]> {
 		match self {
 			Self::Regexes(regexes) => {
 				regexes
 					.into_iter()
 					.map(
-						|regex| Argument::Regex(
+						|regex| command::Argument::Regex(
 							Regex
 								::new(
 									&String::from_utf8(regex).expect("invalid utf8 regex argument")
@@ -179,7 +195,7 @@ impl Into<Box<[Argument]>> for Args {
 				literals
 					.into_iter()
 					.map(
-						|lit| Argument::Literal(
+						|lit| command::Argument::Literal(
 							OsString::from_vec(lit).into_boxed_os_str()
 						)
 					)

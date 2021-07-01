@@ -1,166 +1,14 @@
 mod arg;
 mod fmt;
+mod command;
 
 use std::{
 	borrow::Cow,
-	ffi::OsStr,
 	os::unix::ffi::OsStrExt,
-	process::{self, Child},
 };
 
-use regex::bytes::Regex;
-
-use crate::io::FileDescriptor;
-use super::{program, Runtime, Panic, Value, SourcePos};
+use super::{program, Runtime, Panic, Value, Error, SourcePos};
 use arg::Args;
-
-
-/// An argument may expand to zero or more literals.
-#[derive(Debug)]
-enum Argument {
-	/// A regex to be matched to file names. May expand to zero or more literals.
-	Regex(Regex),
-	/// A single literal.
-	Literal(Box<OsStr>),
-}
-
-
-/// The target of a redirection operation.
-#[derive(Debug)]
-enum RedirectionTarget {
-	/// Redirect to a file descriptor.
-	Fd(FileDescriptor),
-	/// Overwrite a file. Panics if the argument does not expand to a single literal.
-	Overwrite(Argument),
-	/// Append to a file. Panics if the argument does not expand to a single literal.
-	Append(Argument),
-}
-
-
-/// Redirection operation.
-#[derive(Debug)]
-enum Redirection {
-	/// Redirect output to a file or file descriptor.
-	Output {
-		source: FileDescriptor,
-		target: RedirectionTarget,
-	},
-	/// Redirect input from a file or literal.
-	Input {
-		/// Whether the source is the input or the file path.
-		literal: bool,
-		/// The source argument. Panics if the argument does not expand to a single literal.
-		source: Argument,
-	},
-}
-
-
-/// Built-in commands.
-#[derive(Debug, Copy, Clone)]
-enum Builtin {
-	Alias,
-	Cd,
-}
-
-
-impl<'a> From<&'a program::command::Builtin> for Builtin {
-	fn from(builtin: &'a program::command::Builtin) -> Self {
-		match builtin {
-			program::command::Builtin::Alias => Self::Alias,
-			program::command::Builtin::Cd => Self::Cd,
-		}
-	}
-}
-
-
-/// A single command, including possible redirections and try operator.
-#[derive(Debug)]
-struct BasicCommand {
-	/// The program to be executed. Panics if the argument does not expand to a single literal.
-	program: Argument,
-	/// Arguments to the program. The arguments may expand to an arbitrary number of literals.
-	arguments: Box<[Argument]>,
-	/// Redirections to be placed in order.
-	redirections: Box<[Redirection]>,
-	/// Whether to abort the command block execution if the command fails.
-	abort_on_error: bool,
-	pos: SourcePos,
-}
-
-
-impl BasicCommand {
-	pub fn eval(self) -> Result<Child, Panic> {
-		let pos = self.pos;
-
-		let mut command = match self.program {
-			Argument::Regex(_) => todo!(),
-			Argument::Literal(program) => process::Command::new(program),
-		};
-
-		for argument in self.arguments.iter() {
-			match argument {
-				Argument::Regex(_) => todo!(),
-				Argument::Literal(arg) => command.arg(arg),
-			};
-		}
-
-		for redirection in self.redirections.iter() {
-			todo!()
-		}
-
-		let child = command
-			.spawn()
-			.map_err(move |error| Panic::io(error, pos))?; // TODO: this should not be an error.
-
-		Ok(child)
-	}
-}
-
-
-/// Commands may be pipelines, or a single BasicCommand.
-#[derive(Debug)]
-enum Command {
-	Builtin {
-		/// The program to be executed.
-		program: Builtin,
-		/// Arguments to the program. The arguments may expand to an arbitrary number of literals.
-		arguments: Box<[Argument]>,
-		/// Whether to abort the command block execution if the command fails.
-		abort_on_error: bool,
-		pos: SourcePos,
-	},
-	External {
-		/// The first command.
-		head: BasicCommand,
-		/// The following commands, if any.
-		tail: Box<[BasicCommand]>
-	}
-}
-
-
-impl Command {
-	/// Returns a pair of result value and whether to abort on error.
-	pub fn eval(self) -> Result<(Value, bool), Panic> {
-		// todo: setup pipes
-		todo!()
-	}
-}
-
-
-/// A command block.
-#[derive(Debug)]
-struct CommandBlock {
-	pub head: Command,
-	pub tail: Box<[Command]>,
-}
-
-
-impl CommandBlock {
-	pub fn eval(self) -> Result<Value, Panic> {
-		// todo: return single if tail is empty, or an array otherwise.
-		todo!()
-	}
-}
 
 
 impl<'a> Runtime<'a> {
@@ -171,7 +19,8 @@ impl<'a> Runtime<'a> {
 		match block.kind {
 			program::CommandBlockKind::Synchronous => {
 				let command_block = self.build_command_block(&block.head, &block.tail)?;
-				command_block.eval()
+				eprintln!("{}", command_block);
+				command_block.exec().map(Into::into)
 			}
 
 			program::CommandBlockKind::Asynchronous => todo!(),
@@ -184,7 +33,7 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		head: &'static program::Command,
 		tail: &'static [program::Command],
-	) -> Result<CommandBlock, Panic> {
+	) -> Result<command::Block, Panic> {
 		let head = self.build_command(head)?;
 		let tail = tail
 			.iter()
@@ -193,11 +42,14 @@ impl<'a> Runtime<'a> {
 			)
 			.collect::<Result<_, Panic>>()?;
 
-		Ok(CommandBlock { head, tail })
+		Ok(command::Block { head, tail })
 	}
 
 
-	fn build_command(&mut self, command: &'static program::Command) -> Result<Command, Panic> {
+	fn build_command(
+		&mut self,
+		command: &'static program::Command
+	) -> Result<command::Command, Panic> {
 		match command {
 			program::Command::Builtin { program, arguments, abort_on_error, pos } => {
 				let mut args = Vec::new();
@@ -209,7 +61,7 @@ impl<'a> Runtime<'a> {
 				}
 
 				Ok(
-					Command::Builtin {
+					command::Command::Builtin {
 						program: program.into(),
 						arguments: args.into(),
 						abort_on_error: *abort_on_error,
@@ -227,7 +79,7 @@ impl<'a> Runtime<'a> {
 					)
 					.collect::<Result<_, Panic>>()?;
 
-				Ok(Command::External { head, tail })
+				Ok(command::Command::External { head, tail })
 			}
 		}
 	}
@@ -236,7 +88,7 @@ impl<'a> Runtime<'a> {
 	fn build_basic_command(
 		&mut self,
 		command: &'static program::BasicCommand,
-	) -> Result<BasicCommand, Panic> {
+	) -> Result<command::BasicCommand, Panic> {
 		let program_pos = self.pos(command.program.pos);
 
 		let program = self.build_single_argument(
@@ -260,7 +112,7 @@ impl<'a> Runtime<'a> {
 			.collect::<Result<_, Panic>>()?;
 
 		Ok(
-			BasicCommand {
+			command::BasicCommand {
 				program,
 				arguments: args.into(),
 				redirections,
@@ -274,12 +126,12 @@ impl<'a> Runtime<'a> {
 	fn build_redirection(
 		&mut self,
 		redirection: &'static program::Redirection,
-	) -> Result<Redirection, Panic> {
+	) -> Result<command::Redirection, Panic> {
 		match redirection {
 			program::Redirection::Output { source, target } => {
 				let target = self.build_redirection_target(target)?;
 
-				Ok(Redirection::Output { source: *source, target })
+				Ok(command::Redirection::Output { source: *source, target })
 			}
 
 			program::Redirection::Input { literal, source } => {
@@ -290,7 +142,7 @@ impl<'a> Runtime<'a> {
 					|items| Panic::invalid_command_args("redirection", items, pos)
 				)?;
 
-				Ok(Redirection::Input { literal: *literal, source })
+				Ok(command::Redirection::Input { literal: *literal, source })
 			}
 		}
 	}
@@ -299,9 +151,9 @@ impl<'a> Runtime<'a> {
 	fn build_redirection_target(
 		&mut self,
 		target: &'static program::RedirectionTarget,
-	) -> Result<RedirectionTarget, Panic> {
+	) -> Result<command::RedirectionTarget, Panic> {
 		match target {
-			program::RedirectionTarget::Fd(fd) => Ok(RedirectionTarget::Fd(*fd)),
+			program::RedirectionTarget::Fd(fd) => Ok(command::RedirectionTarget::Fd(*fd)),
 
 			program::RedirectionTarget::Overwrite(arg) => {
 				let pos = self.pos(arg.pos);
@@ -311,7 +163,7 @@ impl<'a> Runtime<'a> {
 					|items| Panic::invalid_command_args("redirection", items, pos)
 				)?;
 
-				Ok(RedirectionTarget::Overwrite(target))
+				Ok(command::RedirectionTarget::Overwrite(target))
 			}
 
 			program::RedirectionTarget::Append(arg) => {
@@ -322,7 +174,7 @@ impl<'a> Runtime<'a> {
 					|items| Panic::invalid_command_args("redirection", items, pos)
 				)?;
 
-				Ok(RedirectionTarget::Append(target))
+				Ok(command::RedirectionTarget::Append(target))
 			},
 		}
 	}
@@ -332,7 +184,7 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		argument: &'static program::Argument,
 		panic: P,
-	) -> Result<Argument, Panic>
+	) -> Result<command::Argument, Panic>
 	where
 		P: FnOnce(u32) -> Panic
 	{
@@ -358,7 +210,7 @@ impl<'a> Runtime<'a> {
 	fn build_argument(
 		&mut self,
 		argument: &'static program::Argument,
-	) -> Result<Box<[Argument]>, Panic> {
+	) -> Result<Box<[command::Argument]>, Panic> {
 		let mut args = Args::default();
 
 		for part in argument.parts.iter() {
@@ -443,7 +295,7 @@ impl<'a> Runtime<'a> {
 
 
 	fn build_basic_value(value: Value, pos: SourcePos) -> Result<Box<[u8]>, Panic> {
-		let string: Option<Vec<u8>> = match &value {
+		let literal: Option<Vec<u8>> = match &value {
 			Value::Nil => Some(b"nil".to_owned().to_vec()),
 			Value::Bool(b) => Some(b.to_string().into()),
 			Value::Int(int) => Some(int.to_string().into()),
@@ -457,7 +309,7 @@ impl<'a> Runtime<'a> {
 			Value::Error(_) => None,
 		};
 
-		string
+		literal
 			.map(Into::into)
 			.ok_or(Panic::type_error(value, pos))
 	}

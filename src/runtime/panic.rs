@@ -3,7 +3,7 @@ use std::{
 	fmt::{self, Display},
 };
 
-use crate::term::color;
+use crate::{io::FileDescriptor, term::color};
 use super::{Value, SourcePos};
 
 
@@ -60,6 +60,11 @@ pub enum Panic {
 		error: io::Error,
 		pos: SourcePos,
 	},
+	/// Redirection of the given file descriptor is currently unsupported.
+	UnsupportedFileDescriptor {
+		fd: FileDescriptor,
+		pos: SourcePos,
+	}
 }
 
 
@@ -127,6 +132,12 @@ impl Panic {
 	/// IO error.
 	pub fn io(error: io::Error, pos: SourcePos) -> Self {
 		Self::Io { error, pos }
+	}
+
+
+	/// Redirection of the given file descriptor is currently unsupported.
+	pub fn unsupported_fd(fd: FileDescriptor, pos: SourcePos) -> Self {
+		Self::UnsupportedFileDescriptor { fd, pos }
 	}
 
 
@@ -205,6 +216,15 @@ impl Display for Panic {
 
 			Self::Io { error, pos } =>
 				write!(f, "{} in {}: {}", panic, pos, error),
+
+			Self::UnsupportedFileDescriptor { fd, pos } =>
+				write!(
+					f,
+					"{} in {}: unsupported file descriptor ({})",
+					panic,
+					pos,
+					color::Fg(color::Yellow, fd)
+				),
 
 			Self::AssignToErrorField { field, pos } => write!(
 					f,

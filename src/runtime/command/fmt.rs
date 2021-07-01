@@ -3,15 +3,7 @@ use std::{
 	os::unix::ffi::OsStrExt,
 };
 
-use super::{
-	Argument,
-	RedirectionTarget,
-	Redirection,
-	Builtin,
-	BasicCommand,
-	Command,
-	CommandBlock,
-};
+use super::command;
 
 use crate::{
 	syntax::lexer::CommandOperator,
@@ -20,13 +12,13 @@ use crate::{
 };
 
 
-impl Display for Argument {
+impl Display for command::Argument {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		'"'.fmt(f)?;
 
 		match self {
-			Argument::Regex(regex) => regex.fmt(f)?,
-			Argument::Literal(lit) => String::from_utf8_lossy(lit.as_bytes()).escape_debug().fmt(f)?,
+			Self::Regex(regex) => regex.fmt(f)?,
+			Self::Literal(lit) => String::from_utf8_lossy(lit.as_bytes()).escape_debug().fmt(f)?,
 		};
 
 		'"'.fmt(f)
@@ -34,7 +26,7 @@ impl Display for Argument {
 }
 
 
-impl Display for RedirectionTarget {
+impl Display for command::RedirectionTarget {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Fd(fd) => write!(f, ">{}", fd),
@@ -53,7 +45,7 @@ impl Display for RedirectionTarget {
 }
 
 
-impl Display for Redirection {
+impl Display for command::Redirection {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Output { source, target } => {
@@ -75,11 +67,11 @@ impl Display for Redirection {
 }
 
 
-impl Display for Builtin {
+impl Display for command::Builtin {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let command = match self {
-			Builtin::Alias => "alias",
-			Builtin::Cd => "cd",
+			Self::Alias => "alias",
+			Self::Cd => "cd",
 		};
 
 		color::Fg(color::Green, command).fmt(f)
@@ -87,7 +79,7 @@ impl Display for Builtin {
 }
 
 
-impl Display for BasicCommand {
+impl Display for command::BasicCommand {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		self.program.fmt(f)?;
 
@@ -111,10 +103,10 @@ impl Display for BasicCommand {
 }
 
 
-impl Display for Command {
+impl Display for command::Command {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
-			Command::Builtin { program, arguments, abort_on_error, .. } => {
+			Self::Builtin { program, arguments, abort_on_error, .. } => {
 				program.fmt(f)?;
 
 				for arg in arguments.iter() {
@@ -128,7 +120,7 @@ impl Display for Command {
 				}
 			}
 
-			Command::External { head, tail } => {
+			Self::External { head, tail } => {
 				head.fmt(f)?;
 
 				for command in tail.iter() {
@@ -146,10 +138,9 @@ impl Display for Command {
 }
 
 
-impl Display for CommandBlock {
+impl Display for command::Block {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		"{\n".fmt(f)?;
-		Indentation(1).fmt(f)?;
 
 		fmt::sep_by(
 			std::iter::once(&self.head).chain(self.tail.iter()),
