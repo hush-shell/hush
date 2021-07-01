@@ -78,9 +78,10 @@ impl Display for Dict {
 
 impl Display for Str {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", String::from_utf8_lossy(self.as_ref()).escape_debug())
+		write!(f, "\"{}\"", String::from_utf8_lossy(self.as_ref()).escape_debug())
 	}
 }
+
 
 impl Display for Value {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

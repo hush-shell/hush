@@ -101,6 +101,13 @@ from_variant!(Function, Function);
 from_variant!(Error, Error);
 
 
+impl From<()> for Value {
+	fn from(_: ()) -> Self {
+		Self::Nil
+	}
+}
+
+
 impl<'a> From<&'a [u8]> for Value {
 	fn from(string: &'a [u8]) -> Self {
 		let string: Str = string.into();
@@ -166,5 +173,31 @@ impl<T: NativeFun> From<T> for Value {
 	fn from(fun: T) -> Self {
 		let fun: Function = fun.into();
 		fun.into()
+	}
+}
+
+
+impl<T> From<Option<T>> for Value
+where
+	T: Into<Value>,
+{
+	fn from(option: Option<T>) -> Self {
+		option
+			.map(Into::into)
+			.unwrap_or(Value::Nil)
+	}
+}
+
+
+impl<T, E> From<Result<T, E>> for Value
+where
+	T: Into<Value>,
+	E: Into<Error>,
+{
+	fn from(result: Result<T, E>) -> Self {
+		match result {
+			Ok(value) => value.into(),
+			Err(error) => Value::Error(error.into()),
+		}
 	}
 }

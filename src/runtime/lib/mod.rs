@@ -2,7 +2,9 @@ mod util;
 
 use std::{
 	collections::HashMap,
+	ffi::OsStr,
 	io::{self, Write},
+	path::PathBuf,
 };
 
 use gc::{Finalize, Trace};
@@ -25,16 +27,20 @@ use super::{
 pub fn new() -> Value {
 	let mut dict = HashMap::new();
 
-	dict.insert("print".into(), Print.into());
-	dict.insert("len".into(), Length.into());
-	dict.insert("iter".into(), Iter.into());
-	dict.insert("type".into(), Type.into());
-	dict.insert("push".into(), Push.into());
-	dict.insert("pop".into(), Pop.into());
-	dict.insert("is_empty".into(), IsEmpty.into());
-	dict.insert("error".into(), ErrorFun.into());
-	dict.insert("range".into(), Range.into());
+	dict.insert("cd".into(), Cd.into());
+	dict.insert("cwd".into(), Cwd.into());
 	dict.insert("env".into(), Env.into());
+	dict.insert("error".into(), ErrorFun.into());
+	dict.insert("has_error".into(), HasError.into());
+	dict.insert("is_empty".into(), IsEmpty.into());
+	dict.insert("iter".into(), Iter.into());
+	dict.insert("len".into(), Length.into());
+	dict.insert("pop".into(), Pop.into());
+	dict.insert("print".into(), Print.into());
+	dict.insert("push".into(), Push.into());
+	dict.insert("range".into(), Range.into());
+	dict.insert("to_string".into(), ToString.into());
+	dict.insert("type".into(), Type.into());
 
 	Dict::new(dict).into()
 }
@@ -43,6 +49,18 @@ pub fn new() -> Value {
 /// std.print
 #[derive(Trace, Finalize)]
 struct Print;
+
+
+impl Print {
+	fn print<W: Write>(value: &Value, mut writer: W) -> io::Result<()> {
+		match value {
+			Value::String(string) => writer.write_all(string.as_ref()),
+			Value::Byte(byte) => writer.write_all(&[*byte]),
+			value => write!(writer, "{}", value),
+		}
+	}
+}
+
 
 impl NativeFun for Print {
 	fn name(&self) -> &'static str { "std.print" }
@@ -54,12 +72,15 @@ impl NativeFun for Print {
 		let mut iter = args.iter();
 
 		if let Some(value) = iter.next() {
-			write!(stdout, "{}", value)
+			Self::print(value, &mut stdout)
 				.map_err(|error| Panic::io(error, pos.copy()))?;
 		}
 
 		for value in iter {
-			write!(stdout, "\t{}", value)
+			write!(stdout, "\t")
+				.map_err(|error| Panic::io(error, pos.copy()))?;
+
+			Self::print(value, &mut stdout)
 				.map_err(|error| Panic::io(error, pos.copy()))?;
 		}
 
@@ -437,5 +458,113 @@ impl NativeFun for Env {
 			[ other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
+	}
+}
+
+
+/// std.has_error
+#[derive(Trace, Finalize)]
+struct HasError;
+
+impl HasError {
+	fn has_error(value: &Value) -> bool {
+		match value {
+			Value::Error(_) => true,
+
+			Value::Array(array) => {
+				for value in array.borrow().iter() {
+					if Self::has_error(value) {
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			Value::Dict(dict) => {
+				for (key, value) in dict.borrow().iter() {
+					if Self::has_error(key) || Self::has_error(value) {
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			_ => false,
+		}
+	}
+}
+
+
+impl NativeFun for HasError {
+	fn name(&self) -> &'static str { "std.has_error" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ value ] => Ok(Self::has_error(value).into()),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
+	}
+}
+
+
+/// std.to_string
+#[derive(Trace, Finalize)]
+struct ToString;
+
+impl NativeFun for ToString {
+	fn name(&self) -> &'static str { "std.to_string" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::String(ref string) ] => Ok(string.copy().into()),
+			[ value ] => Ok(value.to_string().into()),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
+	}
+}
+
+
+/// std.cd
+#[derive(Trace, Finalize)]
+struct Cd;
+
+impl NativeFun for Cd {
+	fn name(&self) -> &'static str { "std.cd" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::String(ref string) ] => Ok(
+				std::env
+					::set_current_dir(AsRef::<OsStr>::as_ref(string))
+					.into()
+			),
+
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
+	}
+}
+
+
+/// std.cwd
+#[derive(Trace, Finalize)]
+struct Cwd;
+
+impl NativeFun for Cwd {
+	fn name(&self) -> &'static str { "std.cwd" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		if !args.is_empty() {
+			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
+		}
+
+		Ok(
+			std::env
+				::current_dir()
+				.map(PathBuf::into_os_string)
+				.into()
+		)
 	}
 }

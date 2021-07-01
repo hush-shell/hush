@@ -1,4 +1,5 @@
 use std::{
+	io,
 	hash::{Hash, Hasher},
 	ops::Deref,
 };
@@ -66,5 +67,12 @@ impl Hash for Error {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.description.hash(state);
 		self.context.deref().borrow().hash(state);
+	}
+}
+
+
+impl From<io::Error> for Error {
+	fn from(error: io::Error) -> Self {
+		Self::new(error.to_string().into(), Value::Nil)
 	}
 }
