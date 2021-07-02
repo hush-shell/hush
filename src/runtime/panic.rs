@@ -44,8 +44,8 @@ pub enum Panic {
 		value: Value,
 		pos: SourcePos,
 	},
-	/// Attempt to assign a field of an error value.
-	AssignToErrorField {
+	/// Attempt to assign a readonly field value.
+	AssignToReadonlyField {
 		field: Value,
 		pos: SourcePos,
 	},
@@ -64,7 +64,9 @@ pub enum Panic {
 	UnsupportedFileDescriptor {
 		fd: FileDescriptor,
 		pos: SourcePos,
-	}
+	},
+	/// Assertion failed.
+	AssertionFailed { pos: SourcePos },
 }
 
 
@@ -72,6 +74,12 @@ impl Panic {
 	/// Attempt to increase the stack past it's maximum size.
 	pub fn stack_overflow(pos: SourcePos) -> Self {
 		Self::StackOverflow { pos }
+	}
+
+
+	/// Assertion failed.
+	pub fn assertion_failed(pos: SourcePos) -> Self {
+		Self::AssertionFailed { pos }
 	}
 
 
@@ -141,9 +149,9 @@ impl Panic {
 	}
 
 
-	/// Attempt to assign a field of an error value.
-	pub fn assign_to_error_field(field: Value, pos: SourcePos) -> Self {
-		Self::AssignToErrorField { field, pos }
+	/// Attempt to assign a readonly field value.
+	pub fn assign_to_readonly_field(field: Value, pos: SourcePos) -> Self {
+		Self::AssignToReadonlyField { field, pos }
 	}
 }
 
@@ -226,13 +234,16 @@ impl Display for Panic {
 					color::Fg(color::Yellow, fd)
 				),
 
-			Self::AssignToErrorField { field, pos } => write!(
+			Self::AssignToReadonlyField { field, pos } => write!(
 					f,
-					"{} in {}: attempt to assign field ({}) in an error value, which is immutable",
+					"{} in {}: attempt to assign field ({}), which is readonly",
 					panic,
 					pos,
 					color::Fg(color::Yellow, field)
 				),
+
+			Self::AssertionFailed { pos } =>
+				write!(f, "{} in {}: assertion failed", panic, pos),
 		}
 	}
 }

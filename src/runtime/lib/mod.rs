@@ -27,6 +27,7 @@ use super::{
 pub fn new() -> Value {
 	let mut dict = HashMap::new();
 
+	dict.insert("assert".into(), Assert.into());
 	dict.insert("cd".into(), Cd.into());
 	dict.insert("cwd".into(), Cwd.into());
 	dict.insert("env".into(), Env.into());
@@ -105,7 +106,7 @@ impl NativeFun for Type {
 			pub static BOOL: Value = "bool".into();
 			pub static INT: Value = "int".into();
 			pub static FLOAT: Value = "float".into();
-			pub static BYTE: Value = "byte".into();
+			pub static BYTE: Value = "char".into();
 			pub static STRING: Value = "string".into();
 			pub static ARRAY: Value = "array".into();
 			pub static DICT: Value = "dict".into();
@@ -566,5 +567,24 @@ impl NativeFun for Cwd {
 				.map(PathBuf::into_os_string)
 				.into()
 		)
+	}
+}
+
+
+/// std.assert
+#[derive(Trace, Finalize)]
+struct Assert;
+
+impl NativeFun for Assert {
+	fn name(&self) -> &'static str { "std.assert" }
+
+	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+		match args {
+			[ Value::Bool(true) ] => Ok(Value::default()),
+			[ Value::Bool(false) ] => Err(Panic::assertion_failed(pos)),
+
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
 	}
 }

@@ -423,7 +423,7 @@ impl<'a> Runtime<'a> {
 
 							(Value::Array(_), field) => return Err(Panic::type_error(field, field_pos)),
 
-							(Value::Error(_), field) => return Err(Panic::assign_to_error_field(field, field_pos)),
+							(Value::Error(_), field) => return Err(Panic::assign_to_readonly_field(field, field_pos)),
 
 							(obj, _) => return Err(Panic::type_error(obj, obj_pos)),
 						};
