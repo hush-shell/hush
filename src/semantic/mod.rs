@@ -596,6 +596,11 @@ impl<'a> Analyzer<'a> {
 	/// Analyze a basic command.
 	/// None is returned if any error is detected.
 	fn analyze_basic_command(&mut self, command: ast::BasicCommand) -> Option<BasicCommand> {
+		if let Ok(_) = command::Builtin::try_from(&command.program) {
+			self.report(Error::async_builtin(command.pos));
+			return None;
+		};
+
 		let program = self.analyze_argument(command.program);
 
 		let arguments = self.analyze_items(
