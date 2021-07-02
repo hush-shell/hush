@@ -10,6 +10,7 @@ use super::{
 	mem,
 	program,
 	Panic,
+	Runtime,
 	SourcePos,
 	Value,
 };
@@ -143,9 +144,17 @@ pub trait NativeFun: Trace + Finalize + 'static {
 	fn name(&self) -> &'static str;
 	/// Invoke the function.
 	/// Parameters:
-	/// - A slice of arguments.
+	/// - The runtime.
+	/// - Self value.
+	/// - The offset in the arguments vector of the parameters.
 	/// - The source position of the call, which allows proper location of panics.
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic>;
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic>;
 }
 
 
@@ -169,10 +178,18 @@ impl RustFun {
 
 	/// Invoke the function.
 	/// Parameters:
-	/// - A slice of arguments.
+	/// - The runtime.
+	/// - Self value.
+	/// - The offset in the arguments vector of the parameters.
 	/// - The source position of the call, which allows proper location of panics.
-	pub fn call(&self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
-		self.0.deref().borrow_mut().call(args, pos)
+	pub fn call(
+		&self,
+		runtime: &mut Runtime,
+		obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		self.0.deref().borrow_mut().call(runtime, obj, args_start, pos)
 	}
 }
 

@@ -15,8 +15,10 @@ use super::{
 	Dict,
 	Error,
 	Float,
+	Function,
 	NativeFun,
 	Panic,
+	Runtime,
 	SourcePos,
 	Str,
 	Value,
@@ -28,6 +30,7 @@ pub fn new() -> Value {
 	let mut dict = HashMap::new();
 
 	dict.insert("assert".into(), Assert.into());
+	dict.insert("bind".into(), Bind.into());
 	dict.insert("cd".into(), Cd.into());
 	dict.insert("cwd".into(), Cwd.into());
 	dict.insert("env".into(), Env.into());
@@ -66,7 +69,15 @@ impl Print {
 impl NativeFun for Print {
 	fn name(&self) -> &'static str { "std.print" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		let stdout = io::stdout();
 		let mut stdout = stdout.lock();
 
@@ -100,7 +111,15 @@ struct Type;
 impl NativeFun for Type {
 	fn name(&self) -> &'static str { "std.type" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		thread_local! {
 			pub static NIL: Value = "nil".into();
 			pub static BOOL: Value = "bool".into();
@@ -140,7 +159,15 @@ struct Length;
 impl NativeFun for Length {
 	fn name(&self) -> &'static str { "std.len" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
 			[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
@@ -159,7 +186,15 @@ struct Iter;
 impl NativeFun for Iter {
 	fn name(&self) -> &'static str { "std.iter" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::Array(ref array) ] => Ok(
 				IterImpl::Array {
@@ -210,7 +245,15 @@ enum IterImpl {
 impl NativeFun for IterImpl {
 	fn name(&self) -> &'static str { "std.iter<impl>" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
 		}
@@ -277,7 +320,15 @@ struct Push;
 impl NativeFun for Push {
 	fn name(&self) -> &'static str { "std.push" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &mut runtime.arguments[args_start..];
+
 		match args {
 			[ Value::Array(ref mut array), value ] => {
 				array.push(value.copy());
@@ -298,7 +349,15 @@ struct Pop;
 impl NativeFun for Pop {
 	fn name(&self) -> &'static str { "std.pop" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &mut runtime.arguments[args_start..];
+
 		match args {
 			[ Value::Array(ref mut array) ] => {
 				let value = array
@@ -322,7 +381,15 @@ struct IsEmpty;
 impl NativeFun for IsEmpty {
 	fn name(&self) -> &'static str { "std.is_empty" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::Array(ref array) ] => Ok(array.is_empty().into()),
 
@@ -344,7 +411,15 @@ struct ErrorFun;
 impl NativeFun for ErrorFun {
 	fn name(&self) -> &'static str { "std.error" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::String(ref string), context ] => Ok(
 				Error
@@ -366,7 +441,15 @@ struct Range;
 impl NativeFun for Range {
 	fn name(&self) -> &'static str { "std.range" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ from, to, step ] => {
 				let numbers = util::Numbers
@@ -403,7 +486,15 @@ where
 {
 	fn name(&self) -> &'static str { "std.range<impl>" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
 		}
@@ -447,7 +538,15 @@ struct Env;
 impl NativeFun for Env {
 	fn name(&self) -> &'static str { "std.env" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::String(ref string) ] => Ok(
 				std::env
@@ -501,7 +600,15 @@ impl HasError {
 impl NativeFun for HasError {
 	fn name(&self) -> &'static str { "std.has_error" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ value ] => Ok(Self::has_error(value).into()),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
@@ -517,7 +624,15 @@ struct ToString;
 impl NativeFun for ToString {
 	fn name(&self) -> &'static str { "std.to_string" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::String(ref string) ] => Ok(string.copy().into()),
 			[ value ] => Ok(value.to_string().into()),
@@ -534,7 +649,15 @@ struct Cd;
 impl NativeFun for Cd {
 	fn name(&self) -> &'static str { "std.cd" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::String(ref string) ] => Ok(
 				std::env
@@ -556,7 +679,15 @@ struct Cwd;
 impl NativeFun for Cwd {
 	fn name(&self) -> &'static str { "std.cwd" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
 		}
@@ -578,7 +709,15 @@ struct Assert;
 impl NativeFun for Assert {
 	fn name(&self) -> &'static str { "std.assert" }
 
-	fn call(&mut self, args: &mut [Value], pos: SourcePos) -> Result<Value, Panic> {
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
 		match args {
 			[ Value::Bool(true) ] => Ok(Value::default()),
 			[ Value::Bool(false) ] => Err(Panic::assertion_failed(pos)),
@@ -586,5 +725,57 @@ impl NativeFun for Assert {
 			[ other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
+	}
+}
+
+
+/// std.bind
+#[derive(Trace, Finalize)]
+struct Bind;
+
+impl NativeFun for Bind {
+	fn name(&self) -> &'static str { "std.bind" }
+
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
+		match args {
+			[ obj, Value::Function(fun) ] => Ok(
+				BindImpl {
+					obj: obj.copy(),
+					fun: fun.copy(),
+				}.into()
+			),
+
+			[ _, other ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 2, pos))
+		}
+	}
+}
+
+
+#[derive(Trace, Finalize)]
+struct BindImpl {
+	obj: Value,
+	fun: Function,
+}
+
+impl NativeFun for BindImpl {
+	fn name(&self) -> &'static str { "std.bind<impl>" }
+
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		runtime.call(self.obj.copy(), &self.fun, args_start, pos)
 	}
 }

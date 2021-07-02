@@ -16,8 +16,9 @@ use gc::{Finalize, Trace};
 use super::{
 	program,
 	mem,
-	panic::Panic,
-	source::SourcePos,
+	Panic,
+	Runtime,
+	SourcePos,
 };
 pub use array::Array;
 pub use dict::{keys, Dict};

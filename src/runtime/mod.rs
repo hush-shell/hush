@@ -220,22 +220,22 @@ impl<'a> Runtime<'a> {
 
 
 	/// Execute an expression.
-	/// Returns a triple of (flow, expr pos, optional self value) or panic.
+	/// Returns a triple of (flow, expr pos, self value) or panic.
 	fn eval_expr(
 		&mut self,
 		expr: &'static program::Expr
-	) -> Result<(Flow, SourcePos, Option<Value>), Panic> {
+	) -> Result<(Flow, SourcePos, Value), Panic> {
 		self.eval_tail_expr(expr, |_| ())
 	}
 
 
 	/// Execute an expression.
-	/// Returns a triple of (flow, expr pos, optional self value) or panic.
+	/// Returns a triple of (flow, expr pos, self value) or panic.
 	fn eval_tail_expr<F>(
 		&mut self,
 		expr: &'static program::Expr,
 		tail_call: F,
-	) -> Result<(Flow, SourcePos, Option<Value>), Panic>
+	) -> Result<(Flow, SourcePos, Value), Panic>
 	where
 		F: FnOnce(&mut Self),
 	{
@@ -243,7 +243,7 @@ impl<'a> Runtime<'a> {
 			($expr: expr, $pos: expr) => {
 				match self.eval_expr($expr)? {
 					(Flow::Regular(value), pos, _) => (value, pos),
-					(flow, _, _) => return Ok((flow, $pos, None))
+					(flow, _, _) => return Ok((flow, $pos, Value::default()))
 				};
 			}
 		}
@@ -252,13 +252,13 @@ impl<'a> Runtime<'a> {
 			// Identifier.
 			program::Expr::Identifier { slot_ix, pos } => {
 				let value = self.stack.fetch(slot_ix.into());
-				Ok((Flow::Regular(value), self.pos(*pos), None))
+				Ok((Flow::Regular(value), self.pos(*pos), Value::default()))
 			},
 
 			// Literal.
 			program::Expr::Literal { literal, pos } => {
 				let flow = self.eval_literal(literal, *pos)?;
-				Ok((flow, self.pos(*pos), None))
+				Ok((flow, self.pos(*pos), Value::default()))
 			},
 
 			// UnaryOp.
@@ -267,7 +267,7 @@ impl<'a> Runtime<'a> {
 
 				let flow = self.unary_op(op, operand)?;
 
-				Ok((flow, pos, None))
+				Ok((flow, pos, Value::default()))
 			}
 
 			// BinaryOp.
@@ -276,7 +276,7 @@ impl<'a> Runtime<'a> {
 
 				let flow = self.binary_op(left, op, right, &pos)?;
 
-				Ok((flow, pos, None))
+				Ok((flow, pos, Value::default()))
 			}
 
 			// If.
@@ -286,7 +286,7 @@ impl<'a> Runtime<'a> {
 				let condition = match self.eval_expr(condition)? {
 					(Flow::Regular(Value::Bool(b)), _, _) => b,
 					(Flow::Regular(value), pos, _) => return Err(Panic::invalid_condition(value, pos)),
-					(flow, _, _) => return Ok((flow, pos, None))
+					(flow, _, _) => return Ok((flow, pos, Value::default()))
 				};
 
 				let value = if condition {
@@ -295,7 +295,7 @@ impl<'a> Runtime<'a> {
 					self.eval_block(otherwise)
 				}?;
 
-				Ok((value, pos, None))
+				Ok((value, pos, Value::default()))
 			}
 
 			// Access.
@@ -327,7 +327,7 @@ impl<'a> Runtime<'a> {
 					(_, _) => return Err(Panic::type_error(obj, obj_pos)),
 				}?;
 
-				Ok((Flow::Regular(value), pos, Some(obj)))
+				Ok((Flow::Regular(value), pos, obj))
 			}
 
 			// Call.
@@ -338,7 +338,7 @@ impl<'a> Runtime<'a> {
 				let (function, obj) = match self.eval_expr(function)? {
 					(Flow::Regular(Value::Function(ref fun)), _, obj) => (fun.copy(), obj),
 					(Flow::Regular(value), pos, _) => return Err(Panic::invalid_call(value, pos)),
-					(flow, _, _) => return Ok((flow, pos, None)),
+					(flow, _, _) => return Ok((flow, pos, Value::default())),
 				};
 
 				// Eval arguments.
@@ -351,7 +351,7 @@ impl<'a> Runtime<'a> {
 						(Flow::Regular(value), _, _) => self.arguments.push(value),
 						(flow, _, _) => {
 							self.arguments.truncate(args_start);
-							return Ok((flow, pos, None));
+							return Ok((flow, pos, Value::default()));
 						}
 					}
 				}
@@ -360,13 +360,13 @@ impl<'a> Runtime<'a> {
 
 				let value = self.call(obj, &function, args_start, pos.copy())?;
 
-				Ok((Flow::Regular(value), pos, None))
+				Ok((Flow::Regular(value), pos, Value::default()))
 			}
 
 			// CommandBlock.
 			program::Expr::CommandBlock { block, pos } => {
 				let value = self.eval_command_block(block)?;
-				Ok((Flow::Regular(value), self.pos(*pos), None))
+				Ok((Flow::Regular(value), self.pos(*pos), Value::default()))
 			}
 		}
 	}
@@ -481,7 +481,7 @@ impl<'a> Runtime<'a> {
 					// While evaluating arguments, we may need to call other functions, so we must
 					// keep track of when our arguments start.
 					let args_start = self.arguments.len();
-					match self.call(None, &iter, args_start, pos.copy())? {
+					match self.call(Value::default(), &iter, args_start, pos.copy())? {
 						Value::Dict(ref dict) => {
 							let finished = keys::FINISHED.with(
 								|finished| dict
@@ -533,7 +533,7 @@ impl<'a> Runtime<'a> {
 	/// The arguments are expected to be on the self.arguments vector.
 	fn call(
 		&mut self,
-		obj: Option<Value>,
+		obj: Value,
 		function: &Function,
 		args_start: usize,
 		pos: SourcePos,
@@ -564,7 +564,7 @@ impl<'a> Runtime<'a> {
 				}
 
 				// Place self.
-				if let (Some(obj), Some(slot_ix)) = (obj, frame_info.self_slot) {
+				if let Some(slot_ix) = frame_info.self_slot {
 					self.stack.store(slot_ix.into(), obj);
 				}
 
@@ -592,7 +592,7 @@ impl<'a> Runtime<'a> {
 			}
 
 			Function::Rust(fun) => {
-				let result = fun.call(&mut self.arguments[args_start..], pos);
+				let result = fun.call(self, obj, args_start, pos);
 
 				self.arguments.truncate(args_start);
 
