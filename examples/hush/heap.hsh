@@ -38,7 +38,7 @@ let Heap = function(array, cmp)
 
 		# Recursively update a node down in the array.
 		_percolate_down: function (index)
-			let size = std.length(self._data)
+			let size = std.len(self._data)
 			let max = 0
 			let left = 2 * index
 			let right = left + 1
@@ -64,7 +64,7 @@ let Heap = function(array, cmp)
 
 		# Get the size of the collection.
 		size: function ()
-			std.length(self._data)
+			std.len(self._data)
 		end,
 
 		# Returns whether the collection is empty.
@@ -104,11 +104,11 @@ let Heap = function(array, cmp)
 		push: function (elem)
 			std.push(self._data, elem)
 
-			self._percolate_up(self.size())
+			self._percolate_up(self.size() - 1)
 		end,
 	]
 
-	for i in std.range(heap.size() / 2, 0, -1) do
+	for i in std.range(heap.size() / 2, -1, -1) do
 		heap._percolate_down(i)
 	end
 

@@ -32,7 +32,7 @@ function Iterator(next)
 		# * n: the desired element index
 		# Returns the nth element.
 		nth: function (n)
-			for _ in std.range(0, n) do
+			for _ in std.range(0, n, 1) do
 				let iteration = self.next()
 
 				if iteration.finished then
@@ -103,6 +103,14 @@ function Iterator(next)
 		end,
 
 
+		skip: function(size)
+			if size > 0 then
+				self.nth(size - 1)
+			end
+			self
+		end,
+
+
 		# Iterate up to some elements.
 		# This function is lazy.
 		# The iterator that will stop after `size` elements.
@@ -164,7 +172,7 @@ function Iterator(next)
 		# It builds a heap on call, and each iteration step pops from the heap.
 		# Returns a sorted iterator, consuming self.
 		sorted: function (cmp)
-			let heap = Heap(self.collect(), cmp)
+			let heap = Heap(self.collect(nil), cmp)
 
 			Iterator(
 				function ()
@@ -197,7 +205,9 @@ function Iterator(next)
 				if type == "array" then
 					result = target
 				end
-				push = std.bind(result, result.push)
+				push = function (item)
+					std.push(result, item)
+				end
 			end
 
 			for item in self.iter() do
@@ -218,10 +228,12 @@ function Array(array)
 	# Don't use `std.iter` in order to be able to optimize `nth`.
 	let it = Iterator(
 		function ()
-			return if ix >= std.length(array) then
+			return if ix >= std.len(array) then
 				@[ finished: true ]
 			else
-				@[ finished: false, value: array[ix] ]
+				let value = array[ix]
+				ix = ix + 1
+				@[ finished: false, value: value ]
 			end
 		end
 	)
