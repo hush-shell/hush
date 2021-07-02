@@ -1,8 +1,6 @@
 mod command;
 pub mod fmt;
 
-use std::path::Path;
-
 use super::{lexer, SourcePos};
 pub use crate::symbol::Symbol;
 pub use command::{
@@ -56,7 +54,7 @@ where
 
 impl IllFormed for SourcePos {
 	fn ill_formed() -> Self {
-		Self { line: 0, column: 0 }
+		Self { line: 0, column: 0, path: Symbol::default() }
 	}
 
 	fn is_ill_formed(&self) -> bool {
@@ -351,7 +349,7 @@ impl IllFormed for Statement {
 #[derive(Debug)]
 pub struct Ast {
 	/// The source path. May be something fictional, like "<stdin>".
-	pub path: Box<Path>,
+	pub source: Symbol,
 	/// The program.
 	pub statements: Block,
 }

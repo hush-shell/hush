@@ -611,7 +611,12 @@ impl<'a> Display<'a> for Program {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		if context.indentation.is_some() {
-			writeln!(f, "{} for {}", color::Fg(color::Yellow, "Program"), self.source.display())?;
+			writeln!(
+				f,
+				"{} for {}",
+				color::Fg(color::Yellow, "Program"),
+				fmt::Show(self.source, context.interner)
+			)?;
 		}
 
 		let root_frame = mem::FrameInfo {

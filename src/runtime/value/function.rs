@@ -1,5 +1,6 @@
 use std::{
 	cmp::Ordering,
+	fmt::{self, Debug},
 	hash::{Hash, Hasher},
 	ops::Deref,
 };
@@ -190,6 +191,13 @@ impl RustFun {
 		pos: SourcePos,
 	) -> Result<Value, Panic> {
 		self.0.deref().borrow_mut().call(runtime, obj, args_start, pos)
+	}
+}
+
+
+impl Debug for RustFun {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.name())
 	}
 }
 

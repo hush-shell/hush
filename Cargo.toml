@@ -8,7 +8,7 @@ edition = "2018"
 clap = "2.33"
 termion = "1.5"
 
-string-interner = { version = "0.12", default-features = false, features = [ "std", "inline-more", "backends" ] }
+intaglio = "1.2"
 gc = { version = "0.4", features = ["derive"] }
 regex = { version = "1.5", default-features = false, features = [ "std" ]}
 

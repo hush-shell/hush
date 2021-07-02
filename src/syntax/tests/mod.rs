@@ -1,4 +1,8 @@
-use std::{io, path::Path};
+use std::{
+	io,
+	path::Path,
+	os::unix::ffi::OsStrExt,
+};
 
 use crate::{fmt, symbol, tests};
 use super::{Analysis, Source};
@@ -14,7 +18,8 @@ where
 	tests::util::test_dir(
 		path,
 		move |path, file| {
-			let source = Source::from_reader(path, file)?;
+			let path_symbol = interner.get_or_intern(path.as_os_str().as_bytes());
+			let source = Source::from_reader(path_symbol, file)?;
 			let analysis = Analysis::analyze(source, &mut interner);
 
 			if !check(&analysis) {

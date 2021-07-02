@@ -595,7 +595,12 @@ impl<'a> Display<'a> for Ast {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		if context.indentation.is_some() {
-			writeln!(f, "{} for {}", color::Fg(color::Yellow, "AST"), self.path.display())?;
+			writeln!(
+				f,
+				"{} for {}",
+				color::Fg(color::Yellow, "AST"),
+				fmt::Show(self.source, context.interner)
+			)?;
 		}
 
 		self.statements.fmt(f, context)

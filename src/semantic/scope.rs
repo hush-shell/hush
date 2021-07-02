@@ -250,7 +250,7 @@ impl Stack {
 					.expect("unresolved symbol")
 					.to_owned();
 
-				identifier.push_str("@closed");
+				identifier.extend(b"@closed");
 
 				interner.get_or_intern(identifier)
 			};

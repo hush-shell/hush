@@ -9,6 +9,10 @@ use std::{
 
 use gc::{Finalize, Trace};
 
+use crate::{
+	fmt::{self, FmtString},
+	symbol
+};
 use super::{
 	keys,
 	Array,
@@ -56,11 +60,11 @@ struct Print;
 
 
 impl Print {
-	fn print<W: Write>(value: &Value, mut writer: W) -> io::Result<()> {
+	fn print<W: Write>(value: &Value, interner: &symbol::Interner, mut writer: W) -> io::Result<()> {
 		match value {
 			Value::String(string) => writer.write_all(string.as_ref()),
 			Value::Byte(byte) => writer.write_all(&[*byte]),
-			value => write!(writer, "{}", value),
+			value => write!(writer, "{}", fmt::Show(value, interner)),
 		}
 	}
 }
@@ -84,7 +88,7 @@ impl NativeFun for Print {
 		let mut iter = args.iter();
 
 		if let Some(value) = iter.next() {
-			Self::print(value, &mut stdout)
+			Self::print(value, &runtime.interner, &mut stdout)
 				.map_err(|error| Panic::io(error, pos.copy()))?;
 		}
 
@@ -92,7 +96,7 @@ impl NativeFun for Print {
 			write!(stdout, "\t")
 				.map_err(|error| Panic::io(error, pos.copy()))?;
 
-			Self::print(value, &mut stdout)
+			Self::print(value, &runtime.interner, &mut stdout)
 				.map_err(|error| Panic::io(error, pos.copy()))?;
 		}
 
@@ -635,7 +639,7 @@ impl NativeFun for ToString {
 
 		match args {
 			[ Value::String(ref string) ] => Ok(string.copy().into()),
-			[ value ] => Ok(value.to_string().into()),
+			[ value ] => Ok(value.fmt_string(&runtime.interner).into()),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
 	}

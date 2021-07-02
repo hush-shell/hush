@@ -11,12 +11,31 @@ mod term;
 #[cfg(test)]
 mod tests;
 
-use std::path::Path;
-
 use term::color;
 
 use args::{Args, Command};
 use runtime::{Panic, SourcePos};
+
+
+#[derive(Debug)]
+enum ExitStatus {
+	Success,
+	InvalidArgs,
+	StaticError,
+	Panic,
+}
+
+
+impl From<ExitStatus> for i32 {
+	fn from(status: ExitStatus) -> Self {
+		match status {
+			ExitStatus::Success => 0,
+			ExitStatus::InvalidArgs => 1,
+			ExitStatus::StaticError => 2,
+			ExitStatus::Panic => 127,
+		}
+	}
+}
 
 
 fn main() -> ! {
@@ -24,41 +43,33 @@ fn main() -> ! {
 		Ok(command) => command,
 		Err(error) => {
 			eprint!("{}", error);
-			std::process::exit(1)
+			std::process::exit(ExitStatus::InvalidArgs.into())
 		}
 	};
 
-	let result = match command {
+	let exit_status = match command {
 		Command::Run(args) => run(args),
 		Command::Help(msg) | Command::Version(msg) => {
 			println!("{}", msg);
-			std::process::exit(0)
+			ExitStatus::Success
 		},
 	};
 
-
-	let exit_code = match result {
-		Ok(code) => code,
-		Err(error) => {
-			eprintln!("{}", error);
-			1
-		}
-	};
-
-	std::process::exit(exit_code)
+	std::process::exit(exit_status.into())
 }
 
 
-fn run(args: Args) -> Result<i32, Panic> {
+fn run(args: Args) -> ExitStatus {
 	let mut interner = symbol::Interner::new();
-	let file_path = &*Box::leak(Path::new("<stdin>").into());
+	let path = interner.get_or_intern("<stdin>");
 
-	let source = syntax::Source
-		::from_reader(
-			file_path,
-			std::io::stdin().lock()
-		)
-    .map_err(|error| Panic::io(error, SourcePos::file(file_path)))?;
+	let source = match syntax::Source::from_reader(path, std::io::stdin().lock()) {
+    Ok(source) => source,
+    Err(error) => {
+			eprintln!("{}", fmt::Show(Panic::io(error, SourcePos::file(path)), &interner));
+			return ExitStatus::Panic;
+		}
+	};
 
 	// ----------------------------------------------------------------------------------------
 	let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
@@ -96,7 +107,7 @@ fn run(args: Args) -> Result<i32, Panic> {
 				);
 			}
 
-			return Ok(2);
+			return ExitStatus::StaticError;
 		}
 	};
 
@@ -114,16 +125,20 @@ fn run(args: Args) -> Result<i32, Panic> {
 
 	// ----------------------------------------------------------------------------------------
 	if !syntactic_analysis.errors.is_empty() {
-		return Ok(2);
+		return ExitStatus::StaticError;
 	}
 
 	if args.check {
-		return Ok(0)
+		return ExitStatus::Success;
 	}
 
 	let program = Box::leak(Box::new(program));
 
-	runtime::Runtime::eval(program, &mut interner)?;
-
-	Ok(0)
+	match runtime::Runtime::eval(program, &mut interner) {
+    Ok(_) => ExitStatus::Success,
+    Err(panic) => {
+			eprintln!("{}", fmt::Show(panic, &interner));
+			ExitStatus::Panic
+		}
+	}
 }

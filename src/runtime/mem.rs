@@ -1,10 +1,11 @@
-use std::{
-	fmt::{self, Debug, Display},
-	ops::Deref,
-};
+use std::ops::Deref;
 
 use gc::{Gc, GcCell, Finalize, Trace};
 
+use crate::{
+	fmt::{self, Display},
+	symbol,
+};
 use super::{program, Value};
 
 
@@ -97,6 +98,7 @@ impl Default for Slot {
 
 
 /// The call stack.
+#[derive(Debug)]
 pub struct Stack {
 	/// The stack of slots.
 	slots: Vec<Slot>,
@@ -121,7 +123,6 @@ impl Stack {
 		if self.len() > self.max_size {
 			Err(StackOverflow)
 		} else {
-			// println!("extending stack by {}", slots.0);
 			self.slots.resize_with(
 				self.len() + slots.0 as usize,
 				Slot::default
@@ -141,9 +142,7 @@ impl Stack {
 	/// The offset is counted from the top.
 	pub fn fetch(&self, slot_ix: SlotIx) -> Value {
 		let offset = slot_ix.0 as usize;
-		let value = self.slots[self.len() - 1 - offset].fetch();
-		// println!("fetch #{}: {}", offset, value);
-		value
+		self.slots[self.len() - 1 - offset].fetch()
 	}
 
 
@@ -151,7 +150,6 @@ impl Stack {
 	pub fn capture(&mut self, slot_ix: SlotIx) -> Gc<GcCell<Value>> {
 		let len = self.len();
 		let offset = slot_ix.0 as usize;
-		// println!("capturing #{}", offset);
 		self.slots[len - 1 - offset].capture()
 	}
 
@@ -160,7 +158,6 @@ impl Stack {
 	pub fn place(&mut self, slot_ix: SlotIx, value: Gc<GcCell<Value>>) {
 		let len = self.len();
 		let offset = slot_ix.0 as usize;
-		// println!("placing #{}: {}", offset, value.deref().borrow());
 		self.slots[len - 1 - offset].place(value)
 	}
 
@@ -170,7 +167,6 @@ impl Stack {
 	pub fn store(&mut self, slot_ix: SlotIx, value: Value) {
 		let len = self.len();
 		let offset = slot_ix.0 as usize;
-		// println!("storing #{}: {}", offset, value);
 		self.slots[len - 1 - offset].store(value)
 	}
 
@@ -199,10 +195,12 @@ impl Default for Stack {
 }
 
 
-impl Debug for Stack {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<'a> Display<'a> for Stack {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		for (ix, val) in self.slots.iter().rev().enumerate() {
-			writeln!(f, "{}: {}", ix, val.fetch())?;
+			writeln!(f, "{}: {}", ix, fmt::Show(val.fetch(), context))?;
 		}
 
 		Ok(())
@@ -215,8 +213,8 @@ impl Debug for Stack {
 pub struct StackOverflow;
 
 
-impl Display for StackOverflow {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for StackOverflow {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     write!(f, "stack overflow")
   }
 }

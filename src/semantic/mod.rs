@@ -76,7 +76,7 @@ impl<'a> Analyzer<'a> {
 		match result {
 			Some(statements) if errors.0.is_empty() => Ok(
 				Program {
-					source: ast.path,
+					source: ast.source,
 					statements,
 					root_slots: root_frame.slots,
 				}

@@ -1,9 +1,11 @@
-use std::{
-	io,
-	fmt::{self, Display},
-};
+use std::io;
 
-use crate::{io::FileDescriptor, term::color};
+use crate::{
+	fmt::{self, Display},
+	io::FileDescriptor,
+	term::color,
+	symbol,
+};
 use super::{Value, SourcePos};
 
 
@@ -156,39 +158,41 @@ impl Panic {
 }
 
 
-impl Display for Panic {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<'a> Display<'a> for Panic {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		let panic = color::Fg(color::Red, "Panic");
 
 		match self {
 			Self::StackOverflow { pos } =>
-				write!(f, "{} in {}: stack overflow", panic, pos),
+				write!(f, "{} in {}: stack overflow", panic, fmt::Show(pos, context)),
 
 			Self::IntegerOverflow { pos } =>
-				write!(f, "{} in {}: integer overflow", panic, pos),
+				write!(f, "{} in {}: integer overflow", panic, fmt::Show(pos, context)),
 
 			Self::DivisionByZero { pos } =>
-				write!(f, "{} in {}: division by zero", panic, pos),
+				write!(f, "{} in {}: division by zero", panic, fmt::Show(pos, context)),
 
 			Self::IndexOutOfBounds { index, pos } =>
 				write!(
 					f,
 					"{} in {}: index ({}) out of bounds",
 					panic,
-					pos,
-					color::Fg(color::Yellow, index)
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(index, context))
 				),
 
 			Self::EmptyCollection { pos } =>
-				write!(f, "{} in {}: collection is empty", panic, pos),
+				write!(f, "{} in {}: collection is empty", panic, fmt::Show(pos, context)),
 
 			Self::InvalidCall { function, pos } =>
 				write!(
 					f,
 					"{} in {}: attempt to call ({}), which is not a function",
 					panic,
-					pos,
-					color::Fg(color::Yellow, function)
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(function, context))
 				),
 
 			Self::InvalidArgs { supplied, expected, pos } =>
@@ -196,7 +200,7 @@ impl Display for Panic {
 					f,
 					"{} in {}: incorrect ammount of function parameters -- supplied {}, expected {}",
 					panic,
-					pos,
+					fmt::Show(pos, context),
 					supplied,
 					expected
 				),
@@ -206,8 +210,8 @@ impl Display for Panic {
 					f,
 					"{} in {}: condition ({}) is not a boolean",
 					panic,
-					pos,
-					color::Fg(color::Yellow, value)
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(value, context))
 				),
 
 			Self::TypeError { value, pos } =>
@@ -215,22 +219,29 @@ impl Display for Panic {
 					f,
 					"{} in {}: value ({}) has unexpected type",
 					panic,
-					pos,
-					color::Fg(color::Yellow, value)
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(value, context))
 				),
 
 			Self::InvalidCommandArgs { object, items, pos } =>
-				write!(f, "{} in {}: {} expansion resulted in {} items", panic, pos, object, items),
+				write!(
+					f,
+					"{} in {}: {} expansion resulted in {} items",
+					panic,
+					fmt::Show(pos, context),
+					object,
+					items
+				),
 
 			Self::Io { error, pos } =>
-				write!(f, "{} in {}: {}", panic, pos, error),
+				write!(f, "{} in {}: {}", panic, fmt::Show(pos, context), error),
 
 			Self::UnsupportedFileDescriptor { fd, pos } =>
 				write!(
 					f,
 					"{} in {}: unsupported file descriptor ({})",
 					panic,
-					pos,
+					fmt::Show(pos, context),
 					color::Fg(color::Yellow, fd)
 				),
 
@@ -238,13 +249,21 @@ impl Display for Panic {
 					f,
 					"{} in {}: attempt to assign field ({}), which is readonly",
 					panic,
-					pos,
-					color::Fg(color::Yellow, field)
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(field, context))
 				),
 
 			Self::AssertionFailed { pos } =>
-				write!(f, "{} in {}: assertion failed", panic, pos),
+				write!(f, "{} in {}: assertion failed", panic, fmt::Show(pos, context)),
 		}
+	}
+}
+
+
+/// We need this in order to be able to implement std::error::Error.
+impl std::fmt::Display for Panic {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		Display::fmt(self, f, &symbol::Interner::new())
 	}
 }
 

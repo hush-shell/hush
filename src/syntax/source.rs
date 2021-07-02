@@ -2,14 +2,17 @@ use std::{
 	fmt::{self, Display},
 	fs::File,
 	path::Path,
+	os::unix::ffi::OsStrExt,
 };
+
+use crate::symbol::{self, Symbol};
 
 
 /// Hush source code.
 #[derive(Debug)]
 pub struct Source {
 	/// The origin path, may be something fictional like `<stdin>`.
-	pub path: Box<Path>,
+	pub path: Symbol,
 	/// The source code.
 	pub contents: Box<[u8]>,
 }
@@ -17,21 +20,21 @@ pub struct Source {
 
 impl Source {
 	/// Load the source code from a file path.
-	pub fn from_path<P>(path: P) -> std::io::Result<Self>
+	pub fn from_path<P>(path: P, interner: &mut symbol::Interner) -> std::io::Result<Self>
 	where
 		P: Into<Box<Path>>,
 	{
 		let path = path.into();
 		let file = File::open(&path)?;
-		Self::from_reader(path, file)
+		let symbol = interner.get_or_intern(path.as_os_str().as_bytes());
+		Self::from_reader(symbol, file)
 	}
 
 
 	/// Load the source code from a std::io::Read.
 	/// The path argument may be anything, including fictional paths like `<stdin>`.
-	pub fn from_reader<P, R>(path: P, mut reader: R) -> std::io::Result<Self>
+	pub fn from_reader<R>(path: Symbol, mut reader: R) -> std::io::Result<Self>
 	where
-		P: Into<Box<Path>>,
 		R: std::io::Read,
 	{
 		let path = path.into();
@@ -44,10 +47,11 @@ impl Source {
 
 
 /// A human readable position in the source code.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SourcePos {
 	pub line: u32,
 	pub column: u32,
+	pub path: Symbol,
 }
 
 

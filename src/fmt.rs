@@ -51,6 +51,32 @@ where
 }
 
 
+/// A ToString-like trait that takes an additional context when formatting.
+/// This is needed to have access to the string interner when formating the AST or error
+/// messages.
+pub trait FmtString<'a> {
+	/// The format context.
+	type Context: 'a;
+
+	fn fmt_string(&self, context: Self::Context) -> String;
+}
+
+
+impl<'a, T> FmtString<'a> for T
+where
+	T: Display<'a>,
+	T::Context: Copy,
+{
+	type Context = T::Context;
+
+	fn fmt_string(&self, context: Self::Context) -> String {
+		let mut string = String::new();
+		write!(string, "{}", Show(self, context))
+			.expect("a Display implementation returned an error unexpectedly");
+		string
+	}
+}
+
 
 /// An indentation level. Each level corresponds to one tabulation character.
 #[derive(Debug, Default, Copy, Clone)]

@@ -15,7 +15,6 @@ mod tests;
 use std::{
 	collections::HashMap,
 	ops::Deref,
-	path::Path,
 };
 
 use crate::symbol;
@@ -43,7 +42,6 @@ use mem::Stack;
 pub struct Runtime<'a> {
 	stack: Stack,
 	arguments: Vec<Value>,
-	path: &'static Path,
 	interner: &'a mut symbol::Interner,
 }
 
@@ -57,15 +55,15 @@ impl<'a> Runtime<'a> {
 		let mut runtime = Self {
 			stack: Stack::default(),
 			arguments: Vec::new(),
-			path: &program.source,
 			interner,
 		};
 
 		// Global variables.
 		let slots: mem::SlotIx = program.root_slots.into();
 
-		runtime.stack.extend(slots.copy())
-			.map_err(|_| Panic::stack_overflow(SourcePos::file(runtime.path)))?;
+		runtime.stack
+			.extend(slots.copy())
+			.map_err(|_| Panic::stack_overflow(SourcePos::file(program.source)))?;
 
 		// Stdlib.
 		let std = lib::new();
@@ -203,7 +201,7 @@ impl<'a> Runtime<'a> {
 
 				Ok(
 					Flow::Regular(
-						HushFun::new(*params, frame_info, body, context, self.pos(pos)).into()
+						HushFun::new(*params, frame_info, body, context, pos.into()).into()
 					)
 				)
 			},
@@ -254,18 +252,18 @@ impl<'a> Runtime<'a> {
 			// Identifier.
 			program::Expr::Identifier { slot_ix, pos } => {
 				let value = self.stack.fetch(slot_ix.into());
-				Ok((Flow::Regular(value), self.pos(*pos), Value::default()))
+				Ok((Flow::Regular(value), pos.into(), Value::default()))
 			},
 
 			// Literal.
 			program::Expr::Literal { literal, pos } => {
 				let flow = self.eval_literal(literal, *pos)?;
-				Ok((flow, self.pos(*pos), Value::default()))
+				Ok((flow, pos.into(), Value::default()))
 			},
 
 			// UnaryOp.
 			program::Expr::UnaryOp { op, operand, pos } => {
-				let pos = self.pos(*pos);
+				let pos = pos.into();
 
 				let flow = self.unary_op(op, operand)?;
 
@@ -274,7 +272,7 @@ impl<'a> Runtime<'a> {
 
 			// BinaryOp.
 			program::Expr::BinaryOp { left, op, right, pos } => {
-				let pos = self.pos(*pos);
+				let pos = pos.into();
 
 				let flow = self.binary_op(left, op, right, &pos)?;
 
@@ -283,7 +281,7 @@ impl<'a> Runtime<'a> {
 
 			// If.
 			program::Expr::If { condition, then, otherwise, pos } => {
-				let pos = self.pos(*pos);
+				let pos = pos.into();
 
 				let condition = match self.eval_expr(condition)? {
 					(Flow::Regular(Value::Bool(b)), _, _) => b,
@@ -302,7 +300,7 @@ impl<'a> Runtime<'a> {
 
 			// Access.
 			program::Expr::Access { object, field, pos } => {
-				let pos = self.pos(*pos);
+				let pos = pos.into();
 
 				let (obj, obj_pos) = regular_expr!(object, pos);
 				let (field, field_pos) = regular_expr!(field, pos);
@@ -334,7 +332,7 @@ impl<'a> Runtime<'a> {
 
 			// Call.
 			program::Expr::Call { function, args, pos } => {
-				let pos = self.pos(*pos);
+				let pos = pos.into();
 
 				// Eval function.
 				let (function, obj) = match self.eval_expr(function)? {
@@ -368,7 +366,7 @@ impl<'a> Runtime<'a> {
 			// CommandBlock.
 			program::Expr::CommandBlock { block, pos } => {
 				let value = self.eval_command_block(block)?;
-				Ok((Flow::Regular(value), self.pos(*pos), Value::default()))
+				Ok((Flow::Regular(value), pos.into(), Value::default()))
 			}
 		}
 	}
@@ -421,7 +419,7 @@ impl<'a> Runtime<'a> {
 							(Value::Array(ref array), Value::Int(ix)) => array
 								.deref()
 								.set(ix, value)
-								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), self.pos(*pos)))?,
+								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), pos.into()))?,
 
 							(Value::Array(_), field) => return Err(Panic::type_error(field, field_pos)),
 
@@ -691,8 +689,8 @@ impl<'a> Runtime<'a> {
 					(Value::String(ref str1), Value::String(ref str2)) => {
 						let string =
 							[
-								str1.deref().as_ref(),
-								str2.deref().as_ref(),
+								AsRef::<[u8]>::as_ref(str1),
+								AsRef::<[u8]>::as_ref(str2),
 							]
 							.concat::<u8>();
 
@@ -858,11 +856,5 @@ impl<'a> Runtime<'a> {
 			GreaterEquals => ord_operator(|ordering| ordering != Ordering::Less),
 			_ => unreachable!("operator is not ord"),
 		}
-	}
-
-
-	/// Make a SourcePos from the current Path.
-	fn pos(&self, pos: program::SourcePos) -> SourcePos {
-		SourcePos::new(pos, self.path)
 	}
 }

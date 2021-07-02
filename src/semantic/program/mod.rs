@@ -2,8 +2,6 @@ pub mod command;
 pub mod fmt;
 pub mod mem;
 
-use std::path::Path;
-
 use super::{ast, lexer};
 pub use crate::{
 	syntax::SourcePos,
@@ -222,7 +220,7 @@ pub enum Statement {
 #[derive(Debug)]
 pub struct Program {
 	/// The source path. May be something fictional, like "<stdin>".
-	pub source: Box<Path>,
+	pub source: Symbol,
 	/// The program.
 	pub statements: Block,
 	/// How many slots in the root scope.

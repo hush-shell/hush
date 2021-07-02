@@ -1,4 +1,8 @@
-use std::{io, path::Path};
+use std::{
+	io,
+	path::Path,
+	os::unix::ffi::OsStrExt,
+};
 
 use crate::{fmt, symbol, syntax, semantic, tests};
 use super::{Runtime, Value, Panic};
@@ -14,7 +18,8 @@ where
 	tests::util::test_dir(
 		path,
 		move |path, file| {
-			let source = syntax::Source::from_reader(path, file)?;
+			let path_symbol = interner.get_or_intern(path.as_os_str().as_bytes());
+			let source = syntax::Source::from_reader(path_symbol, file)?;
 			let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
 
 			if !syntactic_analysis.errors.is_empty() {
@@ -33,8 +38,8 @@ where
 
 			if !check(&result) {
 				match result {
-					Ok(value) => panic!("{}", value),
-					Err(panic) => panic!("{}", panic),
+					Ok(value) => panic!("{}", fmt::Show(value, &interner)),
+					Err(panic) => panic!("{}", fmt::Show(panic, &interner)),
 				}
 			}
 

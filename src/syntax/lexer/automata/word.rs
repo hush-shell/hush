@@ -82,10 +82,7 @@ pub fn to_token(word: &[u8], interner: &mut SymbolInterner) -> TokenKind {
 
 		// Identifier:
 		ident => {
-			let ident = std::str::from_utf8(ident)
-				.expect("words should be valid ascii, which should be valid utf8");
 			let symbol = interner.get_or_intern(ident);
-
 			TokenKind::Identifier(symbol)
 		}
 	}

@@ -17,7 +17,7 @@ macro_rules! error {
 
 macro_rules! assert_symbol {
 	($interner:ident, $symbol:ident, $expected:literal) => {
-		assert_eq!($interner.resolve(*$symbol), Some($expected))
+		assert_eq!($interner.resolve(*$symbol), Some($expected.as_bytes()))
 	};
 }
 
@@ -40,8 +40,10 @@ fn test_simple_function() {
 		end
 	"#;
 
-	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error>> = lexer.collect();
@@ -99,8 +101,10 @@ fn test_invalid_tokens() {
 		end
 	"#;
 
-	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error>> = lexer.collect();
@@ -162,8 +166,10 @@ fn test_byte_literals() {
 		var = '\1a'  # invalid escape sequence followed by character
 	"#;
 
-	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error>> = lexer.collect();
@@ -204,7 +210,7 @@ fn test_byte_literals() {
 		]
 			=> {
 				assert_symbol!(interner, var, "var");
-				assert_eq!(interner.len(), 1);
+				assert_eq!(interner.len(), 2);
 				assert_eq!(e1.as_ref(), b"\\?");
 				assert_eq!(e2.as_ref(), b"\\1");
 			}
@@ -218,8 +224,10 @@ fn test_string_literals() {
 		let var = "hello world" ++ "escape \n sequences \" are \0 cool" ++ ""
 	"#;
 
-	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error>> = lexer.collect();
@@ -252,8 +260,10 @@ fn test_number_literals() {
 		let var = 123 + 456.7 + 89e10 + 1.2e3
 	"#;
 
-	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error>> = lexer.collect();
@@ -293,8 +303,10 @@ fn test_command_block() {
 		}
 	"#;
 
-	let cursor = Cursor::from(input.as_bytes());
 	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
 	let lexer = Lexer::new(cursor, &mut interner);
 
 	let tokens: Vec<Result<Token, Error>> = lexer.collect();

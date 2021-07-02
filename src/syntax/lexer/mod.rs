@@ -7,7 +7,7 @@ mod token;
 
 use crate::symbol;
 use automata::Automata;
-use super::SourcePos;
+use super::{Source, SourcePos};
 pub use cursor::Cursor;
 pub use error::{Error, ErrorKind};
 pub use token::{ArgPart, ArgUnit, CommandOperator, Keyword, Literal, Operator, Token, TokenKind};

@@ -15,10 +15,13 @@ impl<'a> Display<'a> for Symbol {
 		if *self == Self::default() {
 			ILL_FORMED.fmt(f)
 		} else {
-			let ident: Cow<str> = match context.resolve(*self) {
+			let ident: Cow<[u8]> = match context.resolve(*self) {
 				Some(id) => id.into(),
-				None => format!("<unresolved id #{}>", Into::<usize>::into(*self)).into(),
+				None => format!("<unresolved id #{}>", Into::<usize>::into(*self)).into_bytes().into(),
 			};
+
+			let ident = String::from_utf8_lossy(&ident);
+			let ident = ident.escape_debug();
 
 			color::Fg(color::Green, ident).fmt(f)
 		}

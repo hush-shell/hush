@@ -64,7 +64,7 @@ impl<'a> Runtime<'a> {
 						program: program.into(),
 						arguments: args.into(),
 						abort_on_error: *abort_on_error,
-						pos: self.pos(*pos),
+						pos: pos.into(),
 					}
 				)
 			}
@@ -88,7 +88,7 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		command: &'static program::BasicCommand,
 	) -> Result<command::BasicCommand, Panic> {
-		let program_pos = self.pos(command.program.pos);
+		let program_pos = command.program.pos.into();
 
 		let program = self.build_single_argument(
 			&command.program,
@@ -116,7 +116,7 @@ impl<'a> Runtime<'a> {
 				arguments: args.into(),
 				redirections,
 				abort_on_error: command.abort_on_error,
-				pos: self.pos(command.pos),
+				pos: command.pos.into(),
 			}
 		)
 	}
@@ -134,7 +134,7 @@ impl<'a> Runtime<'a> {
 			}
 
 			program::Redirection::Input { literal, source } => {
-				let pos = self.pos(source.pos);
+				let pos = source.pos.into();
 
 				let source = self.build_single_argument(
 					source,
@@ -155,7 +155,7 @@ impl<'a> Runtime<'a> {
 			program::RedirectionTarget::Fd(fd) => Ok(command::RedirectionTarget::Fd(*fd)),
 
 			program::RedirectionTarget::Overwrite(arg) => {
-				let pos = self.pos(arg.pos);
+				let pos = arg.pos.into();
 
 				let target = self.build_single_argument(
 					arg,
@@ -166,7 +166,7 @@ impl<'a> Runtime<'a> {
 			}
 
 			program::RedirectionTarget::Append(arg) => {
-				let pos = self.pos(arg.pos);
+				let pos = arg.pos.into();
 
 				let target = self.build_single_argument(
 					arg,
@@ -228,7 +228,7 @@ impl<'a> Runtime<'a> {
 								.iter()
 								.map(
 									|val| {
-										let lit = Self::build_basic_value(val.copy(), self.pos(*pos))?;
+										let lit = Self::build_basic_value(val.copy(), pos.into())?;
 										Ok(Cow::Owned(lit.into_vec()))
 									}
 								)
@@ -239,7 +239,7 @@ impl<'a> Runtime<'a> {
 						}
 
 						other => {
-							let lit = Self::build_basic_value(other, self.pos(*pos))?;
+							let lit = Self::build_basic_value(other, pos.into())?;
 							args.push_literal(&lit);
 						}
 					}
@@ -269,7 +269,7 @@ impl<'a> Runtime<'a> {
 								program::ArgUnit::Literal(lit) => Ok(Cow::Borrowed(lit.as_ref())),
 								program::ArgUnit::Dollar { slot_ix, pos } => {
 									let value = self.stack.fetch(slot_ix.into());
-									let lit = Self::build_basic_value(value, self.pos(*pos))?;
+									let lit = Self::build_basic_value(value, pos.into())?;
 									Ok(Cow::Owned(lit.into_vec()))
 								},
 							}

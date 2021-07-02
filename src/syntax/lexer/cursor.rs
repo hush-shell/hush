@@ -1,4 +1,4 @@
-use super::SourcePos;
+use super::{Source, SourcePos};
 
 
 /// A cursor for the source code.
@@ -53,12 +53,12 @@ impl<'a> Cursor<'a> {
 }
 
 
-impl<'a> From<&'a [u8]> for Cursor<'a> {
-	fn from(input: &'a [u8]) -> Self {
+impl<'a> From<&'a Source> for Cursor<'a> {
+	fn from(source: &'a Source) -> Self {
 		Self {
-			input,
+			input: &source.contents,
 			offset: 0,
-			pos: SourcePos { line: 1, column: 0 }
+			pos: SourcePos { line: 1, column: 0, path: source.path }
 		}
 	}
 }
