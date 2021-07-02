@@ -62,6 +62,15 @@ fn test_positive() -> io::Result<()> {
 fn test_negative() -> io::Result<()> {
 	test_dir(
 		"src/runtime/tests/data/negative",
+		Result::is_err
+	)
+}
+
+
+#[test]
+fn test_asserts() -> io::Result<()> {
+	test_dir(
+		"src/runtime/tests/data/asserts",
 		|result| matches!(result, Err(Panic::AssertionFailed { .. }))
 	)
 }

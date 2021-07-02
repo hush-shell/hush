@@ -1,0 +1,2 @@
+let error = std.error("something bad happened", nil)
+error.context = "oops..."
