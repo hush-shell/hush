@@ -9,6 +9,8 @@ mod mem;
 mod panic;
 mod source;
 pub mod value;
+#[cfg(test)]
+mod tests;
 
 use std::{
 	collections::HashMap,

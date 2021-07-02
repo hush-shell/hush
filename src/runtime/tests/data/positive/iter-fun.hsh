@@ -1,0 +1,22 @@
+for _ in function () @[ finished: true ] end do
+	std.assert(false)
+end
+
+
+let ix = 0
+
+function count_to_five()
+	if ix == 5 then
+		return @[ finished: true ]
+	end
+
+	let result = @[ finished: false, value: ix ]
+	ix = ix + 1
+	result
+end
+
+let count = 0
+for i in count_to_five do
+	std.assert(i == count)
+	count = count + 1
+end

@@ -1,0 +1,33 @@
+function orphan()
+	self
+end
+
+std.assert(orphan() == nil)
+
+
+function fun()
+	return @[
+		x: "Hello world!",
+
+		store_foo: function ()
+			self.x = "Foo"
+		end,
+
+		store_bar: function ()
+			self.x = "Bar"
+		end,
+
+		fetch: function ()
+			self.x
+		end,
+	]
+end
+
+
+let obj = fun()
+
+std.assert(obj.fetch() == "Hello world!")
+obj.store_foo()
+std.assert(obj.fetch() == "Foo")
+obj.store_bar()
+std.assert(obj.fetch() == "Bar")

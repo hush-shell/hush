@@ -1,0 +1,17 @@
+function fun()
+	let x = 0
+
+	let fun = function()
+		let fun = function()
+			return x
+		end
+
+		x = 2
+		return fun
+	end
+
+	x = 1
+	return fun
+end
+
+std.assert(fun()()() == 2)

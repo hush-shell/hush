@@ -1,0 +1,7 @@
+let obj = @[
+	test: function (arg)
+		self
+	end,
+]
+
+std.assert(obj.test(1) == 1)

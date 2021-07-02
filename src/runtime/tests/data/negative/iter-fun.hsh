@@ -1,0 +1,15 @@
+function once(value)
+	let finished = false
+	function ()
+		if finished then
+			@[ finished: false ]
+		else
+			finished = true
+			@[ finished: false, value: value ]
+		end
+	end
+end
+
+for _ in once(1) do
+	std.assert(false)
+end

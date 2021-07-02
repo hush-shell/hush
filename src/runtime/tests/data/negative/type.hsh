@@ -1,0 +1,2 @@
+let type = std.type(function() 1 end())
+std.assert(type == "function")

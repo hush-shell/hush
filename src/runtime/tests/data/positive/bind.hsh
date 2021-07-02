@@ -1,0 +1,8 @@
+function orphan(arg1, arg2)
+	self ++ arg1 ++ arg2
+end
+
+let obj = "foo"
+let fun = std.bind(obj, orphan)
+
+std.assert(fun("bar", "baz") == "foobarbaz")

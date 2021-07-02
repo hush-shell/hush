@@ -1,0 +1,7 @@
+let arr = @[ one: "two", three: 4, five: [ "six" ], seven: '8' ]
+let types = @[ one: "string", three: "int", five: "array", seven: "char" ]
+
+for item in std.iter(arr) do
+	std.assert(std.type(item.key) == "string")
+	std.assert(std.type(item.value) == types[item.key])
+end
