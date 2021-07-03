@@ -69,6 +69,14 @@ impl Array {
 	}
 
 
+	/// Check if the collections contains the given value
+	pub fn contains(&self, value: &Value) -> bool {
+		self
+			.borrow()
+			.contains(value)
+	}
+
+
 	/// Assign a value to the given index.
 	pub fn set(&self, index: i64, value: Value) -> Result<(), IndexOutOfBounds> {
 		let index: usize = index

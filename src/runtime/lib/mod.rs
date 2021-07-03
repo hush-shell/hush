@@ -37,6 +37,7 @@ pub fn new() -> Value {
 	dict.insert("bind".into(), Bind.into());
 	dict.insert("cd".into(), Cd.into());
 	dict.insert("cwd".into(), Cwd.into());
+	dict.insert("contains".into(), Contains.into());
 	dict.insert("env".into(), Env.into());
 	dict.insert("error".into(), ErrorFun.into());
 	dict.insert("has_error".into(), HasError.into());
@@ -176,7 +177,7 @@ impl NativeFun for Length {
 			[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
 			[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
 			[ Value::String(ref string) ] => Ok(Value::Int(string.len() as i64)),
-			[ ref other ] => Err(Panic::type_error(other.copy(), pos)),
+			[ other ] => Err(Panic::type_error(other.copy(), pos)),
 			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
 		}
 	}
@@ -781,5 +782,36 @@ impl NativeFun for BindImpl {
 		pos: SourcePos,
 	) -> Result<Value, Panic> {
 		runtime.call(self.obj.copy(), &self.fun, args_start, pos)
+	}
+}
+
+
+/// std.contains
+#[derive(Trace, Finalize)]
+struct Contains;
+
+impl NativeFun for Contains {
+	fn name(&self) -> &'static str { "std.contains" }
+
+	fn call(
+		&mut self,
+		runtime: &mut Runtime,
+		_obj: Value,
+		args_start: usize,
+		pos: SourcePos,
+	) -> Result<Value, Panic> {
+		let args = &runtime.arguments[args_start..];
+
+		match args {
+			[ Value::Array(ref array), item ] => Ok(array.contains(item).into()),
+
+			[ Value::Dict(ref dict), key ] => Ok(dict.contains(key).into()),
+
+			[ Value::String(ref string), Value::Byte(byte) ] => Ok(string.contains(*byte).into()),
+			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), pos)),
+
+			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
+			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+		}
 	}
 }

@@ -72,6 +72,14 @@ impl Dict {
 	}
 
 
+	/// Check if the collections contains the given key
+	pub fn contains(&self, key: &Value) -> bool {
+		self
+			.borrow()
+			.contains_key(key)
+	}
+
+
 	/// Get the dict length.
 	pub fn len(&self) -> i64 {
 		self.borrow().len() as i64

@@ -37,9 +37,15 @@ impl Str {
 	}
 
 
+	/// Check if the collections contains the given value
+	pub fn contains(&self, byte: u8) -> bool {
+		self.0.contains(&byte)
+	}
+
+
 	/// Get the string length.
 	pub fn len(&self) -> usize {
-		self.0.deref().len()
+		self.0.len()
 	}
 
 
