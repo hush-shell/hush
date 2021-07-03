@@ -3,7 +3,7 @@ use std::{
 	fmt::{self, Display},
 	fs::{File, OpenOptions},
 	io::{self, Write},
-	os::unix::prelude::{FromRawFd, OsStrExt},
+	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt},
 	process::{self, Child},
 };
 
@@ -53,6 +53,12 @@ impl From<Panic> for ExecError {
 }
 
 
+/// Status to be produced when an IO error occurs
+const IO_ERROR_STATUS: i32 = 0x7F;
+/// Offset of a signal status, according to Bash and Dash.
+const SIGNAL_STATUS_OFFSET: i32 = 0xFF;
+
+
 /// Execution status of a single command.
 #[derive(Debug)]
 pub enum Status {
@@ -71,13 +77,19 @@ impl Status {
 			Ok(status) => status,
 			Err(error) => return Self::Error {
 				description: error.to_string(),
-				status: 127, // TODO: should we use some other status code here?
+				status: IO_ERROR_STATUS,
 			}
 		};
 
 		let code = status
 			.code()
-			.or_else(|| status.code())
+			.or_else(
+				|| status
+					.signal()
+					.map(
+						|status| status + SIGNAL_STATUS_OFFSET
+					)
+			)
 			.unwrap_or(255);
 
 		if code == 0 {
@@ -505,7 +517,7 @@ impl Block {
 			Err(ExecError::Io(error)) => {
 				let status = Status::Error {
 					description: error.to_string(),
-					status: 127, // TODO: should we use some other status code here?
+					status: IO_ERROR_STATUS,
 				};
 
 				Ok(PipelineStatus::from(status).into())
