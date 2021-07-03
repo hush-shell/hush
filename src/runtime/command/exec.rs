@@ -2,9 +2,9 @@ use std::{
 	ffi::{OsStr, OsString},
 	fmt::{self, Display},
 	fs::{File, OpenOptions},
-	io::{self, Write},
+	io::{self, Read, Write},
 	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt},
-	process::{self, Child},
+	process::{self, Child}
 };
 
 use regex::bytes::Regex;
@@ -160,8 +160,10 @@ impl From<PipelineStatus> for Value {
 /// Execution status of a command block.
 #[derive(Debug)]
 pub struct BlockStatus {
-	head: PipelineStatus,
-	tail: Box<[PipelineStatus]>,
+	pub head: PipelineStatus,
+	pub tail: Box<[PipelineStatus]>,
+	pub stdout: Vec<u8>,
+	pub stderr: Vec<u8>,
 }
 
 
@@ -170,6 +172,8 @@ impl From<PipelineStatus> for BlockStatus {
 		Self {
 			head: status,
 			tail: Default::default(),
+			stdout: Vec::new(),
+			stderr: Vec::new(),
 		}
 	}
 }
@@ -294,6 +298,14 @@ impl<'a> From<&'a program::command::Builtin> for Builtin {
 }
 
 
+#[derive(Debug)]
+pub struct Stdio {
+	pub stdin: process::Stdio,
+	pub stdout: process::Stdio,
+	pub stderr: process::Stdio,
+}
+
+
 /// A single command, including possible redirections and try operator.
 #[derive(Debug)]
 pub struct BasicCommand {
@@ -310,7 +322,7 @@ pub struct BasicCommand {
 
 
 impl BasicCommand {
-	pub fn exec(self, stdin: process::Stdio, stdout: process::Stdio) -> Result<Child, ExecError> {
+	pub fn exec(self, stdio: Stdio) -> Result<Child, ExecError> {
 		let program_args = self.program.resolve()?;
 
 		let mut command = match program_args.as_ref() {
@@ -329,8 +341,9 @@ impl BasicCommand {
 		}
 
 		// Setup pipes before redirections, as in Bash.
-		command.stdin(stdin);
-		command.stdout(stdout);
+		command.stdin(stdio.stdin);
+		command.stdout(stdio.stdout);
+		command.stderr(stdio.stderr);
 
 		Self::spawn(&mut command, self.redirections, self.pos)
 	}
@@ -430,6 +443,15 @@ impl BasicCommand {
 }
 
 
+#[derive(Debug)]
+pub struct CommandExec {
+	pub status: PipelineStatus,
+	pub abort: bool,
+	pub stdout: Option<process::ChildStdout>,
+	pub stderr: Option<process::ChildStderr>,
+}
+
+
 /// Commands may be pipelines, or a single BasicCommand.
 #[derive(Debug)]
 pub enum Command {
@@ -453,52 +475,85 @@ pub enum Command {
 
 impl Command {
 	/// Returns a pair of result value and whether to abort.
-	pub fn exec(self) -> Result<(PipelineStatus, bool), ExecError> {
+	pub fn exec(
+		self,
+		stdout: process::Stdio,
+		stderr: process::Stdio,
+	) -> Result<CommandExec, ExecError> {
 		match self {
 			Command::Builtin { program, arguments, abort_on_error, pos } => {
 				let status = program.exec(arguments, pos)?;
 				let abort = abort_on_error && status.is_error();
-				Ok((status.into(), abort))
+				Ok(
+					CommandExec {
+						status: status.into(),
+						abort,
+						stdout: None,
+						stderr: None,
+					}
+				)
 			}
 
 			Command::External { head, tail } => {
-				let mut last_stdout = process::Stdio::inherit();
+				let mut last_stdout = stdout;
+				let mut last_stderr = stderr;
 
 				let mut tail_children = Vec::new();
 				for cmd in tail.into_vec().into_iter().rev() {
 					let child_abort_on_error = cmd.abort_on_error;
-					let mut child = cmd.exec(process::Stdio::piped(), last_stdout)?;
+					let mut child = cmd.exec(
+						Stdio {
+							stdin: process::Stdio::piped(),
+							stdout: last_stdout,
+							stderr: last_stderr,
+						}
+					)?;
 
 					last_stdout = child.stdin
 						.take()
 						.ok_or_else(ExecError::pipe_fail)?
 						.into();
+					last_stderr = process::Stdio::inherit();
 
 					tail_children.push((child, child_abort_on_error));
 				}
 
 				let head_abort_on_error = head.abort_on_error;
-				let head_child = head.exec(process::Stdio::inherit(), last_stdout)?;
+				let mut head_child = head.exec(
+					Stdio {
+						stdin: process::Stdio::inherit(),
+						stdout: last_stdout,
+						stderr: last_stderr,
+					}
+				)?;
 
+				let mut last_stdout = head_child.stdout.take();
+				let mut last_stderr = head_child.stderr.take();
 				let head_status = Status::wait_child(head_child);
 
 				let mut abort = head_abort_on_error && head_status.is_error();
 
 				// Wait on tail commands.
 				let mut tail_statuses = Vec::new();
-				for (child, abort_on_error) in tail_children.into_iter().rev() {
+				for (mut child, abort_on_error) in tail_children.into_iter().rev() {
+					last_stdout = child.stdout.take();
+					last_stderr = child.stderr.take();
 					let status = Status::wait_child(child);
 					abort |= abort_on_error && status.is_error();
 					tail_statuses.push(status);
 				}
 
-				Ok((
-					PipelineStatus {
-						head: head_status,
-						tail: tail_statuses.into(),
-					},
-					abort
-				))
+				Ok(
+					CommandExec {
+						status: PipelineStatus {
+							head: head_status,
+							tail: tail_statuses.into(),
+						},
+						abort,
+						stdout: last_stdout,
+						stderr: last_stderr,
+					}
+				)
 			}
 		}
 	}
@@ -514,8 +569,12 @@ pub struct Block {
 
 
 impl Block {
-	pub fn exec(self) -> Result<BlockStatus, Panic> {
-		match self._exec() {
+	pub fn exec<F, G>(self, stdout: F, stderr: G) -> Result<BlockStatus, Panic>
+	where
+		F: FnMut() -> process::Stdio,
+		G: FnMut() -> process::Stdio,
+	{
+		match self._exec(stdout, stderr) {
 			Ok(status) => Ok(status),
 			Err(ExecError::Panic(panic)) => Err(panic),
 			Err(ExecError::Io(error)) => {
@@ -530,14 +589,30 @@ impl Block {
 	}
 
 
-	fn _exec(self) -> Result<BlockStatus, ExecError> {
-		let (head, abort) = self.head.exec()?;
+	fn _exec<F, G>(self, mut stdout: F, mut stderr: G,) -> Result<BlockStatus, ExecError>
+	where
+		F: FnMut() -> process::Stdio,
+		G: FnMut() -> process::Stdio,
+	{
+		let mut stdout_data = Vec::new();
+		let mut stderr_data = Vec::new();
 
-		if abort {
+		let head = self.head.exec(stdout(), stderr())?;
+
+		if let Some(mut data) = head.stdout {
+			data.read_to_end(&mut stdout_data)?;
+		}
+		if let Some(mut data) = head.stderr {
+			data.read_to_end(&mut stderr_data)?;
+		}
+
+		if head.abort {
 			return Ok(
 				BlockStatus {
-					head,
+					head: head.status,
 					tail: Default::default(),
+					stdout: stdout_data,
+					stderr: stderr_data,
 				}
 			)
 		}
@@ -546,18 +621,32 @@ impl Block {
 			let mut statuses = Vec::new();
 
 			for command in self.tail.into_vec() { // Use vec's owned iterator.
-				let (status, abort) = command.exec()?;
+				let child = command.exec(stdout(), stderr())?;
 
-				if abort {
-					break;
+				if let Some(mut data) = child.stdout {
+					data.read_to_end(&mut stdout_data)?;
+				}
+				if let Some(mut data) = child.stderr {
+					data.read_to_end(&mut stderr_data)?;
 				}
 
-				statuses.push(status);
+				statuses.push(child.status);
+
+				if child.abort {
+					break;
+				}
 			}
 
 			statuses.into()
 		};
 
-		Ok(BlockStatus { head, tail })
+		Ok(
+			BlockStatus {
+				head: head.status,
+				tail,
+				stdout: stdout_data,
+				stderr: stderr_data,
+			}
+		)
 	}
 }

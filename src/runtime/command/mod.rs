@@ -4,10 +4,20 @@ mod exec;
 
 use std::{
 	borrow::Cow,
+	collections::HashMap,
 	os::unix::ffi::OsStrExt,
+	process,
 };
 
-use super::{program, Runtime, Panic, Value, Error, SourcePos};
+use super::{
+	program,
+	Dict,
+	Error,
+	Panic,
+	Runtime,
+	SourcePos,
+	Value,
+};
 use arg::Args;
 
 
@@ -16,14 +26,47 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		block: &'static program::CommandBlock
 	) -> Result<Value, Panic> {
+		let command_block = self.build_command_block(&block.head, &block.tail)?;
+
 		match block.kind {
-			program::CommandBlockKind::Synchronous => {
-				let command_block = self.build_command_block(&block.head, &block.tail)?;
-				command_block.exec().map(Into::into)
+			program::CommandBlockKind::Synchronous => command_block
+				.exec(
+					process::Stdio::inherit,
+					process::Stdio::inherit,
+				)
+				.map(Into::into),
+
+			program::CommandBlockKind::Capture => {
+				thread_local! {
+					pub static STATUS: Value = "status".into();
+					pub static STDOUT: Value = "stdout".into();
+					pub static STDERR: Value = "stderr".into();
+				}
+
+				let mut block_status = command_block.exec(
+					process::Stdio::piped,
+					process::Stdio::piped,
+				)?;
+
+				let out = std::mem::take(&mut block_status.stdout).into_boxed_slice();
+				let err = std::mem::take(&mut block_status.stderr).into_boxed_slice();
+
+				let mut dict = HashMap::new();
+
+				STDOUT.with(
+					|stdout| dict.insert(stdout.copy(), out.into())
+				);
+				STDERR.with(
+					|stderr| dict.insert(stderr.copy(), err.into())
+				);
+				STATUS.with(
+					|status| dict.insert(status.copy(), block_status.into())
+				);
+
+				Ok(Dict::new(dict).into())
 			}
 
 			program::CommandBlockKind::Asynchronous => todo!(),
-			program::CommandBlockKind::Capture => todo!(),
 		}
 	}
 

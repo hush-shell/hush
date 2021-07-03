@@ -1,0 +1,7 @@
+let result = ${
+	echo 321 | rev | cat;
+	echo 456
+}
+
+std.assert(result.stdout == "123\n456\n")
+std.assert(result.stderr == "")
