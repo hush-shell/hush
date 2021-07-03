@@ -582,7 +582,7 @@ impl HasError {
 					}
 				}
 
-				return false;
+				false
 			}
 
 			Value::Dict(dict) => {
@@ -592,7 +592,7 @@ impl HasError {
 					}
 				}
 
-				return false;
+				false
 			}
 
 			_ => false,

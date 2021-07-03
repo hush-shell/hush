@@ -1,6 +1,6 @@
 use std::{
-	io,
 	hash::{Hash, Hasher},
+	io,
 	ops::Deref,
 };
 
@@ -10,7 +10,7 @@ use super::{IndexOutOfBounds, Value, Str};
 
 
 /// Strings in Hush are immutable.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Eq, PartialOrd, Ord)]
 #[derive(Trace, Finalize)]
 pub struct Error {
 	pub description: Str,
@@ -59,6 +59,14 @@ impl Error {
 
 			_ => Err(IndexOutOfBounds)
 		}
+	}
+}
+
+
+impl PartialEq for Error {
+	fn eq(&self, other: &Self) -> bool {
+		self.description == other.description
+			&& *self.context.deref().borrow() == *other.context.deref().borrow()
 	}
 }
 

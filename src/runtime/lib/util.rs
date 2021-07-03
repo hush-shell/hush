@@ -19,7 +19,7 @@ impl<const N: usize> Numbers<N> {
 				(Numbers::Ints(ints), Value::Int(int)) => ints[ix] = *int,
 
 				(numbers @ Numbers::Ints(_), Value::Float(float)) => {
-					let floats = numbers.to_floats();
+					let floats = numbers.as_floats();
 					floats[ix] = float.copy();
 				}
 
@@ -35,7 +35,7 @@ impl<const N: usize> Numbers<N> {
 	}
 
 
-	fn to_floats(&mut self) -> &mut [Float; N] {
+	fn as_floats(&mut self) -> &mut [Float; N] {
 		match self {
 			Numbers::Ints(ints) => {
 				const ZERO: Float = Float(0.0);
@@ -47,7 +47,7 @@ impl<const N: usize> Numbers<N> {
 
 				*self = Numbers::Floats(floats);
 
-				self.to_floats()
+				self.as_floats()
 			}
 
 			Numbers::Floats(floats) => floats,

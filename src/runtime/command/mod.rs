@@ -1,6 +1,6 @@
 mod arg;
 mod fmt;
-mod command;
+mod exec;
 
 use std::{
 	borrow::Cow,
@@ -32,7 +32,7 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		head: &'static program::Command,
 		tail: &'static [program::Command],
-	) -> Result<command::Block, Panic> {
+	) -> Result<exec::Block, Panic> {
 		let head = self.build_command(head)?;
 		let tail = tail
 			.iter()
@@ -41,14 +41,14 @@ impl<'a> Runtime<'a> {
 			)
 			.collect::<Result<_, Panic>>()?;
 
-		Ok(command::Block { head, tail })
+		Ok(exec::Block { head, tail })
 	}
 
 
 	fn build_command(
 		&mut self,
 		command: &'static program::Command
-	) -> Result<command::Command, Panic> {
+	) -> Result<exec::Command, Panic> {
 		match command {
 			program::Command::Builtin { program, arguments, abort_on_error, pos } => {
 				let mut args = Vec::new();
@@ -60,7 +60,7 @@ impl<'a> Runtime<'a> {
 				}
 
 				Ok(
-					command::Command::Builtin {
+					exec::Command::Builtin {
 						program: program.into(),
 						arguments: args.into(),
 						abort_on_error: *abort_on_error,
@@ -78,7 +78,7 @@ impl<'a> Runtime<'a> {
 					)
 					.collect::<Result<_, Panic>>()?;
 
-				Ok(command::Command::External { head, tail })
+				Ok(exec::Command::External { head, tail })
 			}
 		}
 	}
@@ -87,7 +87,7 @@ impl<'a> Runtime<'a> {
 	fn build_basic_command(
 		&mut self,
 		command: &'static program::BasicCommand,
-	) -> Result<command::BasicCommand, Panic> {
+	) -> Result<exec::BasicCommand, Panic> {
 		let program_pos = command.program.pos.into();
 
 		let program = self.build_single_argument(
@@ -111,7 +111,7 @@ impl<'a> Runtime<'a> {
 			.collect::<Result<_, Panic>>()?;
 
 		Ok(
-			command::BasicCommand {
+			exec::BasicCommand {
 				program,
 				arguments: args.into(),
 				redirections,
@@ -125,12 +125,12 @@ impl<'a> Runtime<'a> {
 	fn build_redirection(
 		&mut self,
 		redirection: &'static program::Redirection,
-	) -> Result<command::Redirection, Panic> {
+	) -> Result<exec::Redirection, Panic> {
 		match redirection {
 			program::Redirection::Output { source, target } => {
 				let target = self.build_redirection_target(target)?;
 
-				Ok(command::Redirection::Output { source: *source, target })
+				Ok(exec::Redirection::Output { source: *source, target })
 			}
 
 			program::Redirection::Input { literal, source } => {
@@ -141,7 +141,7 @@ impl<'a> Runtime<'a> {
 					|items| Panic::invalid_command_args("redirection", items, pos)
 				)?;
 
-				Ok(command::Redirection::Input { literal: *literal, source })
+				Ok(exec::Redirection::Input { literal: *literal, source })
 			}
 		}
 	}
@@ -150,9 +150,9 @@ impl<'a> Runtime<'a> {
 	fn build_redirection_target(
 		&mut self,
 		target: &'static program::RedirectionTarget,
-	) -> Result<command::RedirectionTarget, Panic> {
+	) -> Result<exec::RedirectionTarget, Panic> {
 		match target {
-			program::RedirectionTarget::Fd(fd) => Ok(command::RedirectionTarget::Fd(*fd)),
+			program::RedirectionTarget::Fd(fd) => Ok(exec::RedirectionTarget::Fd(*fd)),
 
 			program::RedirectionTarget::Overwrite(arg) => {
 				let pos = arg.pos.into();
@@ -162,7 +162,7 @@ impl<'a> Runtime<'a> {
 					|items| Panic::invalid_command_args("redirection", items, pos)
 				)?;
 
-				Ok(command::RedirectionTarget::Overwrite(target))
+				Ok(exec::RedirectionTarget::Overwrite(target))
 			}
 
 			program::RedirectionTarget::Append(arg) => {
@@ -173,7 +173,7 @@ impl<'a> Runtime<'a> {
 					|items| Panic::invalid_command_args("redirection", items, pos)
 				)?;
 
-				Ok(command::RedirectionTarget::Append(target))
+				Ok(exec::RedirectionTarget::Append(target))
 			},
 		}
 	}
@@ -183,7 +183,7 @@ impl<'a> Runtime<'a> {
 		&mut self,
 		argument: &'static program::Argument,
 		panic: P,
-	) -> Result<command::Argument, Panic>
+	) -> Result<exec::Argument, Panic>
 	where
 		P: FnOnce(u32) -> Panic
 	{
@@ -209,7 +209,7 @@ impl<'a> Runtime<'a> {
 	fn build_argument(
 		&mut self,
 		argument: &'static program::Argument,
-	) -> Result<Box<[command::Argument]>, Panic> {
+	) -> Result<Box<[exec::Argument]>, Panic> {
 		let mut args = Args::default();
 
 		for part in argument.parts.iter() {
@@ -310,6 +310,6 @@ impl<'a> Runtime<'a> {
 
 		literal
 			.map(Into::into)
-			.ok_or(Panic::type_error(value, pos))
+			.ok_or_else(|| Panic::type_error(value, pos))
 	}
 }

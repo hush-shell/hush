@@ -37,7 +37,6 @@ impl Source {
 	where
 		R: std::io::Read,
 	{
-		let path = path.into();
 		let mut contents = Vec::with_capacity(512); // Expect a few characters.
 		reader.read_to_end(&mut contents)?;
 

@@ -260,19 +260,21 @@ impl Builtin {
 			Builtin::Cd => {
 				let arg = arguments
 					.pop()
-					.ok_or(Panic::invalid_command_args("argument", 0, pos.copy()))?;
+					.ok_or_else(|| Panic::invalid_command_args("argument", 0, pos.copy()))?;
 
 				if !arguments.is_empty() {
-					Err(Panic::invalid_command_args("argument", arguments.len() as u32 + 1, pos.copy()))?;
+					return Err(
+						Panic::invalid_command_args("argument", arguments.len() as u32 + 1, pos.copy()).into()
+					);
 				}
 
 				let args = arg.resolve()?;
 
 				match args.as_ref() {
 					[ dir ] => std::env::set_current_dir(dir.as_ref())?,
-					other => Err(
-						Panic::invalid_command_args("argument", other.len() as u32, pos)
-					)?,
+					other => return Err(
+						Panic::invalid_command_args("argument", other.len() as u32, pos).into()
+					),
 				};
 
 				Ok(Status::Success)
@@ -313,9 +315,9 @@ impl BasicCommand {
 
 		let mut command = match program_args.as_ref() {
 			[ program ] => process::Command::new(program),
-			other => Err(
-				Panic::invalid_command_args("program", other.len() as u32, self.pos.copy())
-			)?,
+			other => return Err(
+				Panic::invalid_command_args("program", other.len() as u32, self.pos.copy()).into()
+			),
 		};
 
 		for argument in self.arguments.into_vec() {
@@ -349,7 +351,9 @@ impl BasicCommand {
 					match source {
 						1 => command.stdout(target),
 						2 => command.stderr(target),
-						other => Err(Panic::unsupported_fd(other, pos.copy()))?,
+						other => return Err(
+							Panic::unsupported_fd(other, pos.copy()).into()
+						),
 					};
 				}
 
@@ -358,9 +362,9 @@ impl BasicCommand {
 
 					let source = match args.as_ref() {
 						[ source ] => source,
-						other => Err(
-							Panic::invalid_command_args("redirection", other.len() as u32, pos.copy())
-						)?
+						other => return Err(
+							Panic::invalid_command_args("redirection", other.len() as u32, pos.copy()).into()
+						),
 					};
 
 					let stdin =
@@ -407,9 +411,9 @@ impl BasicCommand {
 					.append(append)
 					.open(file.as_ref())?,
 
-				other => Err(
-					Panic::invalid_command_args("redirection", other.len() as u32, pos)
-				)?
+				other => return Err(
+					Panic::invalid_command_args("redirection", other.len() as u32, pos).into()
+				),
 			};
 
 			Ok(process::Stdio::from(file))

@@ -3,7 +3,7 @@ use std::{
 	os::unix::ffi::OsStrExt,
 };
 
-use super::command;
+use super::exec;
 
 use crate::{
 	syntax::lexer::CommandOperator,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 
-impl Display for command::Argument {
+impl Display for exec::Argument {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		'"'.fmt(f)?;
 
@@ -26,7 +26,7 @@ impl Display for command::Argument {
 }
 
 
-impl Display for command::RedirectionTarget {
+impl Display for exec::RedirectionTarget {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Fd(fd) => write!(f, ">{}", fd),
@@ -45,7 +45,7 @@ impl Display for command::RedirectionTarget {
 }
 
 
-impl Display for command::Redirection {
+impl Display for exec::Redirection {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Output { source, target } => {
@@ -67,7 +67,7 @@ impl Display for command::Redirection {
 }
 
 
-impl Display for command::Builtin {
+impl Display for exec::Builtin {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		let command = match self {
 			Self::Alias => "alias",
@@ -79,7 +79,7 @@ impl Display for command::Builtin {
 }
 
 
-impl Display for command::BasicCommand {
+impl Display for exec::BasicCommand {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		self.program.fmt(f)?;
 
@@ -103,7 +103,7 @@ impl Display for command::BasicCommand {
 }
 
 
-impl Display for command::Command {
+impl Display for exec::Command {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::Builtin { program, arguments, abort_on_error, .. } => {
@@ -138,7 +138,7 @@ impl Display for command::Command {
 }
 
 
-impl Display for command::Block {
+impl Display for exec::Block {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		"{\n".fmt(f)?;
 

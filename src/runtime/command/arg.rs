@@ -4,7 +4,7 @@ use std::{
 	os::unix::ffi::OsStringExt,
 };
 
-use super::command;
+use super::exec;
 
 use regex::bytes::Regex;
 
@@ -157,11 +157,11 @@ impl Args {
 
 
 	fn is_regex_meta(c: u8) -> bool {
-		match c {
+		matches!(
+			c,
 			b'\\' | b'.' | b'+' | b'*' | b'?' | b'(' | b')' | b'|' | b'[' | b']' | b'{'
-				| b'}' | b'^' | b'$' | b'#' | b'&' | b'-' | b'~' => true,
-			_ => false,
-		}
+				| b'}' | b'^' | b'$' | b'#' | b'&' | b'-' | b'~'
+		)
 	}
 }
 
@@ -173,14 +173,14 @@ impl Default for Args {
 }
 
 
-impl Into<Box<[command::Argument]>> for Args {
-	fn into(self) -> Box<[command::Argument]> {
-		match self {
-			Self::Regexes(regexes) => {
+impl From<Args> for Box<[exec::Argument]> {
+	fn from(args: Args) -> Box<[exec::Argument]> {
+		match args {
+			Args::Regexes(regexes) => {
 				regexes
 					.into_iter()
 					.map(
-						|regex| command::Argument::Regex(
+						|regex| exec::Argument::Regex(
 							Regex
 								::new(
 									&String::from_utf8(regex).expect("invalid utf8 regex argument")
@@ -191,11 +191,11 @@ impl Into<Box<[command::Argument]>> for Args {
 					.collect()
 			}
 
-			Self::Literals(literals) => {
+			Args::Literals(literals) => {
 				literals
 					.into_iter()
 					.map(
-						|lit| command::Argument::Literal(
+						|lit| exec::Argument::Literal(
 							OsString::from_vec(lit).into_boxed_os_str()
 						)
 					)
