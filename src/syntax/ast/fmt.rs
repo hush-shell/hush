@@ -526,7 +526,7 @@ impl<'a> Display<'a> for BasicCommand {
 			redirection.fmt(f, context)?;
 		}
 
-		if self.abort_on_error {
+		if !self.abort_on_error {
 			" ".fmt(f)?;
 			CommandOperator::Try.fmt(f)?;
 		}

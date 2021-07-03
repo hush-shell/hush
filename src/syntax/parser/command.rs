@@ -200,7 +200,7 @@ where
 
 
 	/// Parse command operators.
-	/// Returns a pair of redirections and try operator.
+	/// Returns a pair of (redirections, abort_on_error).
 	fn parse_operators(&mut self) -> Result<(Box<[ast::Redirection]>, bool), Error> {
 		let mut redirections = Vec::new();
 
@@ -211,7 +211,7 @@ where
 				Some(Token { kind: TokenKind::CmdOperator(Operator::Try), .. }) => {
 					self.step();
 
-					return Ok((redirections.into(), true));
+					return Ok((redirections.into(), false));
 				}
 
 				Some(_) => {
@@ -225,7 +225,7 @@ where
 			}
 		}
 
-		Ok((redirections.into(), false))
+		Ok((redirections.into(), true))
 	}
 
 
