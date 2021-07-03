@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
 	fmt::{self, Display},
 	symbol,
@@ -105,7 +107,12 @@ impl<'a> Display<'a> for Value {
 			Self::Array(array) => write!(f, "{}", fmt::Show(array, context)),
 			Self::Dict(dict) => write!(f, "{}", fmt::Show(dict, context)),
 			Self::Function(fun) => write!(f, "{}", fmt::Show(fun, context)),
-			Self::Error(error) => write!(f, "error: {}", error.description),
+			Self::Error(error) => write!(
+				f,
+				"error: {} ({})",
+				error.description,
+				fmt::Show(error.context.deref().borrow().copy(), context)
+			),
 		}
 	}
 }
