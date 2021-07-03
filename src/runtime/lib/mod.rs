@@ -16,14 +16,13 @@ use crate::{
 use super::{
 	keys,
 	Array,
+	CallContext,
 	Dict,
 	Error,
 	Float,
 	Function,
 	NativeFun,
 	Panic,
-	Runtime,
-	SourcePos,
 	Str,
 	Value,
 };
@@ -74,35 +73,27 @@ impl Print {
 impl NativeFun for Print {
 	fn name(&self) -> &'static str { "std.print" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
 		let stdout = io::stdout();
 		let mut stdout = stdout.lock();
 
-		let mut iter = args.iter();
+		let mut iter = context.args().iter();
 
 		if let Some(value) = iter.next() {
-			Self::print(value, &runtime.interner, &mut stdout)
-				.map_err(|error| Panic::io(error, pos.copy()))?;
+			Self::print(value, context.interner(), &mut stdout)
+				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 		}
 
 		for value in iter {
 			write!(stdout, "\t")
-				.map_err(|error| Panic::io(error, pos.copy()))?;
+				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 
-			Self::print(value, &runtime.interner, &mut stdout)
-				.map_err(|error| Panic::io(error, pos.copy()))?;
+			Self::print(value, context.interner(), &mut stdout)
+				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 		}
 
 		writeln!(stdout)
-			.map_err(|error| Panic::io(error, pos))?;
+			.map_err(|error| Panic::io(error, context.pos))?;
 
 		Ok(Value::default())
 	}
@@ -116,15 +107,7 @@ struct Type;
 impl NativeFun for Type {
 	fn name(&self) -> &'static str { "std.type" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
 		thread_local! {
 			pub static NIL: Value = "nil".into();
 			pub static BOOL: Value = "bool".into();
@@ -138,7 +121,7 @@ impl NativeFun for Type {
 			pub static ERROR: Value = "error".into();
 		}
 
-		let typename = match args {
+		let typename = match context.args() {
 			[ Value::Nil ] => &NIL,
 			[ Value::Bool(_) ] => &BOOL,
 			[ Value::Int(_) ] => &INT,
@@ -149,7 +132,9 @@ impl NativeFun for Type {
 			[ Value::Dict(_) ] => &DICT,
 			[ Value::Function(_) ] => &FUNCTION,
 			[ Value::Error(_) ] => &ERROR,
-			[] | [_, _, ..] => return Err(Panic::invalid_args(args.len() as u32, 1, pos)),
+			args @ [] | args @ [_, _, ..] => return Err(
+				Panic::invalid_args(args.len() as u32, 1, context.pos)
+			),
 		};
 
 		Ok(typename.with(Value::copy))
@@ -164,21 +149,13 @@ struct Length;
 impl NativeFun for Length {
 	fn name(&self) -> &'static str { "std.len" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
 			[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
 			[ Value::String(ref string) ] => Ok(Value::Int(string.len() as i64)),
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -191,16 +168,8 @@ struct Iter;
 impl NativeFun for Iter {
 	fn name(&self) -> &'static str { "std.iter" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::Array(ref array) ] => Ok(
 				IterImpl::Array {
 					array: array.copy(),
@@ -225,8 +194,8 @@ impl NativeFun for Iter {
 				}.into()
 			),
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -250,17 +219,10 @@ enum IterImpl {
 impl NativeFun for IterImpl {
 	fn name(&self) -> &'static str { "std.iter<impl>" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		let args = context.args();
 		if !args.is_empty() {
-			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
+			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));
 		}
 
 		let mut iteration = HashMap::new();
@@ -325,23 +287,15 @@ struct Push;
 impl NativeFun for Push {
 	fn name(&self) -> &'static str { "std.push" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &mut runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+		match context.args_mut() {
 			[ Value::Array(ref mut array), value ] => {
 				array.push(value.copy());
 				Ok(Value::Nil)
 			},
 
-			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 2, pos))
+			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}
 }
@@ -354,26 +308,18 @@ struct Pop;
 impl NativeFun for Pop {
 	fn name(&self) -> &'static str { "std.pop" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &mut runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+		match context.args_mut() {
 			[ Value::Array(ref mut array) ] => {
 				let value = array
 					.pop()
-					.map_err(|_| Panic::empty_collection(pos))?;
+					.map_err(|_| Panic::empty_collection(context.pos))?;
 
 				Ok(value)
 			},
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -386,24 +332,16 @@ struct IsEmpty;
 impl NativeFun for IsEmpty {
 	fn name(&self) -> &'static str { "std.is_empty" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::Array(ref array) ] => Ok(array.is_empty().into()),
 
 			[ Value::Dict(ref dict) ] => Ok(dict.is_empty().into()),
 
 			[ Value::String(ref string) ] => Ok(string.is_empty().into()),
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -416,24 +354,16 @@ struct ErrorFun;
 impl NativeFun for ErrorFun {
 	fn name(&self) -> &'static str { "std.error" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::String(ref string), context ] => Ok(
 				Error
 					::new(string.copy(), context.copy())
 					.into()
 			),
 
-			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 2, pos))
+			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}
 }
@@ -446,20 +376,12 @@ struct Range;
 impl NativeFun for Range {
 	fn name(&self) -> &'static str { "std.range" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ from, to, step ] => {
 				let numbers = util::Numbers
 					::promote([from.copy(), to.copy(), step.copy()])
-					.map_err(|value| Panic::type_error(value, pos))?;
+					.map_err(|value| Panic::type_error(value, context.pos))?;
 
 				Ok(
 					match numbers {
@@ -469,8 +391,8 @@ impl NativeFun for Range {
 				)
 			},
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 3, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 3, context.pos))
 		}
 	}
 }
@@ -491,17 +413,10 @@ where
 {
 	fn name(&self) -> &'static str { "std.range<impl>" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		let args = context.args();
 		if !args.is_empty() {
-			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
+			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));
 		}
 
 		let mut iteration = HashMap::new();
@@ -543,16 +458,8 @@ struct Env;
 impl NativeFun for Env {
 	fn name(&self) -> &'static str { "std.env" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::String(ref string) ] => Ok(
 				std::env
 					::var_os(string)
@@ -560,8 +467,8 @@ impl NativeFun for Env {
 					.unwrap_or(Value::Nil)
 			),
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -605,18 +512,10 @@ impl HasError {
 impl NativeFun for HasError {
 	fn name(&self) -> &'static str { "std.has_error" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ value ] => Ok(Self::has_error(value).into()),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -629,19 +528,11 @@ struct ToString;
 impl NativeFun for ToString {
 	fn name(&self) -> &'static str { "std.to_string" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::String(ref string) ] => Ok(string.copy().into()),
-			[ value ] => Ok(value.fmt_string(&runtime.interner).into()),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ value ] => Ok(value.fmt_string(context.interner()).into()),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -654,24 +545,16 @@ struct Cd;
 impl NativeFun for Cd {
 	fn name(&self) -> &'static str { "std.cd" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::String(ref string) ] => Ok(
 				std::env
 					::set_current_dir(AsRef::<OsStr>::as_ref(string))
 					.into()
 			),
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -684,17 +567,10 @@ struct Cwd;
 impl NativeFun for Cwd {
 	fn name(&self) -> &'static str { "std.cwd" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		let args = context.args();
 		if !args.is_empty() {
-			return Err(Panic::invalid_args(args.len() as u32, 0, pos));
+			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));
 		}
 
 		Ok(
@@ -714,21 +590,13 @@ struct Assert;
 impl NativeFun for Assert {
 	fn name(&self) -> &'static str { "std.assert" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::Bool(true) ] => Ok(Value::default()),
-			[ Value::Bool(false) ] => Err(Panic::assertion_failed(pos)),
+			[ Value::Bool(false) ] => Err(Panic::assertion_failed(context.pos)),
 
-			[ other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
@@ -741,25 +609,17 @@ struct Bind;
 impl NativeFun for Bind {
 	fn name(&self) -> &'static str { "std.bind" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ obj, Value::Function(fun) ] => Ok(
 				BindImpl {
 					obj: obj.copy(),
-					fun: fun.copy(),
+					function: fun.copy(),
 				}.into()
 			),
 
-			[ _, other ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 2, pos))
+			[ _, other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}
 }
@@ -768,20 +628,14 @@ impl NativeFun for Bind {
 #[derive(Trace, Finalize)]
 struct BindImpl {
 	obj: Value,
-	fun: Function,
+	function: Function,
 }
 
 impl NativeFun for BindImpl {
 	fn name(&self) -> &'static str { "std.bind<impl>" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		runtime.call(self.obj.copy(), &self.fun, args_start, pos)
+	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+		context.call(self.obj.copy(), &self.function, context.args_start)
 	}
 }
 
@@ -793,25 +647,17 @@ struct Contains;
 impl NativeFun for Contains {
 	fn name(&self) -> &'static str { "std.contains" }
 
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		_obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		let args = &runtime.arguments[args_start..];
-
-		match args {
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		match context.args() {
 			[ Value::Array(ref array), item ] => Ok(array.contains(item).into()),
 
 			[ Value::Dict(ref dict), key ] => Ok(dict.contains(key).into()),
 
 			[ Value::String(ref string), Value::Byte(byte) ] => Ok(string.contains(*byte).into()),
-			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), pos)),
+			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), context.pos)),
 
-			[ other, _ ] => Err(Panic::type_error(other.copy(), pos)),
-			_ => Err(Panic::invalid_args(args.len() as u32, 1, pos))
+			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }

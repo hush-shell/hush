@@ -7,6 +7,7 @@ use std::{
 
 use gc::{Gc, GcCell, Finalize, Trace};
 
+use crate::symbol;
 use super::{
 	mem,
 	program,
@@ -137,6 +138,51 @@ impl Hash for HushFun {
 }
 
 
+/// Context for a native function call.
+#[derive(Debug)]
+pub struct CallContext<'a, 'b> {
+	/// The runtime instance.
+	pub runtime: &'b mut Runtime<'a>,
+	/// The value of `self`.
+	pub obj: Value,
+	/// The offset in the runtime's argument vector where the arguments for this call are
+	/// placed.
+	pub args_start: usize,
+	/// The source position of the call, which allows proper location of panics.
+	pub pos: SourcePos,
+}
+
+
+impl<'a, 'b> CallContext<'a, 'b> {
+	/// Get the slice of arguments.
+	pub fn args(&self) -> &[Value] {
+		&self.runtime.arguments[self.args_start..]
+	}
+
+
+	/// Get the mutable slice of arguments.
+	pub fn args_mut(&mut self) -> &mut [Value] {
+		&mut self.runtime.arguments[self.args_start..]
+	}
+
+
+	/// Get the symbol interner.
+	pub fn interner(&self) -> & symbol::Interner {
+		&self.runtime.interner
+	}
+
+
+	pub fn call(
+		&mut self,
+		obj: Value,
+		function: &Function,
+		args_start: usize,
+	) -> Result<Value, Panic> {
+		self.runtime.call(obj, function, args_start, self.pos.copy())
+	}
+}
+
+
 /// A native function implementation.
 pub trait NativeFun: Trace + Finalize + 'static {
 	/// Get a human-readable name for the function.
@@ -144,18 +190,7 @@ pub trait NativeFun: Trace + Finalize + 'static {
 	/// globally unique name.
 	fn name(&self) -> &'static str;
 	/// Invoke the function.
-	/// Parameters:
-	/// - The runtime.
-	/// - Self value.
-	/// - The offset in the arguments vector of the parameters.
-	/// - The source position of the call, which allows proper location of panics.
-	fn call(
-		&mut self,
-		runtime: &mut Runtime,
-		obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic>;
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic>;
 }
 
 
@@ -178,19 +213,8 @@ impl RustFun {
 
 
 	/// Invoke the function.
-	/// Parameters:
-	/// - The runtime.
-	/// - Self value.
-	/// - The offset in the arguments vector of the parameters.
-	/// - The source position of the call, which allows proper location of panics.
-	pub fn call(
-		&self,
-		runtime: &mut Runtime,
-		obj: Value,
-		args_start: usize,
-		pos: SourcePos,
-	) -> Result<Value, Panic> {
-		self.0.deref().borrow_mut().call(runtime, obj, args_start, pos)
+	pub fn call(&self, context: CallContext) -> Result<Value, Panic> {
+		self.0.deref().borrow_mut().call(context)
 	}
 }
 

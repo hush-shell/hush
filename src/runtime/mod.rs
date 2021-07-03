@@ -22,6 +22,7 @@ use super::semantic::program;
 use value::{
 	keys,
 	Array,
+	CallContext,
 	Dict,
 	Error,
 	Float,
@@ -592,7 +593,14 @@ impl<'a> Runtime<'a> {
 			}
 
 			Function::Rust(fun) => {
-				let result = fun.call(self, obj, args_start, pos);
+				let result = fun.call(
+					CallContext {
+						runtime: self,
+						obj,
+						args_start,
+						pos
+					}
+				);
 
 				self.arguments.truncate(args_start);
 

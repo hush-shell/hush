@@ -23,7 +23,7 @@ use super::{
 pub use array::Array;
 pub use dict::{keys, Dict};
 pub use error::Error;
-pub use function::{Function, HushFun, RustFun, NativeFun};
+pub use function::{CallContext, Function, HushFun, RustFun, NativeFun};
 pub use float::Float;
 pub use errors::{EmptyCollection, IndexOutOfBounds};
 pub use string::Str;

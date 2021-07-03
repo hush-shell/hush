@@ -1,0 +1,9 @@
+let dict = @[
+	hei: "you",
+	out: "there",
+	on: "the",
+	wall: "..."
+]
+
+std.assert(std.contains(dict, "hei"))
+std.assert(not std.contains(dict, "foo"))
