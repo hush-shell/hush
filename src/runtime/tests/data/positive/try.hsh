@@ -1,5 +1,5 @@
 let result = {
-	echo foo | cat | false | cat | echo bar;
+	echo foo | cat | false | cat | cat > /dev/null;
 	echo baz
 }
 std.assert(std.len(result) == 5)
