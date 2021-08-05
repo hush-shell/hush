@@ -183,8 +183,8 @@
     Both loop constructs support the =break= keyword, which implements short exiting.
 *** Operators
     - Field access: ::
-      The index operator (=[]=) may only be applied to values of types =array= and =dict=,
-      resulting in the respective associated value. [[#Panics][Panics]] when out of bounds.
+      The index operator (=[]=) may only be applied to values of types =string=, =array= and
+      =dict=, resulting in the respective associated value. [[#Panics][Panics]] when out of bounds.
 
       The dot access operator may only be applied to values of type =dict=, and is a
       shortcut for the index operator:
