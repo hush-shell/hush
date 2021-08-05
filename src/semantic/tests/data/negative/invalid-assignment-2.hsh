@@ -1,0 +1,3 @@
+function hello()
+  self = 2
+end
