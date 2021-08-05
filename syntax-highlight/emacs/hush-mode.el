@@ -54,3 +54,9 @@
   (hush-font-lock-setup))
 
 (add-to-list 'auto-mode-alist '("\\.hsh\\'" . hush-mode))
+
+
+;; Babel:
+(defun org-babel-execute:hush (body params)
+  "Execute a block of Hush code with org-babel."
+  (org-babel-eval "hush" body))
