@@ -738,6 +738,12 @@ impl<'a> Runtime<'a> {
 						Ok(Value::Int(val))
 					},
 
+					// float . float
+					(Value::Float(ref float1), Value::Float(ref float2)) => {
+						let val = $op_float(float1.copy(), float2.copy());
+						Ok(Value::Float(val))
+					},
+
 					// float . int, int . float
 					(Value::Int(int), Value::Float(ref float)) => {
 						let val = $op_float(Float::from(int), float.copy());
@@ -819,16 +825,23 @@ impl<'a> Runtime<'a> {
 					)
 				),
 
+				// float . float
+				(Value::Float(ref float1), Value::Float(ref float2)) => Ok(
+					Value::Bool(
+						order(float1.cmp(float2))
+					)
+				),
+
 				// float . int, int . float
 				(Value::Int(int), Value::Float(ref float)) => Ok(
 					Value::Bool(
-						order(float.copy().cmp(&int.into()))
+						order(float.cmp(&int.into()))
 					)
 				),
 
 				(Value::Float(ref float), Value::Int(int)) => Ok(
 					Value::Bool(
-						order(Float::from(int).cmp(&float.copy()))
+						order(Float::from(int).cmp(float))
 					)
 				),
 
