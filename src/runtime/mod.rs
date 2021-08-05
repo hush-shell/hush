@@ -321,6 +321,8 @@ impl<'a> Runtime<'a> {
 						.index(ix)
 						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
 
+					(Value::String(_), field) => Err(Panic::type_error(field, field_pos)),
+
 					(Value::Error(ref error), field) => error
 						.get(&field)
 						.map_err(|_| Panic::index_out_of_bounds(field, field_pos)),
