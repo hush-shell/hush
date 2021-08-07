@@ -35,8 +35,8 @@ pub fn new() -> Value {
 	dict.insert("assert".into(), Assert.into());
 	dict.insert("bind".into(), Bind.into());
 	dict.insert("cd".into(), Cd.into());
-	dict.insert("cwd".into(), Cwd.into());
 	dict.insert("contains".into(), Contains.into());
+	dict.insert("cwd".into(), Cwd.into());
 	dict.insert("env".into(), Env.into());
 	dict.insert("error".into(), ErrorFun.into());
 	dict.insert("has_error".into(), HasError.into());
@@ -47,6 +47,7 @@ pub fn new() -> Value {
 	dict.insert("print".into(), Print.into());
 	dict.insert("push".into(), Push.into());
 	dict.insert("range".into(), Range.into());
+	dict.insert("sort".into(), Sort.into());
 	dict.insert("to_string".into(), ToString.into());
 	dict.insert("type".into(), Type.into());
 
@@ -655,6 +656,27 @@ impl NativeFun for Contains {
 
 			[ Value::String(ref string), Value::Byte(byte) ] => Ok(string.contains(*byte).into()),
 			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), context.pos)),
+
+			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
+		}
+	}
+}
+
+
+/// std.sort
+#[derive(Trace, Finalize)]
+struct Sort;
+
+impl NativeFun for Sort {
+	fn name(&self) -> &'static str { "std.sort" }
+
+	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+		match context.args_mut() {
+			[ Value::Array(ref mut array) ] => {
+				array.sort();
+				Ok(Value::default())
+			}
 
 			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))

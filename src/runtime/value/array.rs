@@ -105,6 +105,11 @@ impl Array {
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0
 	}
+
+	/// Stable sort
+	pub fn sort(&mut self) {
+		self.borrow_mut().sort();
+	}
 }
 
 
