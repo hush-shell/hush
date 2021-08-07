@@ -4,16 +4,7 @@ use crate::{
 	fmt::{self, Display},
 	symbol,
 };
-use super::{
-	Array,
-	Dict,
-	Float,
-	Function,
-	HushFun,
-	RustFun,
-	Str,
-	Value,
-};
+use super::{Array, Dict, Error, Float, Function, HushFun, RustFun, Str, Value};
 
 
 impl std::fmt::Display for RustFun {
@@ -46,7 +37,7 @@ impl<'a> Display<'a> for Function {
 
 impl std::fmt::Display for Float {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "{}", self.0)
+		write!(f, "{:#?}", self.0)
 	}
 }
 
@@ -55,13 +46,20 @@ impl<'a> Display<'a> for Array {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		let array = self.borrow();
+		let mut iter = array.iter();
+
 		write!(f, "[")?;
 
-		for item in self.borrow().iter() {
-			write!(f, "{},", fmt::Show(item, context))?;
+		if let Some(item) = iter.next() {
+			write!(f, " {}", fmt::Show(item, context))?;
 		}
 
-		write!(f, "]")
+		for item in iter {
+			write!(f, ", {}", fmt::Show(item, context))?;
+		}
+
+		write!(f, " ]")
 	}
 }
 
@@ -70,18 +68,30 @@ impl<'a> Display<'a> for Dict {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		let dict = self.borrow();
+		let mut iter = dict.iter();
+
 		write!(f, "@[")?;
 
-		for (k, v) in self.borrow().iter() {
+		if let Some((k, v)) = iter.next() {
 			write!(
 				f,
-				"{}:{},",
+				" {}: {}",
 				fmt::Show(k, context),
 				fmt::Show(v, context)
 			)?;
 		}
 
-		write!(f, "]")
+		for (k, v) in iter {
+			write!(
+				f,
+				", {}:{}",
+				fmt::Show(k, context),
+				fmt::Show(v, context)
+			)?;
+		}
+
+		write!(f, " ]")
 	}
 }
 
@@ -89,6 +99,20 @@ impl<'a> Display<'a> for Dict {
 impl std::fmt::Display for Str {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "\"{}\"", String::from_utf8_lossy(self.as_ref()).escape_debug())
+	}
+}
+
+
+impl<'a> Display<'a> for Error {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		write!(
+			f,
+			"error: {} ({})",
+			self.description,
+			fmt::Show(self.context.deref().borrow().copy(), context)
+		)
 	}
 }
 
@@ -107,12 +131,7 @@ impl<'a> Display<'a> for Value {
 			Self::Array(array) => write!(f, "{}", fmt::Show(array, context)),
 			Self::Dict(dict) => write!(f, "{}", fmt::Show(dict, context)),
 			Self::Function(fun) => write!(f, "{}", fmt::Show(fun, context)),
-			Self::Error(error) => write!(
-				f,
-				"error: {} ({})",
-				error.description,
-				fmt::Show(error.context.deref().borrow().copy(), context)
-			),
+			Self::Error(error) => write!(f, "{}", fmt::Show(error, context)),
 		}
 	}
 }
