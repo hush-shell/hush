@@ -63,12 +63,6 @@ impl Value {
 			Self::Error(error) => Self::Error(error.copy())
 		}
 	}
-
-
-	/// Check if the value is an error.
-	pub fn is_error(&self) -> bool {
-		matches!(self, Self::Error(_))
-	}
 }
 
 

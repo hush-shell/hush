@@ -42,6 +42,7 @@ impl Interner {
 
 
 	/// Get the symbol for a value.
+	#[cfg(test)]
 	pub fn get<T>(&self, value: T) -> Option<Symbol>
 	where
 		T: AsRef<[u8]>,
@@ -75,6 +76,7 @@ impl Interner {
 
 	/// Get the number of interned strings.
 	/// This does not include the dummy symbol.
+	#[cfg(test)]
 	pub fn len(&self) -> usize {
 		self.0.len() - 1
 	}
