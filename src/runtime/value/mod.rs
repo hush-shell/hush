@@ -9,7 +9,7 @@ mod fmt;
 mod function;
 mod string;
 
-use std::ffi::{OsString};
+use std::{cmp::Ordering, ffi::{OsString}};
 
 use gc::{Finalize, Trace};
 
@@ -30,14 +30,14 @@ pub use string::Str;
 
 
 /// A value of dynamic type in the language.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Hash)]
 #[derive(Trace, Finalize)]
 pub enum Value {
 	Nil,
 	Bool(bool),
+	Byte(u8),
 	Int(i64),
 	Float(Float),
-	Byte(u8),
 	/// Strings are immutable.
 	String(Str),
 	Array(Array),
@@ -70,6 +70,96 @@ impl Value {
 		matches!(self, Self::Error(_))
 	}
 }
+
+
+impl PartialOrd for Value {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+
+impl Ord for Value {
+	fn cmp(&self, other: &Self) -> Ordering {
+		let order = |value| match value {
+			&Self::Nil => 0,
+			&Self::Bool(_) => 1,
+			&Self::Byte(_) => 2,
+			// Int and float are comparable.
+			&Self::Int(_) => 3,
+			&Self::Float(_) => 3,
+			&Self::String(_) => 4,
+			&Self::Array(_) => 5,
+			&Self::Dict(_) => 6,
+			&Self::Function(_) => 7,
+			&Self::Error(_) => 8,
+		};
+
+		match (self, other) {
+			(Self::Nil, Self::Nil) => Ordering::Equal,
+
+			(Self::Bool(bool1), Self::Bool(bool2)) => bool1.cmp(&bool2),
+
+			(Self::Byte(byte1), Self::Byte(byte2)) => byte1.cmp(&byte2),
+
+			(Self::Int(int1), Self::Int(int2)) => int1.cmp(&int2),
+
+			(Self::Float(ref float1), Self::Float(ref float2)) => float1.cmp(float2),
+
+			// Float and int are comparable:
+			(Self::Int(int), Self::Float(ref float)) => Float::from(int).cmp(float),
+			(Self::Float(ref float), Self::Int(int)) => float.cmp(&int.into()),
+
+			(Self::String(ref str1), Self::String(ref str2)) => str1.cmp(&str2),
+
+			(Self::Array(array1), Self::Array(array2)) => array1.cmp(&array2),
+
+			(Self::Dict(dict1), Self::Dict(dict2)) => dict1.cmp(&dict2),
+
+			(Self::Function(function1), Self::Function(function2)) => function1.cmp(&function2),
+
+			(Self::Error(error1), Self::Error(error2)) => error1.cmp(&error2),
+
+			_ => order(self).cmp(&order(other)),
+		}
+	}
+}
+
+
+impl PartialEq for Value {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Self::Nil, Self::Nil) => true,
+
+			(Self::Bool(bool1), Self::Bool(bool2)) => bool1.eq(&bool2),
+
+			(Self::Byte(byte1), Self::Byte(byte2)) => byte1.eq(&byte2),
+
+			(Self::Int(int1), Self::Int(int2)) => int1.eq(&int2),
+
+			(Self::Float(ref float1), Self::Float(ref float2)) => float1.eq(float2),
+
+			// Float and int are comparable:
+			(Self::Int(int), Self::Float(ref float)) => Float::from(int).eq(float),
+			(Self::Float(ref float), Self::Int(int)) => float.eq(&int.into()),
+
+			(Self::String(ref str1), Self::String(ref str2)) => str1.eq(&str2),
+
+			(Self::Array(array1), Self::Array(array2)) => array1.eq(&array2),
+
+			(Self::Dict(dict1), Self::Dict(dict2)) => dict1.eq(&dict2),
+
+			(Self::Function(function1), Self::Function(function2)) => function1.eq(&function2),
+
+			(Self::Error(error1), Self::Error(error2)) => error1.eq(&error2),
+
+			_ => false,
+		}
+	}
+}
+
+
+impl Eq for Value { }
 
 
 impl Default for Value {

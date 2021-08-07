@@ -820,46 +820,17 @@ impl<'a> Runtime<'a> {
 
 		let ord_operator = |order: fn(Ordering) -> bool| {
 			match (left, right) {
-				// int . int
-				(Value::Int(int1), Value::Int(int2)) => Ok(
-					Value::Bool(
-						order(int1.cmp(&int2))
-					)
-				),
-
-				// float . float
-				(Value::Float(ref float1), Value::Float(ref float2)) => Ok(
-					Value::Bool(
-						order(float1.cmp(float2))
-					)
-				),
-
-				// float . int, int . float
-				(Value::Int(int), Value::Float(ref float)) => Ok(
-					Value::Bool(
-						order(float.cmp(&int.into()))
-					)
-				),
-
-				(Value::Float(ref float), Value::Int(int)) => Ok(
-					Value::Bool(
-						order(Float::from(int).cmp(float))
-					)
-				),
-
-				// char . char
-				(Value::Byte(b1), Value::Byte(b2)) => Ok(
-					Value::Bool(
-						order(b1.cmp(&b2))
-					)
-				),
-
-				// string . string
-				(Value::String(ref str1), Value::String(ref str2)) => Ok(
-					Value::Bool(
-						order(str1.cmp(&str2))
-					)
-				),
+				(left @ Value::Int(_), right @ Value::Int(_))
+					| (left @ Value::Float(_), right @ Value::Float(_))
+					| (left @ Value::Int(_), right @ Value::Float(_))
+					| (left @ Value::Float(_), right @ Value::Int(_))
+					| (left @ Value::Byte(_), right @ Value::Byte(_))
+					| (left @ Value::String(_), right @ Value::String(_))
+					=> Ok(
+						Value::Bool(
+							order(left.cmp(&right))
+						)
+					),
 
 				// ? + ?
 				(left, right) => Err(
