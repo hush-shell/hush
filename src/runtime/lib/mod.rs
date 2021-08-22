@@ -49,6 +49,7 @@ pub fn new() -> Value {
 	dict.insert("range".into(), Range.into());
 	dict.insert("sort".into(), Sort.into());
 	dict.insert("split".into(), Split.into());
+	dict.insert("trim".into(), Trim.into());
 	dict.insert("to_string".into(), ToString.into());
 	dict.insert("type".into(), Type.into());
 
@@ -710,6 +711,32 @@ impl NativeFun for Split {
 			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
 
 			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
+		}
+	}
+}
+
+
+/// std.trim
+#[derive(Trace, Finalize)]
+struct Trim;
+
+impl NativeFun for Trim {
+	fn name(&self) -> &'static str { "std.trim" }
+
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		use bstr::ByteSlice;
+
+		match context.args() {
+			[ Value::String(ref string) ] => Ok(
+				string
+					.as_bytes()
+					.trim()
+					.into()
+			),
+
+			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+
+			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
 }
