@@ -94,6 +94,13 @@ impl From<Box<[u8]>> for Str {
 }
 
 
+impl From<Vec<u8>> for Str {
+	fn from(vec: Vec<u8>) -> Self {
+		Self::from(vec.into_boxed_slice())
+	}
+}
+
+
 impl<'a> From<&'a str> for Str {
 	fn from(string: &'a str) -> Self {
 		string.as_bytes().into()
