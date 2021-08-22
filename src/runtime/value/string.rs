@@ -23,6 +23,12 @@ impl Str {
 	}
 
 
+	/// Get the underlying slice.
+	pub fn as_bytes(&self) -> &[u8] {
+		self.as_ref()
+	}
+
+
 	/// Get the value at a given index.
 	pub fn index(&self, index: i64) -> Result<Value, IndexOutOfBounds> {
 		let index: usize = index

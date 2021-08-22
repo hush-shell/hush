@@ -48,6 +48,7 @@ pub fn new() -> Value {
 	dict.insert("push".into(), Push.into());
 	dict.insert("range".into(), Range.into());
 	dict.insert("sort".into(), Sort.into());
+	dict.insert("split".into(), Split.into());
 	dict.insert("to_string".into(), ToString.into());
 	dict.insert("type".into(), Type.into());
 
@@ -679,6 +680,35 @@ impl NativeFun for Sort {
 			}
 
 			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
+		}
+	}
+}
+
+
+/// std.split
+#[derive(Trace, Finalize)]
+struct Split;
+
+impl NativeFun for Split {
+	fn name(&self) -> &'static str { "std.split" }
+
+	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+		use bstr::ByteSlice;
+
+		match context.args() {
+			[ Value::String(ref string), Value::String(ref pattern) ] => Ok(
+				string
+					.as_bytes()
+					.split_str(pattern)
+					.map(Value::from)
+					.collect::<Vec<Value>>()
+					.into()
+			),
+
+			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+
 			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}
