@@ -120,7 +120,7 @@ impl Strategy {
 
 
 /// A parser that can be synchronized.
-pub trait Parser<E> {
+pub trait Synchronizable<E> {
 	/// Synchronize using the given strategy.
 	fn synchronize(&mut self, error: E, sync: Strategy);
 }
@@ -154,7 +154,7 @@ impl<T, E> WithSync<T, E> for Result<T, E> {
 /// Extension trait for synchronizing from Result.
 pub trait ResultExt<T, E> {
 	/// Synchronize the parser using the current strategy.
-	fn synchronize<P: Parser<E>>(self, parser: &mut P) -> T;
+	fn synchronize<P: Synchronizable<E>>(self, parser: &mut P) -> T;
 
 	/// If the sync strategy is `keep`, replace it with `skip_one`.
 	fn force_sync_skip(self) -> Self;
@@ -165,7 +165,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E>
 where
 	T: ast::IllFormed,
 {
-	fn synchronize<P: Parser<E>>(self, parser: &mut P) -> T {
+	fn synchronize<P: Synchronizable<E>>(self, parser: &mut P) -> T {
 		match self {
 			Ok(value) => value,
 

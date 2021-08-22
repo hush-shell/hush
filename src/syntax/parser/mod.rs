@@ -9,7 +9,7 @@ use super::{
 	ast,
 	lexer::{ArgPart, ArgUnit, Keyword, Token, TokenKind, Operator, CommandOperator}
 };
-use sync::{ResultExt, WithSync};
+use sync::{ResultExt, WithSync, Synchronizable};
 pub use error::Error;
 
 
@@ -159,16 +159,16 @@ where
 }
 
 
-impl<I, E> sync::Parser<Error> for Parser<I, E>
+impl<I, E> Synchronizable<Error> for Parser<I, E>
 where
 	I: Iterator<Item = Token>,
 	E: ErrorReporter,
 {
-	fn synchronize(&mut self, error: Error, mut sync: sync::Strategy) {
+	fn synchronize(&mut self, error: Error, mut strategy: sync::Strategy) {
 		self.error_reporter.report(error);
 
 		while let Some(Token { kind: token, .. }) = &self.token {
-			if sync.synchronized(token) {
+			if strategy.synchronized(token) {
 				break;
 			} else {
 				self.step();
