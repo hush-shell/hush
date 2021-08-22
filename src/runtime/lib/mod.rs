@@ -658,7 +658,7 @@ impl NativeFun for Contains {
 			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), context.pos)),
 
 			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
-			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
+			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}
 }
@@ -679,7 +679,7 @@ impl NativeFun for Sort {
 			}
 
 			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
-			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
+			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}
 }
