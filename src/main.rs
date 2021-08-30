@@ -14,7 +14,7 @@ mod tests;
 use term::color;
 
 use args::{Args, Command};
-use runtime::{Panic, SourcePos};
+use runtime::{Panic, SourcePos, Runtime};
 
 
 #[derive(Debug)]
@@ -133,11 +133,12 @@ fn run(args: Args) -> ExitStatus {
 	}
 
 	let program = Box::leak(Box::new(program));
+	let mut runtime = Runtime::new(interner);
 
-	match runtime::Runtime::eval(program, &mut interner) {
+	match runtime.eval(program) {
     Ok(_) => ExitStatus::Success,
     Err(panic) => {
-			eprintln!("{}", fmt::Show(panic, &interner));
+			eprintln!("{}", fmt::Show(panic, runtime.interner()));
 			ExitStatus::Panic
 		}
 	}

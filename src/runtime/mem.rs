@@ -178,7 +178,7 @@ impl Stack {
 
 
 	/// Get the stack length.
-	fn len(&self) -> usize {
+	pub fn len(&self) -> usize {
 		self.slots.len()
 	}
 }

@@ -140,9 +140,9 @@ impl Hash for HushFun {
 
 /// Context for a native function call.
 #[derive(Debug)]
-pub struct CallContext<'a, 'b> {
+pub struct CallContext<'a> {
 	/// The runtime instance.
-	pub runtime: &'b mut Runtime<'a>,
+	pub runtime: &'a mut Runtime,
 	/// The value of `self`.
 	pub obj: Value,
 	/// The offset in the runtime's argument vector where the arguments for this call are
@@ -153,7 +153,7 @@ pub struct CallContext<'a, 'b> {
 }
 
 
-impl<'a, 'b> CallContext<'a, 'b> {
+impl<'a> CallContext<'a> {
 	/// Get the slice of arguments.
 	pub fn args(&self) -> &[Value] {
 		&self.runtime.arguments[self.args_start..]

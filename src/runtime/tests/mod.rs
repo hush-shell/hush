@@ -13,33 +13,42 @@ where
 	P: AsRef<Path>,
 	F: FnMut(&Result<Value, Panic>) -> bool,
 {
-	let mut interner = symbol::Interner::new();
+	let interner = symbol::Interner::new();
+	let mut runtime = Runtime::new(interner);
 
 	tests::util::test_dir(
 		path,
 		move |path, file| {
-			let path_symbol = interner.get_or_intern(path.as_os_str().as_bytes());
+			let path_symbol = runtime
+				.interner_mut()
+				.get_or_intern(path.as_os_str().as_bytes());
 			let source = syntax::Source::from_reader(path_symbol, file)?;
-			let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
+			let syntactic_analysis = syntax::Analysis::analyze(
+				source,
+				runtime.interner_mut()
+			);
 
 			if !syntactic_analysis.errors.is_empty() {
-				panic!("{}", fmt::Show(syntactic_analysis, &interner));
+				panic!("{}", fmt::Show(syntactic_analysis, runtime.interner()));
 			}
 
-			let semantic_analysis = semantic::Analyzer::analyze(syntactic_analysis.ast, &mut interner);
+			let semantic_analysis = semantic::Analyzer::analyze(
+				syntactic_analysis.ast,
+				runtime.interner_mut()
+			);
 			let program = match semantic_analysis {
 				Ok(program) => program,
-				Err(errors) => panic!("{}", fmt::Show(errors, &interner)),
+				Err(errors) => panic!("{}", fmt::Show(errors, runtime.interner())),
 			};
 
 			let program = Box::leak(Box::new(program));
 
-			let result = Runtime::eval(program, &mut interner);
+			let result = runtime.eval(program);
 
 			if !check(&result) {
 				match result {
-					Ok(value) => panic!("{}", fmt::Show(value, &interner)),
-					Err(panic) => panic!("{}", fmt::Show(panic, &interner)),
+					Ok(value) => panic!("{}", fmt::Show(value, runtime.interner())),
+					Err(panic) => panic!("{}", fmt::Show(panic, runtime.interner())),
 				}
 			}
 

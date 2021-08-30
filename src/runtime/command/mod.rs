@@ -21,7 +21,7 @@ use super::{
 use arg::Args;
 
 
-impl<'a> Runtime<'a> {
+impl Runtime {
 	pub(super) fn eval_command_block(
 		&mut self,
 		block: &'static program::CommandBlock

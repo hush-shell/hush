@@ -40,47 +40,64 @@ use mem::Stack;
 
 /// A runtime instance to execute Hush programs.
 #[derive(Debug)]
-pub struct Runtime<'a> {
+pub struct Runtime {
 	stack: Stack,
 	arguments: Vec<Value>,
-	interner: &'a mut symbol::Interner,
+	std: Value,
+	interner: symbol::Interner,
 }
 
 
-impl<'a> Runtime<'a> {
-	/// Execute the given program.
-	pub fn eval(
-		program: &'static program::Program,
-		interner: &'a mut symbol::Interner
-	) -> Result<Value, Panic> {
-		let mut runtime = Self {
+impl Runtime {
+	/// Create a new runtime instance with the given interner.
+	pub fn new(interner: symbol::Interner) -> Self {
+		Self {
 			stack: Stack::default(),
 			arguments: Vec::new(),
 			interner,
-		};
+			std: lib::new(),
+		}
+	}
 
+
+	/// Get an immutable reference to the symbol interner owned by this runtime.
+	pub fn interner(&self) -> &symbol::Interner {
+		&self.interner
+	}
+
+
+	/// Get a mutable reference to the symbol interner owned by this runtime.
+	pub fn interner_mut(&mut self) -> &mut symbol::Interner {
+		&mut self.interner
+	}
+
+
+	/// Execute the given program.
+	pub fn eval(&mut self, program: &'static program::Program) -> Result<Value, Panic> {
 		// Global variables.
 		let slots: mem::SlotIx = program.root_slots.into();
 
-		runtime.stack
+		let initial_args_len = self.arguments.len();
+		let initial_stack_len = self.stack.len();
+
+		self.stack
 			.extend(slots.copy())
 			.map_err(|_| Panic::stack_overflow(SourcePos::file(program.source)))?;
 
 		// Stdlib.
-		let std = lib::new();
-		runtime.stack.store(mem::SlotIx(0), std);
+		self.stack.store(mem::SlotIx(0), self.std.copy());
 
 		// Execute the program.
-		let value = match runtime.eval_block(&program.statements)? {
+		let value = match self.eval_block(&program.statements)? {
 			Flow::Regular(value) => value,
 			flow => panic!("invalid flow in root state: {:#?}", flow)
 		};
 
 		// Drop global variables.
-		runtime.stack.shrink(slots);
+		self.stack.shrink(slots);
 
-		debug_assert!(runtime.stack.is_empty());
-		debug_assert!(runtime.arguments.is_empty());
+		debug_assert_eq!(self.stack.len(), initial_stack_len);
+		debug_assert_eq!(self.arguments.len(), initial_args_len);
 
 		Ok(value)
 	}
