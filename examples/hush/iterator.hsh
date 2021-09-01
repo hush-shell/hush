@@ -1,6 +1,6 @@
 # iterator: traversal utilities.
 
-let Heap # TODO: import Heap module.
+let Heap = std.import("./heap.hsh")
 
 # Construct an iterator.
 # An Iterator is an object capable of iterating a collection.
@@ -293,3 +293,12 @@ function Chain(iterators)
 		end
 	)
 end
+
+
+@[
+	Iterator: Iterator,
+	Array: Array,
+	Dict: Dict,
+	Empty: Empty,
+	Chain: Chain,
+]

@@ -190,7 +190,7 @@ pub trait NativeFun: Trace + Finalize + 'static {
 	/// globally unique name.
 	fn name(&self) -> &'static str;
 	/// Invoke the function.
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic>;
+	fn call(&self, context: CallContext) -> Result<Value, Panic>;
 }
 
 
@@ -214,7 +214,7 @@ impl RustFun {
 
 	/// Invoke the function.
 	pub fn call(&self, context: CallContext) -> Result<Value, Panic> {
-		self.0.deref().borrow_mut().call(context)
+		self.0.deref().borrow().call(context)
 	}
 }
 

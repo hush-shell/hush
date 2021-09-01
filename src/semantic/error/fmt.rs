@@ -1,10 +1,17 @@
 use std::fmt::Display as _;
 
 use super::{Errors, Error, ErrorKind};
-use crate::{
-	fmt::Display,
-	symbol,
-};
+use crate::{fmt::{self, Display}, symbol, term::color};
+
+
+/// Context for displaying errors.
+#[derive(Debug, Copy, Clone)]
+pub struct ErrorsDisplayContext<'a> {
+	/// Max number of displayed errors.
+	pub max_errors: Option<usize>,
+	/// Symbol interner.
+	pub interner: &'a symbol::Interner,
+}
 
 
 impl<'a> Display<'a> for ErrorKind {
@@ -63,12 +70,24 @@ impl std::fmt::Display for Error {
 
 
 impl<'a> Display<'a> for Errors {
-	type Context = &'a symbol::Interner;
+	type Context = ErrorsDisplayContext<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		for error in self.0.iter() {
-			Display::fmt(error, f, context)?;
-			writeln!(f)?;
+		for (ix, error) in self.0.iter().enumerate() {
+			if let Some(max) = context.max_errors {
+				if max <= ix {
+					writeln!(
+						f,
+						"{} {}",
+						color::Fg(color::Red, max),
+						color::Fg(color::Red, "more supressed semantic errors"),
+					)?;
+
+					break;
+				}
+			}
+
+			fmt::Show(error, context.interner).fmt(f)?
 		}
 
 		Ok(())

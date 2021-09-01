@@ -1,4 +1,8 @@
-use std::ffi::OsString;
+use std::{
+	ffi::OsString,
+	os::unix::ffi::OsStrExt,
+	path::{Path, PathBuf},
+};
 
 use clap::{clap_app, crate_authors, crate_version, crate_description};
 
@@ -13,6 +17,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Args {
+	pub script_path: Option<PathBuf>,
 	/// Check program with static analysis, but don't run.
 	pub check: bool,
 	/// Print the AST.
@@ -32,21 +37,31 @@ where
 			(version: crate_version!())
 			(author: crate_authors!())
 			(about: crate_description!())
+			(@arg script_path: "the script to execute")
 			(@arg check: --check "Perform only static analysis instead of executing.")
 			(@arg ast: --ast "Print the AST")
 			(@arg program: --program "Print the PROGAM")
 	);
 
 	match app.get_matches_from_safe(args) {
-		Ok(matches) => Ok(
-			Command::Run(
-				Args {
-					check: matches.is_present("check"),
-					print_ast: matches.is_present("ast"),
-					print_program: matches.is_present("program"),
-				}
+		Ok(matches) => {
+			let script_path = match matches.value_of_os("script_path") {
+				Some(path) if path.as_bytes() == b"-" => None,
+				Some(path) => Some(Path::new(path).into()),
+				None => None,
+			};
+
+			Ok(
+				Command::Run(
+					Args {
+						script_path,
+						check: matches.is_present("check"),
+						print_ast: matches.is_present("ast"),
+						print_program: matches.is_present("program"),
+					}
+				)
 			)
-		),
+		},
 
 		Err(error) => match error.kind {
 			clap::ErrorKind::HelpDisplayed => Ok(

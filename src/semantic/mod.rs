@@ -32,7 +32,7 @@ use program::{
 	RedirectionTarget,
 	Statement,
 };
-pub use error::{Error, ErrorKind, Errors};
+pub use error::{Error, ErrorKind, Errors, ErrorsDisplayContext};
 
 
 /// Static semantic analyzer.

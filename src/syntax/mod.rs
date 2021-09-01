@@ -15,6 +15,20 @@ pub use error::Error;
 use lexer::Lexer;
 use parser::Parser;
 pub use source::{Source, SourcePos};
+pub use fmt::AnalysisDisplayContext;
+
+
+/// Syntax errors.
+#[derive(Debug)]
+pub struct Errors(Box<[Error]>);
+
+
+impl Errors {
+	/// Check if there are any errors.
+	pub fn is_empty(&self) -> bool {
+		self.0.is_empty()
+	}
+}
 
 
 /// Syntactical analysis.
@@ -23,7 +37,7 @@ pub struct Analysis {
 	/// The produced AST, possibly partial if there were errors.
 	pub ast: Ast,
 	/// Syntax errors.
-	pub errors: Box<[Error]>,
+	pub errors: Errors,
 }
 
 
@@ -57,7 +71,13 @@ impl Analysis {
 				source: source.path,
 				statements
 			},
-			errors: errors.into_inner().into(),
+			errors: Errors(errors.into_inner().into()),
 		}
+	}
+
+
+	/// Check if no errors occurred.
+	pub fn is_ok(&self) -> bool {
+		self.errors.is_empty()
 	}
 }

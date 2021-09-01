@@ -1,6 +1,7 @@
 mod fmt;
 
 use super::{Symbol, SourcePos};
+pub use fmt::ErrorsDisplayContext;
 
 
 /// The kind of a semantic error.

@@ -11,6 +11,8 @@ mod term;
 #[cfg(test)]
 mod tests;
 
+use std::os::unix::ffi::OsStrExt;
+
 use term::color;
 
 use args::{Args, Command};
@@ -61,25 +63,47 @@ fn main() -> ! {
 
 fn run(args: Args) -> ExitStatus {
 	let mut interner = symbol::Interner::new();
-	let path = interner.get_or_intern("<stdin>");
 
-	let source = match syntax::Source::from_reader(path, std::io::stdin().lock()) {
+	let (source, path) = match args.script_path {
+		Some(path) => {
+			let path = interner.get_or_intern(path.as_os_str().as_bytes());
+			let source = syntax::Source::from_path(path, &mut interner);
+			(source, path)
+		},
+
+		None => {
+			let path = interner.get_or_intern("<stdin>");
+			let source = syntax::Source::from_reader(path, std::io::stdin().lock());
+			(source, path)
+		},
+	};
+
+	let source = match source {
     Ok(source) => source,
     Err(error) => {
-			eprintln!("{}", fmt::Show(Panic::io(error, SourcePos::file(path)), &interner));
+			eprintln!(
+				"{}",
+				fmt::Show(
+					Panic::io(error, SourcePos::file(path)),
+					&interner
+				)
+			);
 			return ExitStatus::Panic;
 		}
 	};
 
 	// ----------------------------------------------------------------------------------------
 	let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
+	let has_syntax_errors = !syntactic_analysis.is_ok();
 
-	for error in syntactic_analysis.errors.iter().take(20) {
-		eprintln!(
-			"{}: {}",
-			color::Fg(color::Red, "Error"),
-			fmt::Show(error, &interner)
-		);
+	if has_syntax_errors {
+		eprint!("{}", fmt::Show(
+			syntactic_analysis.errors,
+			syntax::AnalysisDisplayContext {
+				max_errors: Some(20),
+				interner: &interner,
+			}
+		));
 	}
 
 	if args.print_ast {
@@ -97,16 +121,14 @@ fn run(args: Args) -> ExitStatus {
 	// ----------------------------------------------------------------------------------------
 	let program = match semantic::Analyzer::analyze(syntactic_analysis.ast, &mut interner) {
 		Ok(program) => program,
-
 		Err(errors) => {
-			for error in errors.into_iter().take(20) {
-				eprintln!(
-					"{}: {}",
-					color::Fg(color::Red, "Error"),
-					fmt::Show(error, &interner)
-				);
-			}
-
+			eprint!("{}", fmt::Show(
+				errors,
+				semantic::ErrorsDisplayContext {
+					max_errors: Some(20),
+					interner: &interner,
+				}
+			));
 			return ExitStatus::StaticError;
 		}
 	};
@@ -124,7 +146,7 @@ fn run(args: Args) -> ExitStatus {
 	}
 
 	// ----------------------------------------------------------------------------------------
-	if !syntactic_analysis.errors.is_empty() {
+	if has_syntax_errors {
 		return ExitStatus::StaticError;
 	}
 

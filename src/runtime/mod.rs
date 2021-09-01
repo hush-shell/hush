@@ -12,12 +12,9 @@ pub mod value;
 #[cfg(test)]
 mod tests;
 
-use std::{
-	collections::HashMap,
-	ops::Deref,
-};
+use std::{collections::HashMap, ops::Deref};
 
-use crate::symbol;
+use crate::symbol::{self, Symbol};
 use super::semantic::program;
 use value::{
 	keys,
@@ -45,6 +42,7 @@ pub struct Runtime {
 	arguments: Vec<Value>,
 	std: Value,
 	interner: symbol::Interner,
+	modules: HashMap<Symbol, Value>,
 }
 
 
@@ -56,6 +54,7 @@ impl Runtime {
 			arguments: Vec::new(),
 			interner,
 			std: lib::new(),
+			modules: HashMap::new(),
 		}
 	}
 

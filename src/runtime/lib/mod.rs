@@ -2,16 +2,17 @@ mod util;
 
 use std::{
 	collections::HashMap,
-	ffi::OsStr,
 	io::{self, Write},
-	path::PathBuf,
+	path::Path
 };
 
-use gc::{Finalize, Trace};
+use gc::{Finalize, GcCell, Trace};
 
 use crate::{
 	fmt::{self, FmtString},
-	symbol
+	syntax,
+	semantic,
+	symbol::{self, Symbol}
 };
 use super::{
 	keys,
@@ -40,6 +41,7 @@ pub fn new() -> Value {
 	dict.insert("env".into(), Env.into());
 	dict.insert("error".into(), ErrorFun.into());
 	dict.insert("has_error".into(), HasError.into());
+	dict.insert("import".into(), Import.into());
 	dict.insert("is_empty".into(), IsEmpty.into());
 	dict.insert("iter".into(), Iter.into());
 	dict.insert("len".into(), Length.into());
@@ -77,7 +79,7 @@ impl Print {
 impl NativeFun for Print {
 	fn name(&self) -> &'static str { "std.print" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		let stdout = io::stdout();
 		let mut stdout = stdout.lock();
 
@@ -111,7 +113,7 @@ struct Type;
 impl NativeFun for Type {
 	fn name(&self) -> &'static str { "std.type" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		thread_local! {
 			pub static NIL: Value = "nil".into();
 			pub static BOOL: Value = "bool".into();
@@ -153,7 +155,7 @@ struct Length;
 impl NativeFun for Length {
 	fn name(&self) -> &'static str { "std.len" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::Array(ref array) ] => Ok(Value::Int(array.len())),
 			[ Value::Dict(ref dict) ] => Ok(Value::Int(dict.len())),
@@ -172,29 +174,31 @@ struct Iter;
 impl NativeFun for Iter {
 	fn name(&self) -> &'static str { "std.iter" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::Array(ref array) ] => Ok(
 				IterImpl::Array {
 					array: array.copy(),
-					ix: 0,
+					ix: GcCell::new(0),
 				}.into()
 			),
 
 			[ Value::Dict(ref dict) ] => Ok(
 				IterImpl::Dict {
-					entries: dict
-						.borrow()
-						.iter()
-						.map(|(k, v)| (k.copy(), v.copy()))
-						.collect()
+					entries: GcCell::new(
+						dict
+							.borrow()
+							.iter()
+							.map(|(k, v)| (k.copy(), v.copy()))
+							.collect()
+					)
 				}.into()
 			),
 
 			[ Value::String(ref string) ] => Ok(
 				IterImpl::String {
 					string: string.copy(),
-					ix: 0,
+					ix: GcCell::new(0),
 				}.into()
 			),
 
@@ -209,21 +213,21 @@ impl NativeFun for Iter {
 enum IterImpl {
 	Array {
 		array: Array,
-		ix: i64,
+		ix: GcCell<i64>,
 	},
 	String {
 		string: Str,
-		ix: i64,
+		ix: GcCell<i64>,
 	},
 	Dict {
-		entries: Vec<(Value, Value)>,
+		entries: GcCell<Vec<(Value, Value)>>,
 	}
 }
 
 impl NativeFun for IterImpl {
 	fn name(&self) -> &'static str { "std.iter<impl>" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		let args = context.args();
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));
@@ -233,6 +237,7 @@ impl NativeFun for IterImpl {
 
 		let next = match self {
 			IterImpl::Array { array, ix } => {
+				let mut ix = ix.borrow_mut();
 				if let Ok(value) = array.index(*ix) {
 					*ix += 1;
 					Some(value)
@@ -242,6 +247,7 @@ impl NativeFun for IterImpl {
 			}
 
 			IterImpl::String { string, ix } => {
+				let mut ix = ix.borrow_mut();
 				if let Ok(value) = string.index(*ix) {
 					*ix += 1;
 					Some(value)
@@ -251,6 +257,7 @@ impl NativeFun for IterImpl {
 			}
 
 			IterImpl::Dict { entries } => entries
+				.borrow_mut()
 				.pop()
 				.map(
 					|(k, v)| {
@@ -291,7 +298,7 @@ struct Push;
 impl NativeFun for Push {
 	fn name(&self) -> &'static str { "std.push" }
 
-	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, mut context: CallContext) -> Result<Value, Panic> {
 		match context.args_mut() {
 			[ Value::Array(ref mut array), value ] => {
 				array.push(value.copy());
@@ -312,7 +319,7 @@ struct Pop;
 impl NativeFun for Pop {
 	fn name(&self) -> &'static str { "std.pop" }
 
-	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, mut context: CallContext) -> Result<Value, Panic> {
 		match context.args_mut() {
 			[ Value::Array(ref mut array) ] => {
 				let value = array
@@ -336,7 +343,7 @@ struct IsEmpty;
 impl NativeFun for IsEmpty {
 	fn name(&self) -> &'static str { "std.is_empty" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::Array(ref array) ] => Ok(array.is_empty().into()),
 
@@ -358,7 +365,7 @@ struct ErrorFun;
 impl NativeFun for ErrorFun {
 	fn name(&self) -> &'static str { "std.error" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::String(ref string), context ] => Ok(
 				Error
@@ -380,7 +387,7 @@ struct Range;
 impl NativeFun for Range {
 	fn name(&self) -> &'static str { "std.range" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ from, to, step ] => {
 				let numbers = util::Numbers
@@ -389,8 +396,17 @@ impl NativeFun for Range {
 
 				Ok(
 					match numbers {
-						util::Numbers::Ints([ from, to, step ]) => RangeImpl { from, to, step }.into(),
-						util::Numbers::Floats([ from, to, step ]) => RangeImpl { from, to, step }.into(),
+						util::Numbers::Ints([ from, to, step ]) => RangeImpl {
+							from: GcCell::new(from),
+							to,
+							step
+						}.into(),
+
+						util::Numbers::Floats([ from, to, step ]) => RangeImpl {
+							from: GcCell::new(from),
+							to,
+							step
+						}.into(),
 					}
 				)
 			},
@@ -403,8 +419,8 @@ impl NativeFun for Range {
 
 
 #[derive(Trace, Finalize)]
-struct RangeImpl<T> {
-	from: T,
+struct RangeImpl<T: 'static> {
+	from: GcCell<T>,
 	to: T,
 	step: T,
 }
@@ -417,26 +433,27 @@ where
 {
 	fn name(&self) -> &'static str { "std.range<impl>" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		let args = context.args();
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));
 		}
 
+		let mut from = self.from.borrow_mut();
 		let mut iteration = HashMap::new();
 
 		let finished =
 			if self.step > T::default() { // Step is positive.
-				self.from >= self.to
+				*from >= self.to
 			} else { // Step is negative.
-				self.from <= self.to
+				*from <= self.to
 			};
 
 		let next = if finished {
 			None
 		} else {
-			let value = self.from.clone();
-			self.from = self.from.clone() + self.step.clone();
+			let value = from.clone();
+			*from = from.clone() + self.step.clone();
 			Some(value)
 		};
 
@@ -462,7 +479,7 @@ struct Env;
 impl NativeFun for Env {
 	fn name(&self) -> &'static str { "std.env" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::String(ref string) ] => Ok(
 				std::env
@@ -516,7 +533,7 @@ impl HasError {
 impl NativeFun for HasError {
 	fn name(&self) -> &'static str { "std.has_error" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ value ] => Ok(Self::has_error(value).into()),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
@@ -532,7 +549,7 @@ struct ToString;
 impl NativeFun for ToString {
 	fn name(&self) -> &'static str { "std.to_string" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::String(ref string) ] => Ok(string.copy().into()),
 			[ value ] => Ok(value.fmt_string(context.interner()).into()),
@@ -549,7 +566,9 @@ struct Cd;
 impl NativeFun for Cd {
 	fn name(&self) -> &'static str { "std.cd" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
+		use std::ffi::OsStr;
+
 		match context.args() {
 			[ Value::String(ref string) ] => Ok(
 				std::env
@@ -571,7 +590,9 @@ struct Cwd;
 impl NativeFun for Cwd {
 	fn name(&self) -> &'static str { "std.cwd" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
+		use std::path::PathBuf;
+
 		let args = context.args();
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));
@@ -594,7 +615,7 @@ struct Assert;
 impl NativeFun for Assert {
 	fn name(&self) -> &'static str { "std.assert" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::Bool(true) ] => Ok(Value::default()),
 			[ Value::Bool(false) ] => Err(Panic::assertion_failed(context.pos)),
@@ -613,7 +634,7 @@ struct Bind;
 impl NativeFun for Bind {
 	fn name(&self) -> &'static str { "std.bind" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ obj, Value::Function(fun) ] => Ok(
 				BindImpl {
@@ -638,7 +659,7 @@ struct BindImpl {
 impl NativeFun for BindImpl {
 	fn name(&self) -> &'static str { "std.bind<impl>" }
 
-	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, mut context: CallContext) -> Result<Value, Panic> {
 		context.call(self.obj.copy(), &self.function, context.args_start)
 	}
 }
@@ -651,7 +672,7 @@ struct Contains;
 impl NativeFun for Contains {
 	fn name(&self) -> &'static str { "std.contains" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
 			[ Value::Array(ref array), item ] => Ok(array.contains(item).into()),
 
@@ -674,7 +695,7 @@ struct Sort;
 impl NativeFun for Sort {
 	fn name(&self) -> &'static str { "std.sort" }
 
-	fn call(&mut self, mut context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, mut context: CallContext) -> Result<Value, Panic> {
 		match context.args_mut() {
 			[ Value::Array(ref mut array) ] => {
 				array.sort();
@@ -695,7 +716,7 @@ struct Split;
 impl NativeFun for Split {
 	fn name(&self) -> &'static str { "std.split" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		use bstr::ByteSlice;
 
 		match context.args() {
@@ -724,7 +745,7 @@ struct Trim;
 impl NativeFun for Trim {
 	fn name(&self) -> &'static str { "std.trim" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		use bstr::ByteSlice;
 
 		match context.args() {
@@ -750,7 +771,7 @@ struct Replace;
 impl NativeFun for Replace {
 	fn name(&self) -> &'static str { "std.replace" }
 
-	fn call(&mut self, context: CallContext) -> Result<Value, Panic> {
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		use bstr::ByteSlice;
 
 		match context.args() {
@@ -768,5 +789,129 @@ impl NativeFun for Replace {
 
 			args => Err(Panic::invalid_args(args.len() as u32, 3, context.pos))
 		}
+	}
+}
+
+
+/// std.import
+#[derive(Trace, Finalize)]
+struct Import;
+
+impl Import {
+	fn import(module_path: &Path, context: CallContext) -> Result<Value, Panic> {
+		let path = Self
+			::resolve_path(
+				module_path,
+				context.pos.path,
+				context.runtime.interner_mut()
+			)
+			.map_err(
+				|error| Panic::io(error, context.pos.copy())
+			)?;
+
+		// Don't reload module if cached.
+		if let Some(value) = context.runtime.modules.get(&path) {
+			return Ok(value.copy());
+		}
+
+		let source = syntax::Source
+			::from_path(
+				path,
+				context.runtime.interner_mut()
+			).map_err(
+				|error| Panic::io(error, context.pos.copy())
+			)?;
+		let source_path = source.path;
+
+		let syntactic_analysis = syntax::Analysis::analyze(
+			source,
+			context.runtime.interner_mut()
+		);
+		let has_syntax_errors = !syntactic_analysis.is_ok();
+
+		if has_syntax_errors {
+			eprint!("{}", fmt::Show(
+				syntactic_analysis.errors,
+				syntax::AnalysisDisplayContext {
+					max_errors: Some(20),
+					interner: context.runtime.interner(),
+				}
+			));
+		}
+
+		let program = semantic::Analyzer
+			::analyze(
+				syntactic_analysis.ast, context.runtime.interner_mut()
+			)
+			.map_err(
+				|errors| {
+					eprint!("{}", fmt::Show(
+						errors,
+						semantic::ErrorsDisplayContext {
+							max_errors: Some(20),
+							interner: context.runtime.interner(),
+						}
+					));
+
+					Panic::import_failed(source_path, context.pos.copy())
+				}
+			)?;
+
+		let program = Box::leak(Box::new(program));
+
+		let value = context.runtime.eval(program)?;
+
+		context.runtime.modules.insert(source_path, value.copy());
+
+		Ok(value)
+	}
+
+
+	fn resolve_path(
+		target_path: &Path,
+		current_path: Symbol,
+		interner: &mut symbol::Interner,
+	) -> io::Result<Symbol> {
+		use std::{
+			path::PathBuf,
+			ffi::OsStr,
+			os::unix::ffi::OsStrExt,
+		};
+
+		let mut path_buf = PathBuf::from(
+			OsStr::from_bytes(
+				interner
+					.resolve(current_path)
+					.expect("failed to resolve symbol")
+			).to_owned()
+		);
+		path_buf.pop(); // Remove the file name.
+		path_buf.push(target_path);
+
+		let path = path_buf.canonicalize()?;
+
+		let path_symbol = interner.get_or_intern(
+			path
+				.as_os_str()
+				.as_bytes()
+		);
+
+		Ok(path_symbol)
+	}
+}
+
+impl NativeFun for Import {
+	fn name(&self) -> &'static str { "std.import" }
+
+	fn call(&self, context: CallContext) -> Result<Value, Panic> {
+		let path = match context.args() {
+			[ Value::String(ref string) ] => Path::new(string).to_owned(),
+
+			[ other ] => return Err(Panic::type_error(other.copy(), context.pos)),
+
+			args => return Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
+		};
+
+		Self::import(&path, context)
 	}
 }

@@ -1,7 +1,7 @@
 use std::{
+	ffi::OsStr,
 	fmt::{self, Display},
 	fs::File,
-	path::Path,
 	os::unix::ffi::OsStrExt,
 };
 
@@ -20,13 +20,13 @@ pub struct Source {
 
 impl Source {
 	/// Load the source code from a file path.
-	pub fn from_path<P>(path: P, interner: &mut symbol::Interner) -> std::io::Result<Self>
-	where
-		P: Into<Box<Path>>,
-	{
-		let path = path.into();
-		let file = File::open(&path)?;
-		let symbol = interner.get_or_intern(path.as_os_str().as_bytes());
+	pub fn from_path(symbol: Symbol, interner: &mut symbol::Interner) -> std::io::Result<Self> {
+		let path = OsStr::from_bytes(
+			interner
+				.resolve(symbol)
+				.expect("failed to resolve path symbol")
+		);
+		let file = File::open(path)?;
 		Self::from_reader(symbol, file)
 	}
 

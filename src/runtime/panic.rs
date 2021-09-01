@@ -4,7 +4,7 @@ use crate::{
 	fmt::{self, Display},
 	io::FileDescriptor,
 	term::color,
-	symbol,
+	symbol::{self, Symbol},
 };
 use super::{Value, SourcePos};
 
@@ -69,6 +69,11 @@ pub enum Panic {
 	},
 	/// Assertion failed.
 	AssertionFailed { pos: SourcePos },
+	/// Failed to import module.
+	ImportFailed {
+		pos: SourcePos,
+		path: Symbol,
+	}
 }
 
 
@@ -154,6 +159,11 @@ impl Panic {
 	/// Attempt to assign a readonly field value.
 	pub fn assign_to_readonly_field(field: Value, pos: SourcePos) -> Self {
 		Self::AssignToReadonlyField { field, pos }
+	}
+
+	/// Failed to import module.
+	pub fn import_failed(path: Symbol, pos: SourcePos) -> Self {
+		Self::ImportFailed { path, pos }
 	}
 }
 
@@ -255,6 +265,15 @@ impl<'a> Display<'a> for Panic {
 
 			Self::AssertionFailed { pos } =>
 				write!(f, "{} in {}: assertion failed", panic, fmt::Show(pos, context)),
+
+			Self::ImportFailed { path, pos } =>
+				write!(
+					f,
+					"{} in {}: failed to import module ({})",
+					panic,
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(path, context))
+				),
 		}
 	}
 }
