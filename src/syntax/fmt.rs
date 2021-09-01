@@ -1,8 +1,7 @@
-use super::{ast, Analysis, Errors};
+use super::{ast, Analysis};
 use crate::{
-	fmt::{self, Display},
+	fmt::Display,
 	symbol,
-	term::color,
 };
 
 
@@ -13,37 +12,6 @@ pub struct AnalysisDisplayContext<'a> {
 	pub max_errors: Option<usize>,
 	/// Symbol interner.
 	pub interner: &'a symbol::Interner,
-}
-
-
-impl<'a> Display<'a> for Errors {
-	type Context = AnalysisDisplayContext<'a>;
-
-	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		for (ix, error) in self.0.into_iter().enumerate() {
-			if let Some(max) = context.max_errors {
-				if max <= ix {
-					writeln!(
-						f,
-						"{} {}",
-						color::Fg(color::Red, max),
-						color::Fg(color::Red, "more supressed syntax errors"),
-					)?;
-
-					break;
-				}
-			}
-
-			writeln!(
-				f,
-				"{}: {}",
-				color::Fg(color::Red, "Error"),
-				fmt::Show(error, context.interner)
-			)?;
-		}
-
-		Ok(())
-	}
 }
 
 

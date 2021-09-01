@@ -1,10 +1,12 @@
-use std::fmt::{self, Display};
-
+use crate::{
+	fmt::{self, Display},
+	symbol,
+};
 use super::{Error, ErrorKind};
 
 
-impl Display for ErrorKind {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for ErrorKind {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::UnexpectedEof => "unexpected end of file".fmt(f)?,
 
@@ -34,8 +36,17 @@ impl Display for ErrorKind {
 }
 
 
-impl Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{} - {}.", self.pos, self.error)
+impl<'a> Display<'a> for Error {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		write!(f, "{} - {}.", fmt::Show(self.pos, context), self.error)
+	}
+}
+
+
+impl std::fmt::Display for Error {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "line {}, column {} - {}.", self.pos.line, self.pos.column, self.error)
 	}
 }

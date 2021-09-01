@@ -2,7 +2,7 @@ use std::fmt::Display as _;
 
 use super::{ArgPart, ArgUnit, CommandOperator, Keyword, Literal, Operator, Token, TokenKind};
 use crate::{
-	fmt::Display,
+	fmt::{self, Display},
 	symbol,
 	term::color,
 };
@@ -171,7 +171,7 @@ impl<'a> Display<'a> for Token {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		write!(f, "{}:\t", self.pos)?;
+		write!(f, "{}:\t", fmt::Show(self.pos, context))?;
 		self.kind.fmt(f, context)
 	}
 }

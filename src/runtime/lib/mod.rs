@@ -798,7 +798,7 @@ impl NativeFun for Replace {
 struct Import;
 
 impl Import {
-	fn import(module_path: &Path, context: CallContext) -> Result<Value, Panic> {
+	fn import(module_path: &Path, mut context: CallContext) -> Result<Value, Panic> {
 		let path = Self
 			::resolve_path(
 				module_path,
@@ -809,61 +809,14 @@ impl Import {
 				|error| Panic::io(error, context.pos.copy())
 			)?;
 
-		// Don't reload module if cached.
-		if let Some(value) = context.runtime.modules.get(&path) {
-			return Ok(value.copy());
+		match context.runtime.modules.get(&path) {
+			Some(module) => Ok(module.copy()), // Don't reload module if cached.
+			None => {
+				let module = Self::load(path, &mut context)?;
+				context.runtime.modules.insert(path, module.copy());
+				Ok(module)
+			}
 		}
-
-		let source = syntax::Source
-			::from_path(
-				path,
-				context.runtime.interner_mut()
-			).map_err(
-				|error| Panic::io(error, context.pos.copy())
-			)?;
-		let source_path = source.path;
-
-		let syntactic_analysis = syntax::Analysis::analyze(
-			source,
-			context.runtime.interner_mut()
-		);
-		let has_syntax_errors = !syntactic_analysis.is_ok();
-
-		if has_syntax_errors {
-			eprint!("{}", fmt::Show(
-				syntactic_analysis.errors,
-				syntax::AnalysisDisplayContext {
-					max_errors: Some(20),
-					interner: context.runtime.interner(),
-				}
-			));
-		}
-
-		let program = semantic::Analyzer
-			::analyze(
-				syntactic_analysis.ast, context.runtime.interner_mut()
-			)
-			.map_err(
-				|errors| {
-					eprint!("{}", fmt::Show(
-						errors,
-						semantic::ErrorsDisplayContext {
-							max_errors: Some(20),
-							interner: context.runtime.interner(),
-						}
-					));
-
-					Panic::import_failed(source_path, context.pos.copy())
-				}
-			)?;
-
-		let program = Box::leak(Box::new(program));
-
-		let value = context.runtime.eval(program)?;
-
-		context.runtime.modules.insert(source_path, value.copy());
-
-		Ok(value)
 	}
 
 
@@ -897,6 +850,59 @@ impl Import {
 		);
 
 		Ok(path_symbol)
+	}
+
+
+	fn load(path: Symbol, context: &mut CallContext) -> Result<Value, Panic> {
+		// Load file.
+		let source = syntax::Source
+			::from_path(
+				path,
+				context.runtime.interner_mut()
+			).map_err(
+				|error| Panic::io(error, context.pos.copy())
+			)?;
+
+		// Syntax.
+		let syntactic_analysis = syntax::Analysis::analyze(
+			source,
+			context.runtime.interner_mut()
+		);
+		let has_syntax_errors = !syntactic_analysis.is_ok();
+
+		if has_syntax_errors {
+			eprint!("{}", fmt::Show(
+				syntactic_analysis.errors,
+				syntax::AnalysisDisplayContext {
+					max_errors: Some(20),
+					interner: context.runtime.interner(),
+				}
+			));
+			return Err(Panic::import_failed(path, context.pos.copy()));
+		}
+
+		// Semantics.
+		let program = semantic::Analyzer
+			::analyze(
+				syntactic_analysis.ast, context.runtime.interner_mut()
+			)
+			.map_err(
+				|errors| {
+					eprint!("{}", fmt::Show(
+						errors,
+						semantic::ErrorsDisplayContext {
+							max_errors: Some(20),
+							interner: context.runtime.interner(),
+						}
+					));
+
+					Panic::import_failed(path, context.pos.copy())
+				}
+			)?;
+
+		// Eval.
+		let program = Box::leak(Box::new(program));
+		context.runtime.eval(program)
 	}
 }
 

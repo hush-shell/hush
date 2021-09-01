@@ -2,7 +2,7 @@ use std::fmt::Display as _;
 
 use super::{Error, Expected, Token};
 use crate::{
-	fmt::Display,
+	fmt::{self, Display},
 	symbol,
 };
 
@@ -32,14 +32,14 @@ impl<'a> Display<'a> for Error {
 			Self::UnexpectedEof => "unexpected end of file".fmt(f),
 
 			Self::Unexpected { token: Token { kind, pos }, expected } => {
-				write!(f, "{} - unexpected '", pos)?;
+				write!(f, "{} - unexpected '", fmt::Show(pos, context))?;
 				kind.fmt(f, context)?;
 				"', expected ".fmt(f)?;
 				expected.fmt(f, context)
 			},
 
 			Self::EmptyCommandBlock { pos } => {
-				write!(f, "{} - empty command block", pos)
+				write!(f, "{} - empty command block", fmt::Show(pos, context))
 			}
 		}
 	}

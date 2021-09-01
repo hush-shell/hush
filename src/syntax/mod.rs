@@ -11,24 +11,11 @@ use std::cell::RefCell;
 
 use crate::symbol;
 pub use ast::Ast;
-pub use error::Error;
+pub use error::{Error, Errors};
 use lexer::Lexer;
 use parser::Parser;
 pub use source::{Source, SourcePos};
 pub use fmt::AnalysisDisplayContext;
-
-
-/// Syntax errors.
-#[derive(Debug)]
-pub struct Errors(Box<[Error]>);
-
-
-impl Errors {
-	/// Check if there are any errors.
-	pub fn is_empty(&self) -> bool {
-		self.0.is_empty()
-	}
-}
 
 
 /// Syntactical analysis.

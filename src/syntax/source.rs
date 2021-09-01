@@ -1,11 +1,13 @@
 use std::{
 	ffi::OsStr,
-	fmt::{self, Display},
 	fs::File,
 	os::unix::ffi::OsStrExt,
 };
 
-use crate::symbol::{self, Symbol};
+use crate::{
+	fmt::{self, Display},
+	symbol::{self, Symbol},
+};
 
 
 /// Hush source code.
@@ -54,8 +56,16 @@ pub struct SourcePos {
 }
 
 
-impl Display for SourcePos {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "line {}, column {}", self.line, self.column)
+impl<'a> Display<'a> for SourcePos {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		write!(
+			f,
+			"{} (line {}, column {})",
+			fmt::Show(self.path, context),
+			self.line,
+			self.column
+		)
 	}
 }

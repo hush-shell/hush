@@ -1,7 +1,11 @@
 use std::fmt::Display as _;
 
 use super::{Errors, Error, ErrorKind};
-use crate::{fmt::{self, Display}, symbol, term::color};
+use crate::{
+	fmt::{self, Display},
+	symbol::{self},
+	term::color
+};
 
 
 /// Context for displaying errors.
@@ -55,7 +59,7 @@ impl<'a> Display<'a> for Error {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		write!(f, "{} - ", self.pos)?;
+		write!(f, "{}: {} - ", color::Fg(color::Red, "Error"), fmt::Show(self.pos, context))?;
 		self.kind.fmt(f, context)
 	}
 }
@@ -87,7 +91,7 @@ impl<'a> Display<'a> for Errors {
 				}
 			}
 
-			fmt::Show(error, context.interner).fmt(f)?
+			writeln!(f, "{}", fmt::Show(error, context.interner))?;
 		}
 
 		Ok(())
