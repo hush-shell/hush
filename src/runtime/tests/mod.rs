@@ -4,6 +4,8 @@ use std::{
 	os::unix::ffi::OsStrExt,
 };
 
+use serial_test::serial;
+
 use crate::{
 	fmt,
 	semantic::{self, ErrorsDisplayContext},
@@ -82,7 +84,12 @@ where
 }
 
 
+// As our garbage collector is not thread safe, we must *not* run the following tests in
+// parallel.
+
+
 #[test]
+#[serial]
 fn test_positive() -> io::Result<()> {
 	test_dir(
 		"src/runtime/tests/data/positive",
@@ -92,6 +99,7 @@ fn test_positive() -> io::Result<()> {
 
 
 #[test]
+#[serial]
 fn test_negative() -> io::Result<()> {
 	test_dir(
 		"src/runtime/tests/data/negative",
@@ -101,6 +109,7 @@ fn test_negative() -> io::Result<()> {
 
 
 #[test]
+#[serial]
 fn test_asserts() -> io::Result<()> {
 	test_dir(
 		"src/runtime/tests/data/asserts",

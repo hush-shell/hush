@@ -46,6 +46,13 @@ impl From<HushFun> for Function {
 }
 
 
+impl From<RustFun> for Function {
+	fn from(fun: RustFun) -> Self {
+		Self::Rust(fun)
+	}
+}
+
+
 impl<T: NativeFun> From<T> for Function {
 	fn from(fun: T) -> Self {
 		Self::Rust(fun.into())
@@ -235,7 +242,7 @@ impl<T: NativeFun> From<T> for RustFun {
 
 impl PartialEq for RustFun {
 	fn eq(&self, other: &Self) -> bool {
-		self.0.deref().borrow().name() == other.0.deref().borrow().name()
+		self.name() == other.name()
 	}
 }
 
@@ -245,20 +252,20 @@ impl Eq for RustFun { }
 
 impl PartialOrd for RustFun {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		self.0.deref().borrow().name().partial_cmp(other.0.deref().borrow().name())
+		self.name().partial_cmp(other.name())
 	}
 }
 
 
 impl Ord for RustFun {
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.0.deref().borrow().name().cmp(other.0.deref().borrow().name())
+		self.name().cmp(other.name())
 	}
 }
 
 
 impl Hash for RustFun {
 	fn hash<H: Hasher>(&self, state: &mut H) {
-		self.0.deref().borrow().name().hash(state);
+		self.name().hash(state);
 	}
 }

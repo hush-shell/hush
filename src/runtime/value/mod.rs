@@ -253,6 +253,12 @@ impl From<HushFun> for Value {
 	}
 }
 
+impl From<RustFun> for Value {
+	fn from(fun: RustFun) -> Self {
+		let fun: Function = fun.into();
+		fun.into()
+	}
+}
 
 impl<T: NativeFun> From<T> for Value {
 	fn from(fun: T) -> Self {

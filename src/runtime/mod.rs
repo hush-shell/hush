@@ -25,6 +25,7 @@ use value::{
 	Float,
 	Function,
 	HushFun,
+	RustFun,
 	NativeFun,
 	Str,
 	Value,
