@@ -30,7 +30,7 @@ impl<'a> Display<'a> for Errors {
 	type Context = AnalysisDisplayContext<'a>;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
-		for (ix, error) in self.0.into_iter().enumerate() {
+		for (ix, error) in self.0.iter().enumerate() {
 			if let Some(max) = context.max_errors {
 				if max <= ix {
 					writeln!(

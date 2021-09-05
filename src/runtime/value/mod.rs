@@ -75,18 +75,18 @@ impl PartialOrd for Value {
 
 impl Ord for Value {
 	fn cmp(&self, other: &Self) -> Ordering {
-		let order = |value| match value {
-			&Self::Nil => 0,
-			&Self::Bool(_) => 1,
-			&Self::Byte(_) => 2,
+		let order = |value: &Self| match *value {
+			Self::Nil => 0,
+			Self::Bool(_) => 1,
+			Self::Byte(_) => 2,
 			// Int and float are comparable.
-			&Self::Int(_) => 3,
-			&Self::Float(_) => 3,
-			&Self::String(_) => 4,
-			&Self::Array(_) => 5,
-			&Self::Dict(_) => 6,
-			&Self::Function(_) => 7,
-			&Self::Error(_) => 8,
+			Self::Int(_) => 3,
+			Self::Float(_) => 3,
+			Self::String(_) => 4,
+			Self::Array(_) => 5,
+			Self::Dict(_) => 6,
+			Self::Function(_) => 7,
+			Self::Error(_) => 8,
 		};
 
 		match (self, other) {
