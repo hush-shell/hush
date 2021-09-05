@@ -97,6 +97,13 @@ impl From<&i64> for Float {
 }
 
 
+impl Into<i64> for &Float {
+	fn into(self) -> i64 {
+		self.0 as i64
+	}
+}
+
+
 op_impl!(Float, unary, Neg, neg);
 op_impl!(Float, binary, Add, add);
 op_impl!(Float, binary, Sub, sub);
