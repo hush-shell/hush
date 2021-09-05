@@ -48,7 +48,7 @@ pub fn new() -> Value {
 		let name = fun
 			.name()
 			.strip_prefix("std.")
-			.expect("Builtin function name missing std.");
+			.expect("Builtin function name missing std prefix.");
 
 		dict.insert(name.into(), fun.copy().into());
 	}
