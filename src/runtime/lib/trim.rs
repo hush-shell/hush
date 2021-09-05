@@ -1,3 +1,5 @@
+use bstr::ByteSlice;
+
 use gc::{Finalize, Trace};
 
 use super::{
@@ -18,8 +20,6 @@ impl NativeFun for Trim {
 	fn name(&self) -> &'static str { "std.trim" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
-		use bstr::ByteSlice;
-
 		match context.args() {
 			[ Value::String(ref string) ] => Ok(
 				string

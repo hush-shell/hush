@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use gc::{Finalize, Trace};
 
 use super::{
@@ -18,8 +20,6 @@ impl NativeFun for Cwd {
 	fn name(&self) -> &'static str { "std.cwd" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
-		use std::path::PathBuf;
-
 		let args = context.args();
 		if !args.is_empty() {
 			return Err(Panic::invalid_args(args.len() as u32, 0, context.pos));

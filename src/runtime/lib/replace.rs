@@ -1,3 +1,5 @@
+use bstr::ByteSlice;
+
 use gc::{Finalize, Trace};
 
 use super::{
@@ -19,8 +21,6 @@ impl NativeFun for Replace {
 	fn name(&self) -> &'static str { "std.replace" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
-		use bstr::ByteSlice;
-
 		match context.args() {
 			[ Value::String(ref string), Value::String(ref pattern), Value::String(ref replace) ] => Ok(
 				Str::from(

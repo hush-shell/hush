@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+
 use gc::{Finalize, Trace};
 
 use super::{
@@ -18,8 +20,6 @@ impl NativeFun for Cd {
 	fn name(&self) -> &'static str { "std.cd" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
-		use std::ffi::OsStr;
-
 		match context.args() {
 			[ Value::String(ref string) ] => Ok(
 				std::env

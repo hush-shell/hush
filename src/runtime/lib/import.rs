@@ -1,4 +1,9 @@
-use std::{io, path::Path};
+use std::{
+	io,
+	path::{Path, PathBuf},
+	ffi::OsStr,
+	os::unix::ffi::OsStrExt,
+};
 
 use gc::{Finalize, Trace};
 
@@ -50,12 +55,6 @@ impl Import {
 		current_path: Symbol,
 		interner: &mut symbol::Interner,
 	) -> io::Result<Symbol> {
-		use std::{
-			path::PathBuf,
-			ffi::OsStr,
-			os::unix::ffi::OsStrExt,
-		};
-
 		let mut path_buf = PathBuf::from(
 			OsStr::from_bytes(
 				interner
