@@ -4,7 +4,7 @@ use std::{
 	os::unix::ffi::OsStrExt,
 };
 
-use crate::{fmt, symbol, syntax, tests};
+use crate::{fmt, semantic::ErrorsDisplayContext, symbol, syntax::{self, AnalysisDisplayContext}, tests};
 use super::{program, Analyzer, Program, Errors};
 
 
@@ -23,7 +23,16 @@ where
 			let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
 
 			if !syntactic_analysis.errors.is_empty() {
-				panic!("{}", fmt::Show(syntactic_analysis, &interner));
+				panic!(
+					"{}",
+					fmt::Show(
+						syntactic_analysis,
+						AnalysisDisplayContext {
+							max_errors: None,
+							interner: &interner,
+						}
+					)
+				);
 			}
 
 			let result = Analyzer::analyze(syntactic_analysis.ast, &mut interner);
@@ -38,7 +47,16 @@ where
 						)
 					),
 
-					Err(errors) => panic!("{}", fmt::Show(errors, &interner)),
+					Err(errors) => panic!(
+						"{}",
+						fmt::Show(
+							errors,
+							ErrorsDisplayContext {
+								max_errors: None,
+								interner: &interner,
+							}
+						)
+					),
 				}
 			}
 

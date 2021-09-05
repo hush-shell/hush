@@ -4,7 +4,7 @@ use std::{
 	os::unix::ffi::OsStrExt,
 };
 
-use crate::{fmt, symbol, tests};
+use crate::{fmt, symbol, syntax::AnalysisDisplayContext, tests};
 use super::{Analysis, Source};
 
 
@@ -23,7 +23,13 @@ where
 			let analysis = Analysis::analyze(source, &mut interner);
 
 			if !check(&analysis) {
-				panic!("{}", fmt::Show(analysis, &interner));
+				panic!("{}", fmt::Show(
+					analysis,
+					AnalysisDisplayContext {
+						max_errors: None,
+						interner: &interner,
+					}
+				));
 			}
 
 			Ok(())

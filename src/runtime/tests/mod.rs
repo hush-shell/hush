@@ -4,7 +4,13 @@ use std::{
 	os::unix::ffi::OsStrExt,
 };
 
-use crate::{fmt, symbol, syntax, semantic, tests};
+use crate::{
+	fmt,
+	semantic::{self, ErrorsDisplayContext},
+	symbol,
+	syntax::{self, AnalysisDisplayContext},
+	tests,
+};
 use super::{Runtime, Value, Panic};
 
 
@@ -29,7 +35,16 @@ where
 			);
 
 			if !syntactic_analysis.errors.is_empty() {
-				panic!("{}", fmt::Show(syntactic_analysis, runtime.interner()));
+				panic!(
+					"{}",
+					fmt::Show(
+						syntactic_analysis,
+						AnalysisDisplayContext {
+							max_errors: None,
+							interner: runtime.interner(),
+						}
+					)
+				);
 			}
 
 			let semantic_analysis = semantic::Analyzer::analyze(
@@ -38,7 +53,16 @@ where
 			);
 			let program = match semantic_analysis {
 				Ok(program) => program,
-				Err(errors) => panic!("{}", fmt::Show(errors, runtime.interner())),
+				Err(errors) => panic!(
+					"{}",
+					fmt::Show(
+						errors,
+						ErrorsDisplayContext {
+							max_errors: None,
+							interner: runtime.interner(),
+						}
+					)
+				),
 			};
 
 			let program = Box::leak(Box::new(program));
