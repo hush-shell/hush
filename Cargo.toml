@@ -5,6 +5,8 @@ authors = ["gahag <gabriel.s.b@live.com>"]
 edition = "2018"
 
 [dependencies]
+automod = "1.0"
+
 clap = "2.33"
 termion = "1.5"
 

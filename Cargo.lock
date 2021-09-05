@@ -29,6 +29,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "automod"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27989085bc1962f5d8ad5c2ab819a603b5096590c38a03162443d8a8bc307d0c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,6 +133,7 @@ name = "hush"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
+ "automod",
  "bstr",
  "clap",
  "gc",

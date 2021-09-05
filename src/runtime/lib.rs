@@ -1,26 +1,4 @@
-mod assert;
-mod bind;
-mod cd;
-mod contains;
-mod cwd;
-mod env;
-mod error;
-mod has_error;
-mod import;
-mod is_empty;
-mod iter;
-mod length;
-mod pop;
-mod print;
-mod push;
-mod range;
-mod replace;
-mod sort;
-mod split;
-mod to_string;
-mod trim;
-mod type_;
-mod util;
+automod::dir!("src/runtime/lib");
 
 use std::collections::HashMap;
 
