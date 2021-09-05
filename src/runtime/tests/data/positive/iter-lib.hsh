@@ -1,0 +1,22 @@
+let Iter = std.import("../../../../../examples/hush/iterator.hsh")
+
+let arr = [0, 5, 2, 4, 3, 1, 6]
+
+let id = function (i)
+  std.assert(i == 2)
+  i
+end
+
+let iter = Iter.Array(arr)
+  .skip(1)
+  .take(5)
+  .map(id)
+
+std.assert(iter.nth(1).value == 2)
+
+iter = Iter.Array(arr)
+  .skip(1)
+  .take(5)
+  .sorted(nil)
+
+std.assert(iter.collect(nil) == [ 1, 2, 3, 4, 5 ])

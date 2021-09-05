@@ -763,17 +763,6 @@ impl Runtime {
 						Ok(Value::Float(val))
 					},
 
-					// float . int, int . float
-					(Value::Int(int), Value::Float(ref float)) => {
-						let val = $op_float(Float::from(int), float.copy());
-						Ok(Value::Float(val))
-					},
-
-					(Value::Float(ref float), Value::Int(int)) => {
-						let val = $op_float(float.copy(), int.into());
-						Ok(Value::Float(val))
-					},
-
 					// ? . ?
 					(left, right) => Err(
 						if matches!(left, Value::Int(_) | Value::Float(_)) {
@@ -839,8 +828,6 @@ impl Runtime {
 			match (left, right) {
 				(left @ Value::Int(_), right @ Value::Int(_))
 					| (left @ Value::Float(_), right @ Value::Float(_))
-					| (left @ Value::Int(_), right @ Value::Float(_))
-					| (left @ Value::Float(_), right @ Value::Int(_))
 					| (left @ Value::Byte(_), right @ Value::Byte(_))
 					| (left @ Value::String(_), right @ Value::String(_))
 					=> Ok(

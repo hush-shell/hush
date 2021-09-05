@@ -1,0 +1,10 @@
+let animals = "large white cat
+medium black cat
+big yellow dog
+small yellow cat
+small white dog
+medium green turtle"
+
+let result = ${ cat << $animals | grep dog | cut -d ' ' -f 2 | tr a-z A-Z }.stdout
+
+std.assert(result == "YELLOW\nWHITE\n")

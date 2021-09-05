@@ -1,0 +1,5 @@
+let dict = @[ ]
+dict[1] = true
+dict[1.0] = false
+
+std.assert(std.len(dict) == 2)

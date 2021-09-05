@@ -73,7 +73,11 @@ where
 
 			if !check(&result) {
 				match result {
-					Ok(value) => panic!("{}", fmt::Show(value, runtime.interner())),
+					Ok(value) => panic!(
+						"File {}: expected panic, got {}",
+						path.display(),
+						fmt::Show(value, runtime.interner())
+					),
 					Err(panic) => panic!("{}", fmt::Show(panic, runtime.interner())),
 				}
 			}
@@ -112,7 +116,7 @@ fn test_negative() -> io::Result<()> {
 #[serial]
 fn test_asserts() -> io::Result<()> {
 	test_dir(
-		"src/runtime/tests/data/asserts",
+		"src/runtime/tests/data/negative/asserts",
 		|result| matches!(result, Err(Panic::AssertionFailed { .. }))
 	)
 }
