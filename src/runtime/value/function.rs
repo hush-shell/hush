@@ -2,7 +2,6 @@ use std::{
 	cmp::Ordering,
 	fmt::{self, Debug},
 	hash::{Hash, Hasher},
-	ops::Deref,
 };
 
 use gc::{Gc, GcCell, Finalize, Trace};
@@ -203,7 +202,7 @@ pub trait NativeFun: Trace + Finalize + 'static {
 
 /// A garbage-collected native function.
 #[derive(Trace, Finalize)]
-pub struct RustFun(Gc<GcCell<Box<dyn NativeFun>>>);
+pub struct RustFun(Gc<Box<dyn NativeFun>>);
 
 
 impl RustFun {
@@ -215,13 +214,13 @@ impl RustFun {
 
 	/// Get a human-readable name for the function.
 	pub fn name(&self) -> &'static str {
-		self.0.deref().borrow().name()
+		self.0.name()
 	}
 
 
 	/// Invoke the function.
 	pub fn call(&self, context: CallContext) -> Result<Value, Panic> {
-		self.0.deref().borrow().call(context)
+		self.0.call(context)
 	}
 }
 
@@ -235,7 +234,7 @@ impl Debug for RustFun {
 
 impl<T: NativeFun> From<T> for RustFun {
 	fn from(fun: T) -> Self {
-		Self(Gc::new(GcCell::new(Box::new(fun))))
+		Self(Gc::new(Box::new(fun)))
 	}
 }
 
