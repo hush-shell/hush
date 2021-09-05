@@ -19,6 +19,10 @@ impl NativeFun for Float {
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
+			[ Value::Float(f) ] => Ok(
+				Value::Float(f.copy())
+			),
+
 			[ Value::Int(i) ] => Ok(
 				Value::Float(i.into())
 			),

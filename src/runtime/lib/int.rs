@@ -19,8 +19,12 @@ impl NativeFun for Int {
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
-			[ Value::Float(i) ] => Ok(
-				Value::Int(i.into())
+			[ Value::Int(i) ] => Ok(
+				Value::Int(*i)
+			),
+
+			[ Value::Float(f) ] => Ok(
+				Value::Int(f.into())
 			),
 
 			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
