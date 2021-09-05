@@ -18,6 +18,9 @@ use super::{
 };
 
 
+inventory::collect!(RustFun);
+
+
 /// Instantiate the stdlib.
 pub fn new() -> Value {
 	let mut dict = HashMap::new();
@@ -33,6 +36,3 @@ pub fn new() -> Value {
 
 	Dict::new(dict).into()
 }
-
-
-inventory::collect!(RustFun);
