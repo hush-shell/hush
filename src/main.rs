@@ -155,7 +155,10 @@ fn run(args: Args) -> ExitStatus {
 	}
 
 	let program = Box::leak(Box::new(program));
-	let mut runtime = Runtime::new(interner);
+	let mut runtime = Runtime::new(
+		args.script_args.into_vec(), // Use vec's owned iterator.
+		interner
+	);
 
 	match runtime.eval(program) {
     Ok(_) => ExitStatus::Success,

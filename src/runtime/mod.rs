@@ -44,18 +44,30 @@ pub struct Runtime {
 	std: Value,
 	interner: symbol::Interner,
 	modules: HashMap<Symbol, Value>,
+	args: Value,
 }
 
 
 impl Runtime {
 	/// Create a new runtime instance with the given interner.
-	pub fn new(interner: symbol::Interner) -> Self {
+	pub fn new<A, S>(args: A, interner: symbol::Interner) -> Self
+	where
+		A: IntoIterator<Item = S>,
+		S: Into<Str>,
+	{
+		let args: Vec<Value> = args
+			.into_iter()
+			.map(Into::into)
+			.map(Value::from)
+			.collect();
+
 		Self {
 			stack: Stack::default(),
 			arguments: Vec::new(),
 			interner,
 			std: lib::new(),
 			modules: HashMap::new(),
+			args: args.into(),
 		}
 	}
 
