@@ -2,8 +2,6 @@ use std::io::{self, Write};
 
 use gc::{Finalize, Trace};
 
-use super::Str;
-
 use super::{
 	CallContext,
 	RustFun,

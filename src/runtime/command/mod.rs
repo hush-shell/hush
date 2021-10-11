@@ -1,12 +1,11 @@
 mod arg;
-mod fmt;
 mod exec;
 
 use std::{
 	borrow::Cow,
 	collections::HashMap,
 	os::unix::ffi::OsStrExt,
-	process,
+	process
 };
 
 use super::{
@@ -34,7 +33,8 @@ impl Runtime {
 					process::Stdio::inherit,
 					process::Stdio::inherit,
 				)
-				.map(Into::into),
+				.map(Into::into)
+				.map_err(Into::into),
 
 			program::CommandBlockKind::Capture => {
 				thread_local! {
@@ -43,10 +43,12 @@ impl Runtime {
 					pub static STDERR: Value = "stderr".into();
 				}
 
-				let mut block_status = command_block.exec(
-					process::Stdio::piped,
-					process::Stdio::piped,
-				)?;
+				let mut block_status = command_block
+					.exec(
+						process::Stdio::piped,
+						process::Stdio::piped,
+					)
+					.map_err(Into::into)?;
 
 				let out = std::mem::take(&mut block_status.stdout).into_boxed_slice();
 				let err = std::mem::take(&mut block_status.stderr).into_boxed_slice();
@@ -66,7 +68,30 @@ impl Runtime {
 				Ok(Dict::new(dict).into())
 			}
 
-			program::CommandBlockKind::Asynchronous => todo!(),
+			program::CommandBlockKind::Asynchronous => {
+				thread_local! {
+					pub static JOIN: Value = "join".into();
+				}
+
+				let join_handle = std::thread::spawn(
+					|| command_block.exec(
+						process::Stdio::inherit,
+						process::Stdio::inherit,
+					)
+				);
+
+				let join_handle = exec::Join
+					::new(join_handle)
+					.into();
+
+				let mut dict = HashMap::new();
+
+				JOIN.with(
+					|join| dict.insert(join.copy(), join_handle)
+				);
+
+				Ok(Dict::new(dict).into())
+			}
 		}
 	}
 
@@ -289,7 +314,7 @@ impl Runtime {
 				}
 
 				program::ArgPart::Home => {
-					// TODO: is it possible to emit an error value here?
+					// TODO: should we emit an error value here?
 					let home = std::env::var_os("HOME").unwrap_or_default();
 
 					args.push_literal(home.as_bytes());

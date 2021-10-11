@@ -73,7 +73,9 @@ pub enum Panic {
 	ImportFailed {
 		pos: SourcePos,
 		path: Symbol,
-	}
+	},
+	/// Attempt to call <command>.join more than once.
+	InvalidJoin { pos: SourcePos }
 }
 
 
@@ -164,6 +166,11 @@ impl Panic {
 	/// Failed to import module.
 	pub fn import_failed(path: Symbol, pos: SourcePos) -> Self {
 		Self::ImportFailed { path, pos }
+	}
+
+	/// Integer division by zero.
+	pub fn invalid_join(pos: SourcePos) -> Self {
+		Self::InvalidJoin { pos }
 	}
 }
 
@@ -274,6 +281,9 @@ impl<'a> Display<'a> for Panic {
 					fmt::Show(pos, context),
 					color::Fg(color::Yellow, fmt::Show(path, context))
 				),
+
+			Self::InvalidJoin { pos } =>
+				write!(f, "{} in {}: attempt to call join more than once", panic, fmt::Show(pos, context)),
 		}
 	}
 }
