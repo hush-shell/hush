@@ -22,7 +22,8 @@ where
 	F: FnMut(&Result<Value, Panic>) -> bool,
 {
 	let interner = symbol::Interner::new();
-	let mut runtime = Runtime::new(interner);
+	let args = std::iter::empty::<&str>();
+	let mut runtime = Runtime::new(args, interner);
 
 	tests::util::test_dir(
 		path,
