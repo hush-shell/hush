@@ -23,7 +23,7 @@ pub enum Panic {
 		index: Value,
 		pos: SourcePos,
 	},
-	/// Array or dict index out of bounds.
+	/// Attempt to pop from empty collection.
 	EmptyCollection { pos: SourcePos },
 	/// Attempt to call a non-function value.
 	InvalidCall {
@@ -117,7 +117,7 @@ impl Panic {
 	}
 
 
-	/// Array or dict index out of bounds.
+	/// Attempt to pop from empty collection.
 	pub fn empty_collection(pos: SourcePos) -> Self {
 		Self::EmptyCollection { pos }
 	}

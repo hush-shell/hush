@@ -1,0 +1,44 @@
+let catch = std.catch
+let typecheck = std.typecheck
+
+function assert_caught(fn)
+	let result = catch(fn)
+	typecheck(result, "error")
+end
+
+assert_caught(
+	function()
+		1 > 2.0
+	end
+)
+
+assert_caught(
+	function()
+		let error = std.error("something bad happened", nil)
+		error.context = "oops..."
+	end
+)
+
+assert_caught(
+	function()
+		1 / 0
+	end
+)
+
+assert_caught(
+	function()
+		[][5]
+	end
+)
+
+assert_caught(
+	function()
+		std.assert()
+	end
+)
+
+assert_caught(
+	function()
+		std.assert(false)
+	end
+)
