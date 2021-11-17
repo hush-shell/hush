@@ -274,7 +274,7 @@ impl Runtime {
 				match self.eval_expr($expr)? {
 					(Flow::Regular(value), pos, _) => (value, pos),
 					(flow, _, _) => return Ok((flow, $pos, Value::default()))
-				};
+				}
 			}
 		}
 
@@ -684,7 +684,7 @@ impl Runtime {
 				match self.eval_expr($expr)? {
 					(Flow::Regular(value), pos, _) => (value, pos),
 					(flow, _, _) => return Ok(flow)
-				};
+				}
 			}
 		}
 
