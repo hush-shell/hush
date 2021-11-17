@@ -15,6 +15,7 @@ use super::{
 	Panic,
 	Str,
 	Value,
+	Type,
 };
 
 

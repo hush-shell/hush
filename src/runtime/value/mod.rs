@@ -9,7 +9,7 @@ mod fmt;
 mod function;
 mod string;
 
-use std::ffi::OsString;
+use std::{ffi::OsString, fmt::Display};
 
 use gc::{Finalize, Trace};
 
@@ -27,6 +27,77 @@ pub use function::{CallContext, Function, HushFun, RustFun, NativeFun};
 pub use float::Float;
 pub use errors::{EmptyCollection, IndexOutOfBounds};
 pub use string::Str;
+
+
+/// The possible types in the language.
+/// This enum is used mostly for utility, as the Value enum also encodes all types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Type {
+	Nil,
+	Bool,
+	Byte,
+	Int,
+	Float,
+	String,
+	Array,
+	Dict,
+	Function,
+	Error,
+}
+
+
+impl Type {
+	/// Parse from canonical name as ASCII string.
+	pub fn parse<T>(input: T) -> Option<Self>
+	where
+		T: AsRef<[u8]>,
+	{
+		match input.as_ref() {
+			b"nil" => Some(Self::Nil),
+			b"bool" => Some(Self::Bool),
+			b"int" => Some(Self::Int),
+			b"float" => Some(Self::Float),
+			b"char" => Some(Self::Byte),
+			b"string" => Some(Self::String),
+			b"array" => Some(Self::Array),
+			b"dict" => Some(Self::Dict),
+			b"function" => Some(Self::Function),
+			b"error" => Some(Self::Error),
+			_ => None,
+		}
+	}
+
+
+	/// Convert to canonical name.
+	pub fn display(&self) -> &'static str {
+		match self {
+			Self::Nil => "nil",
+			Self::Bool => "bool",
+			Self::Byte => "char",
+			Self::Int => "int",
+			Self::Float => "float",
+			Self::String => "string",
+			Self::Array => "array",
+			Self::Dict => "dict",
+			Self::Function => "function",
+			Self::Error => "error",
+		}
+	}
+}
+
+
+impl Display for Type {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		f.write_str(self.display())
+	}
+}
+
+
+impl<'a> From<&'a Value> for Type {
+	fn from(value: &'a Value) -> Self {
+		value.get_type()
+	}
+}
 
 
 /// A value of dynamic type in the language.
@@ -61,6 +132,23 @@ impl Value {
 			Self::Dict(dict) => Self::Dict(dict.copy()),
 			Self::Function(fun) => Self::Function(fun.copy()),
 			Self::Error(error) => Self::Error(error.copy())
+		}
+	}
+
+
+	/// Get the type tag of the value.
+	pub fn get_type(&self) -> Type {
+		match self {
+			Self::Nil => Type::Nil,
+			Self::Bool(_) => Type::Bool,
+			Self::Int(_) => Type::Int,
+			Self::Float(_) => Type::Float,
+			Self::Byte(_) => Type::Byte,
+			Self::String(_) => Type::String,
+			Self::Array(_) => Type::Array,
+			Self::Dict(_) => Type::Dict,
+			Self::Function(_) => Type::Function,
+			Self::Error(_) => Type::Error,
 		}
 	}
 }

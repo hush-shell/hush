@@ -29,6 +29,7 @@ use value::{
 	NativeFun,
 	Str,
 	Value,
+	Type,
 };
 pub use panic::Panic;
 pub use source::SourcePos;
