@@ -1,0 +1,45 @@
+std.typecheck(nil, "nil")
+std.typecheck(true, "bool")
+std.typecheck(1, "int")
+std.typecheck(1.0, "float")
+std.typecheck('\0', "char")
+std.typecheck("\n", "string")
+std.typecheck([], "array")
+std.typecheck(@[], "dict")
+std.typecheck(function () end, "function")
+std.typecheck(std.typecheck, "function")
+std.typecheck(std.error("error", nil), "error")
+
+
+function assert_try_typecheck_result(value, expected_type, type_error_expected)
+	let result = std.try_typecheck(value, expected_type)
+
+	if type_error_expected then
+		std.assert(std.type(result) == "error")
+	else
+		std.assert(result == nil)
+	end
+end
+
+assert_try_typecheck_result(nil, "nil", false)
+assert_try_typecheck_result(true, "bool", false)
+assert_try_typecheck_result(1, "int", false)
+assert_try_typecheck_result(1.0, "float", false)
+assert_try_typecheck_result('\0', "char", false)
+assert_try_typecheck_result("\n", "string", false)
+assert_try_typecheck_result([], "array", false)
+assert_try_typecheck_result(@[], "dict", false)
+assert_try_typecheck_result(function () end, "function", false)
+assert_try_typecheck_result(std.typecheck, "function", false)
+assert_try_typecheck_result(std.error("error", nil), "error", false)
+
+assert_try_typecheck_result(nil, "bool", true)
+assert_try_typecheck_result(true, "nil", true)
+assert_try_typecheck_result(1, "float", true)
+assert_try_typecheck_result(1.0, "int", true)
+assert_try_typecheck_result('\0', "string", true)
+assert_try_typecheck_result("\n", "char", true)
+assert_try_typecheck_result([], "function", true)
+assert_try_typecheck_result(@[], "error", true)
+assert_try_typecheck_result(function () end, "array", true)
+assert_try_typecheck_result(std.error("error", nil), "dict", true)
