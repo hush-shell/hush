@@ -24,9 +24,9 @@ impl NativeFun for Contains {
 			[ Value::Dict(ref dict), key ] => Ok(dict.contains(key).into()),
 
 			[ Value::String(ref string), Value::Byte(byte) ] => Ok(string.contains(*byte).into()),
-			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ Value::String(_), other ] => Err(Panic::type_error(other.copy(), "char", context.pos)),
 
-			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other, _ ] => Err(Panic::type_error(other.copy(), "string ,array or dict", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}

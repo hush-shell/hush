@@ -27,7 +27,7 @@ impl NativeFun for Int {
 				Value::Int(f.into())
 			),
 
-			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other ] => Err(Panic::type_error(other.copy(), "int or float", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}

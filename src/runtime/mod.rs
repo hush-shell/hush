@@ -344,19 +344,19 @@ impl Runtime {
 						.index(ix)
 						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
 
-					(Value::Array(_), field) => Err(Panic::type_error(field, field_pos)),
+					(Value::Array(_), field) => Err(Panic::type_error(field, "int", field_pos)),
 
 					(Value::String(ref string), Value::Int(ix)) => string
 						.index(ix)
 						.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), field_pos)),
 
-					(Value::String(_), field) => Err(Panic::type_error(field, field_pos)),
+					(Value::String(_), field) => Err(Panic::type_error(field, "int", field_pos)),
 
 					(Value::Error(ref error), field) => error
 						.get(&field)
 						.map_err(|_| Panic::index_out_of_bounds(field, field_pos)),
 
-					(_, _) => return Err(Panic::type_error(obj, obj_pos)),
+					(_, _) => return Err(Panic::type_error(obj, "string, array, dict or error", obj_pos)),
 				}?;
 
 				Ok((Flow::Regular(value), pos, obj))
@@ -442,6 +442,8 @@ impl Runtime {
 						};
 
 						match (obj, field) {
+							// Note that strings are immutable.
+
 							(Value::Dict(ref dict), field) => dict.insert(field, value),
 
 							(Value::Array(ref array), Value::Int(ix)) if ix >= array.len() => return Err(
@@ -453,11 +455,11 @@ impl Runtime {
 								.set(ix, value)
 								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), pos.into()))?,
 
-							(Value::Array(_), field) => return Err(Panic::type_error(field, field_pos)),
+							(Value::Array(_), field) => return Err(Panic::type_error(field, "int", field_pos)),
 
 							(Value::Error(_), field) => return Err(Panic::assign_to_readonly_field(field, field_pos)),
 
-							(obj, _) => return Err(Panic::type_error(obj, obj_pos)),
+							(obj, _) => return Err(Panic::type_error(obj, "array, dict or error", obj_pos)),
 						};
 					}
 				}
@@ -505,7 +507,7 @@ impl Runtime {
 
 				let (iter, pos) = match self.eval_expr(expr)? {
 					(Flow::Regular(Value::Function(ref iter)), pos, _) => (iter.copy(), pos),
-					(Flow::Regular(value), pos, _) => return Err(Panic::type_error(value, pos)),
+					(Flow::Regular(value), pos, _) => return Err(Panic::type_error(value, "function", pos)),
 					(flow, _, _) => return Ok(flow)
 				};
 
@@ -534,13 +536,13 @@ impl Runtime {
 
 								Value::Bool(true) => break,
 
-								other => return Err(Panic::type_error(other, pos))
+								other => return Err(Panic::type_error(other, "bool", pos))
 							}
 
 							Value::Nil
 						},
 
-						other => return Err(Panic::type_error(other, pos)),
+						other => return Err(Panic::type_error(other, "dict", pos)),
 					};
 
 					match self.eval_block(block)? {
@@ -659,10 +661,10 @@ impl Runtime {
 		let value = match (op, value) {
 			(Minus, Value::Float(ref f)) => Ok((-f).into()),
 			(Minus, Value::Int(i)) => Ok((-i).into()),
-			(Minus, value) => Err(Panic::type_error(value, operand_pos)),
+			(Minus, value) => Err(Panic::type_error(value, "int or float", operand_pos)),
 
 			(Not, Value::Bool(b)) => Ok((!b).into()),
-			(Not, value) => Err(Panic::type_error(value, operand_pos)),
+			(Not, value) => Err(Panic::type_error(value, "bool", operand_pos)),
 		}?;
 
 		Ok(Flow::Regular(value))
@@ -699,11 +701,11 @@ impl Runtime {
 					let (right, right_pos) = regular_expr!(right);
 					match right {
 						right @ Value::Bool(_) => right,
-						right => return Err(Panic::type_error(right, right_pos)),
+						right => return Err(Panic::type_error(right, "bool", right_pos)),
 					}
 				}
 
-				(left, _) => return Err(Panic::type_error(left, left_pos)),
+				(left, _) => return Err(Panic::type_error(left, "bool", left_pos)),
 			}
 
 			Plus | Minus | Times | Div | Mod => {
@@ -736,8 +738,8 @@ impl Runtime {
 						string.into_boxed_slice().into()
 					}
 
-					(Value::String(_), right) => return Err(Panic::type_error(right, right_pos)),
-					(left, _) => return Err(Panic::type_error(left, left_pos)),
+					(Value::String(_), right) => return Err(Panic::type_error(right, "string", right_pos)),
+					(left, _) => return Err(Panic::type_error(left, "string", left_pos)),
 				}
 			}
 		};
@@ -769,20 +771,20 @@ impl Runtime {
 						Ok(Value::Int(val))
 					},
 
+					// int . ?
+					(Value::Int(_), right) => Err(Panic::type_error(right, "int", right_pos)),
+
 					// float . float
 					(Value::Float(ref float1), Value::Float(ref float2)) => {
 						let val = $op_float(float1.copy(), float2.copy());
 						Ok(Value::Float(val))
 					},
 
+					// float . ?
+					(Value::Float(_), right) => Err(Panic::type_error(right, "float", right_pos)),
+
 					// ? . ?
-					(left, right) => Err(
-						if matches!(left, Value::Int(_) | Value::Float(_)) {
-							Panic::type_error(right, right_pos)
-						} else {
-							Panic::type_error(left, left_pos)
-						}
-					),
+					(left, _) => Err(Panic::type_error(left, "int or float", left_pos)),
 				}
 			}
 		}
@@ -848,14 +850,13 @@ impl Runtime {
 						)
 					),
 
+				(Value::Int(_), right) => Err(Panic::type_error(right, "int", right_pos)),
+				(Value::Float(_), right) => Err(Panic::type_error(right, "float", right_pos)),
+				(Value::Byte(_), right) => Err(Panic::type_error(right, "char", right_pos)),
+				(Value::String(_), right) => Err(Panic::type_error(right, "string", right_pos)),
+
 				// ? + ?
-				(left, right) => Err(
-					if matches!(left, Value::Int(_) | Value::Float(_) | Value::Byte(_) | Value::String(_)) {
-						Panic::type_error(right, right_pos)
-					} else {
-						Panic::type_error(left, left_pos)
-					}
-				),
+				(left, _) => Err(Panic::type_error(left, "int, float, byte or string", left_pos)),
 			}
 		};
 

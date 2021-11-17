@@ -27,7 +27,7 @@ impl NativeFun for Range {
 			[ from, to, step ] => {
 				let numbers = util::Numbers
 					::promote([from.copy(), to.copy(), step.copy()])
-					.map_err(|value| Panic::type_error(value, context.pos))?;
+					.map_err(|value| Panic::type_error(value, "int or float", context.pos))?;
 
 				Ok(
 					match numbers {

@@ -1,4 +1,4 @@
-use std::io;
+use std::{borrow::Cow, io};
 
 use crate::{
 	fmt::{self, Display},
@@ -44,6 +44,13 @@ pub enum Panic {
 	/// Unexpected type.
 	TypeError {
 		value: Value,
+		expected: Cow<'static, str>,
+		pos: SourcePos,
+	},
+	/// Unexpected type.
+	ValueError {
+		value: Value,
+		message: Cow<'static, str>,
 		pos: SourcePos,
 	},
 	/// Attempt to assign a readonly field value.
@@ -135,8 +142,28 @@ impl Panic {
 
 
 	/// Unexpected type.
-	pub fn type_error(value: Value, pos: SourcePos) -> Self {
-		Self::TypeError { value, pos }
+	pub fn type_error<E>(value: Value, expected: E, pos: SourcePos) -> Self
+	where
+		E: Into<Cow<'static, str>>,
+	{
+		Self::TypeError {
+			value,
+			expected: expected.into(),
+			pos,
+		}
+	}
+
+
+	/// Invalid value.
+	pub fn value_error<E>(value: Value, message: E, pos: SourcePos) -> Self
+	where
+		E: Into<Cow<'static, str>>,
+	{
+		Self::ValueError {
+			value,
+			message: message.into(),
+			pos,
+		}
 	}
 
 
@@ -231,13 +258,24 @@ impl<'a> Display<'a> for Panic {
 					color::Fg(color::Yellow, fmt::Show(value, context))
 				),
 
-			Self::TypeError { value, pos } =>
+			Self::TypeError { value, expected, pos } =>
 				write!(
 					f,
-					"{} in {}: value ({}) has unexpected type",
+					"{} in {}: value ({}) has unexpected type, expected {}",
 					panic,
 					fmt::Show(pos, context),
-					color::Fg(color::Yellow, fmt::Show(value, context))
+					color::Fg(color::Yellow, fmt::Show(value, context)),
+					expected,
+				),
+
+			Self::ValueError { value, message, pos } =>
+				write!(
+					f,
+					"{} in {}: invalid value ({}), expected {}",
+					panic,
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(value, context)),
+					message,
 				),
 
 			Self::InvalidCommandArgs { object, items, pos } =>

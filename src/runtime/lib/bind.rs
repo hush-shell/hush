@@ -27,7 +27,7 @@ impl NativeFun for Bind {
 				}.into()
 			),
 
-			[ _, other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ _, other ] => Err(Panic::type_error(other.copy(), "function", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}

@@ -137,7 +137,7 @@ impl NativeFun for Import {
 		let path = match context.args() {
 			[ Value::String(ref string) ] => Path::new(string).to_owned(),
 
-			[ other ] => return Err(Panic::type_error(other.copy(), context.pos)),
+			[ other ] => return Err(Panic::type_error(other.copy(), "string", context.pos)),
 
 			args => return Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		};

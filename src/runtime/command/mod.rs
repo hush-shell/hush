@@ -378,6 +378,6 @@ impl Runtime {
 
 		literal
 			.map(Into::into)
-			.ok_or_else(|| Panic::type_error(value, pos))
+			.ok_or_else(|| Panic::type_error(value, "nil, bool, int, float, byte or string", pos))
 	}
 }

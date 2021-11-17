@@ -24,7 +24,7 @@ impl NativeFun for Push {
 				Ok(Value::Nil)
 			},
 
-			[ other, _ ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other, _ ] => Err(Panic::type_error(other.copy(), "array", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 2, context.pos))
 		}
 	}

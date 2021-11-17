@@ -27,7 +27,7 @@ impl NativeFun for Pop {
 				Ok(value)
 			},
 
-			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other ] => Err(Panic::type_error(other.copy(), "array", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}

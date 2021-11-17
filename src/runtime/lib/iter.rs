@@ -51,7 +51,7 @@ impl NativeFun for Iter {
 				}.into()
 			),
 
-			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other ] => Err(Panic::type_error(other.copy(), "string, array or dict", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}

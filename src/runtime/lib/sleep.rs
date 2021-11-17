@@ -21,14 +21,14 @@ impl NativeFun for Sleep {
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
-			[ Value::Int(i) ] if *i < 0 => Err(Panic::type_error(Value::Int(*i), context.pos)),
+			[ Value::Int(i) ] if *i < 0 => Err(Panic::value_error(Value::Int(*i), "positive integer", context.pos)),
 
 			[ Value::Int(i) ] => {
 				std::thread::sleep(Duration::from_millis(*i as u64));
 				Ok(Value::default())
 			},
 
-			[ other ] => Err(Panic::type_error(other.copy(), context.pos)),
+			[ other ] => Err(Panic::type_error(other.copy(), "int", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
