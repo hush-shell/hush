@@ -120,13 +120,12 @@ impl Stack {
 	/// Add the given ammount of Nil valued slots to the top of the stack.
 	/// Returns StackOverflow if the size exceeds the maximum size.
 	pub fn extend(&mut self, slots: SlotIx) -> Result<(), StackOverflow> {
-		if self.len() > self.max_size {
+		let new_size = self.len() + slots.0 as usize;
+
+		if new_size > self.max_size {
 			Err(StackOverflow)
 		} else {
-			self.slots.resize_with(
-				self.len() + slots.0 as usize,
-				Slot::default
-			);
+			self.slots.resize_with(new_size, Slot::default);
 			Ok(())
 		}
 	}

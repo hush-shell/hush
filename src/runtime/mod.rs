@@ -41,10 +41,12 @@ use mem::Stack;
 #[derive(Debug)]
 pub struct Runtime {
 	stack: Stack,
+	/// Function arguments.
 	arguments: Vec<Value>,
 	std: Value,
 	interner: symbol::Interner,
 	modules: HashMap<Symbol, Value>,
+	/// Command line arguments.
 	args: Value,
 }
 
@@ -573,10 +575,11 @@ impl Runtime {
 		args_start: usize,
 		pos: SourcePos,
 	) -> Result<Value, Panic> {
-		let args_count = self.arguments.len() as u32;
 
 		let value = match function {
 			Function::Hush(HushFun { params, frame_info, body, context, .. }) => {
+				let args_count = (self.arguments.len() - args_start) as u32;
+
 				// Make sure we clean the arguments vector even when early returning.
 				let arguments = self.arguments.drain(args_start..);
 
@@ -605,23 +608,26 @@ impl Runtime {
 
 				let mut shrinked = false;
 
-				let flow = self.eval_tail_block(
+				let result = self.eval_tail_block(
 					body,
 					|runtime| { // Shrink stack before tail calling.
 						runtime.stack.shrink(slots.copy());
 						shrinked = true;
 					}
-				)?;
+				);
+
+				// Make sure to shrink before returning.
+				if !shrinked { // Only shrink the stack if there was no tail call.
+					self.stack.shrink(slots);
+				}
+
+				let flow = result?;
 
 				let value = match flow {
 					Flow::Regular(value) => value,
 					Flow::Return(value) => value,
 					Flow::Break => panic!("break outside loop"),
 				};
-
-				if !shrinked { // Only shrink the stack if there was no tail call.
-					self.stack.shrink(slots);
-				}
 
 				value
 			}
