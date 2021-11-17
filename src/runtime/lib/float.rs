@@ -27,6 +27,24 @@ impl NativeFun for Float {
 				Value::Float(i.into())
 			),
 
+			[ value @ Value::String(ref string) ] => {
+				let parse_error = || Panic::value_error(
+					value.copy(),
+					"valid integer",
+					context.pos.copy()
+				);
+
+				let slice = std::str
+					::from_utf8(string.as_bytes())
+					.map_err(|_| parse_error())?;
+
+				let float: f64 = slice
+					.parse()
+					.map_err(|_| parse_error())?;
+
+				Ok(Value::from(float))
+			}
+
 			[ other ] => Err(Panic::type_error(other.copy(), "int or float", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}

@@ -1,0 +1,4 @@
+std.assert(std.float(1) == 1.0)
+std.assert(std.float(1.0) == 1.0)
+std.assert(std.float("1") == 1.0)
+std.assert(std.float("1.") == 1.0)

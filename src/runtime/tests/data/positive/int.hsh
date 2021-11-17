@@ -1,0 +1,3 @@
+std.assert(std.int(1) == 1)
+std.assert(std.int(1.0) == 1)
+std.assert(std.int("1") == 1)
