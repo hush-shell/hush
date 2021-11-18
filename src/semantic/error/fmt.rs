@@ -43,7 +43,9 @@ impl<'a> Display<'a> for ErrorKind {
 
 			Self::ReturnOutsideFunction => write!(f, "return statement outside function"),
 
-			Self::SelfOutsideFunction => write!(f, "self variable outside function"),
+			Self::SelfOutsideFunction => write!(f, "self keyword outside function"),
+
+			Self::TryOutsideFunction => write!(f, "try operator outside function"),
 
 			Self::BreakOutsideLoop => write!(f, "break statement outside loop"),
 

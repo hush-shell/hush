@@ -61,6 +61,8 @@ pub enum Operator {
 	Dot,    // .
 
 	Assign, // =
+
+	Try, // ?
 }
 
 
@@ -92,8 +94,8 @@ impl Operator {
 	}
 
 
-	/// Unary operators (-, not)
-	pub fn is_unary(&self) -> bool {
+	/// Prefix operators (-, not)
+	pub fn is_prefix(&self) -> bool {
 		matches!(self, Self::Not | Self::Minus)
 	}
 }

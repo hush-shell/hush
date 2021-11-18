@@ -149,6 +149,7 @@ impl SymbolChar {
 			b'/' => operator(Operator::Div),
 			b'%' => operator(Operator::Mod),
 			b'.' => operator(Operator::Dot),
+			b'?' => operator(Operator::Try),
 			b':' => token(TokenKind::Colon),
 			b',' => token(TokenKind::Comma),
 			b'(' => token(TokenKind::OpenParens),

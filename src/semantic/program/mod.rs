@@ -62,6 +62,14 @@ pub enum Literal {
 pub enum UnaryOp {
 	Minus, // -
 	Not,   // not
+	Try,   // ?
+}
+
+
+impl UnaryOp {
+	pub fn is_postfix(&self) -> bool {
+		matches!(self, Self::Try)
+	}
 }
 
 
@@ -70,6 +78,7 @@ impl From<ast::UnaryOp> for UnaryOp {
 		match op {
 			ast::UnaryOp::Minus => UnaryOp::Minus,
 			ast::UnaryOp::Not => UnaryOp::Not,
+			ast::UnaryOp::Try => UnaryOp::Try,
 		}
 	}
 }

@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
 	symbol::{self, Symbol},
-	syntax::ast::IllFormed,
+	syntax::ast::{IllFormed, UnaryOp}
 };
 use super::syntax::{ast, lexer, SourcePos};
 use program::{
@@ -265,13 +265,22 @@ impl<'a> Analyzer<'a> {
 			// UnaryOp.
 			ast::Expr::UnaryOp { op, operand, pos } => {
 				let operand = self.analyze_expr(*operand)?;
-				Some(
-					Expr::UnaryOp {
-						op: op.into(),
-						operand: Box::new(operand),
-						pos,
+
+				match op {
+					UnaryOp::Try if !self.in_function => {
+						// Try operator can only be used inside functions.
+						self.report(Error::try_outside_function(pos));
+						None
 					}
-				)
+
+					op => Some(
+						Expr::UnaryOp {
+							op: op.into(),
+							operand: Box::new(operand),
+							pos,
+						}
+					)
+				}
 			}
 
 			// BinaryOp.

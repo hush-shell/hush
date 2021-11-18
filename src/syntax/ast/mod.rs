@@ -165,6 +165,14 @@ impl From<lexer::Literal> for Literal {
 pub enum UnaryOp {
 	Minus, // -
 	Not,   // not
+	Try,   // ?
+}
+
+
+impl UnaryOp {
+	pub fn is_postfix(&self) -> bool {
+		matches!(self, Self::Try)
+	}
 }
 
 
@@ -174,6 +182,7 @@ impl From<lexer::Operator> for UnaryOp {
 		match op {
 			lexer::Operator::Minus => UnaryOp::Minus,
 			lexer::Operator::Not => UnaryOp::Not,
+			lexer::Operator::Try => UnaryOp::Try,
 			_ => panic!("invalid operator"),
 		}
 	}

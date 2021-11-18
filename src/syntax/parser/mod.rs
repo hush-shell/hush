@@ -402,7 +402,7 @@ where
 			}
 		}
 
-		let parse_factor     = binop!(Self::parse_unop, Operator::is_factor);
+		let parse_factor     = binop!(Self::parse_prefix, Operator::is_factor);
 		let parse_term       = binop!(parse_factor,     Operator::is_term);
 		let parse_concat     = binop!(parse_term,       |&op| op == Operator::Concat);
 		let parse_comparison = binop!(parse_concat,     Operator::is_comparison);
@@ -452,13 +452,13 @@ where
 	}
 
 
-	/// Parse a higher precedence expression, optionally starting with a unary operator.
-	fn parse_unop(&mut self) -> sync::Result<ast::Expr, Error> {
+	/// Parse a higher precedence expression, optionally starting with a prefix operator.
+	fn parse_prefix(&mut self) -> sync::Result<ast::Expr, Error> {
 		match self.token.take() {
-			Some(Token { kind: TokenKind::Operator(op), pos }) if op.is_unary() => {
+			Some(Token { kind: TokenKind::Operator(op), pos }) if op.is_prefix() => {
 				self.step();
 
-				let operand = self.parse_unop()?;
+				let operand = self.parse_prefix()?;
 
 				Ok(ast::Expr::UnaryOp {
 					op: op.into(),
@@ -533,6 +533,17 @@ where
 					expr = ast::Expr::Access {
 						object: expr.into(),
 						field: field.into(),
+						pos,
+					}
+				},
+
+				// Try operator.
+				Some(Token { kind: TokenKind::Operator(Operator::Try), pos }) => {
+					self.step();
+
+					expr = ast::Expr::UnaryOp {
+						op: ast::UnaryOp::Try,
+						operand: Box::new(expr),
 						pos,
 					}
 				},

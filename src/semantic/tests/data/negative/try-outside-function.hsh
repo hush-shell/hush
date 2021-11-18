@@ -1,0 +1,3 @@
+for result in std.iter([]) do
+	result?
+end

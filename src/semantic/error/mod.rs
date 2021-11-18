@@ -18,6 +18,8 @@ pub enum ErrorKind {
 	ReturnOutsideFunction,
 	/// Self keyword outside function.
 	SelfOutsideFunction,
+	/// Try operator outside function.
+	TryOutsideFunction,
 	/// Break statement outside loop.
 	BreakOutsideLoop,
 	/// Invalid assignment l-value.
@@ -74,10 +76,19 @@ impl Error {
 	}
 
 
-	/// Return statement outside function.
+	/// Self keyword outside function.
 	pub fn self_outside_function(pos: SourcePos) -> Self {
 		Self {
 			kind: ErrorKind::SelfOutsideFunction,
+			pos
+		}
+	}
+
+
+	/// Try operator outside function.
+	pub fn try_outside_function(pos: SourcePos) -> Self {
+		Self {
+			kind: ErrorKind::TryOutsideFunction,
 			pos
 		}
 	}

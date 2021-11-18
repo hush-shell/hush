@@ -4,5 +4,6 @@ let equality = 1 == 2 and 2 != 3
 let ord = 1 >= 2 or 3 <= 4 and 1 < 2 or 5 > 6
 let concat = "hello" ++ " " ++ "world"
 let arith = 1 + 2 - 3 * 4 / 5 % 6
+let try = 1? + call()?
 
 let expr = not true and [ nil, true, 0][1 * 1] == @[ fun: function (arg) return arg end ].fun(nil)

@@ -658,23 +658,24 @@ impl Runtime {
 		op: &'static program::UnaryOp,
 		operand: &'static program::Expr,
 	) -> Result<Flow, Panic> {
-		use program::UnaryOp::{Minus, Not};
+		use program::UnaryOp::{Minus, Not, Try};
 
 		let (value, operand_pos) = match self.eval_expr(operand)? {
 			(Flow::Regular(value), pos, _) => (value, pos),
 			(flow, _, _) => return Ok(flow),
 		};
 
-		let value = match (op, value) {
-			(Minus, Value::Float(ref f)) => Ok((-f).into()),
-			(Minus, Value::Int(i)) => Ok((-i).into()),
+		match (op, value) {
+			(Minus, Value::Float(ref f)) => Ok(Flow::Regular((-f).into())),
+			(Minus, Value::Int(i)) => Ok(Flow::Regular((-i).into())),
 			(Minus, value) => Err(Panic::type_error(value, "int or float", operand_pos)),
 
-			(Not, Value::Bool(b)) => Ok((!b).into()),
+			(Not, Value::Bool(b)) => Ok(Flow::Regular((!b).into())),
 			(Not, value) => Err(Panic::type_error(value, "bool", operand_pos)),
-		}?;
 
-		Ok(Flow::Regular(value))
+			(Try, value @ Value::Error(_)) => Ok(Flow::Return(value)),
+			(Try, value) => Ok(Flow::Regular(value)),
+		}
 	}
 
 

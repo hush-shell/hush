@@ -73,6 +73,7 @@ impl std::fmt::Display for Operator {
 			Self::Concat => color::Fg(color::Yellow, "++").fmt(f),
 			Self::Dot => color::Fg(color::Yellow, ".").fmt(f),
 			Self::Assign => "=".fmt(f),
+			Self::Try => color::Fg(color::Yellow, "?").fmt(f),
 		}
 	}
 }

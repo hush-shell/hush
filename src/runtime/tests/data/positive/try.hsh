@@ -1,5 +1,23 @@
-let result = {
-	echo foo | cat | false | cat | cat > /dev/null;
-	echo baz
-}
-std.assert(std.len(result) == 5)
+function oops(ill)
+	if ill then
+		std.error("something went wrong", nil)
+	else
+		@[
+			message: "it works!",
+			value: 0
+		]
+	end
+end
+
+
+function foo()
+	let first = oops(false)?.message
+	std.assert(std.type(first) == "string")
+
+	let second = oops(true)?
+	std.assert(false)
+end
+
+
+let result = foo()
+std.assert(std.type(result) == "error")

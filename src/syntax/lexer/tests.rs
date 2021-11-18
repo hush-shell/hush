@@ -34,7 +34,7 @@ fn test_simple_function() {
 	let input = r#"
 		function foo(bar, baz)
 			if bar or baz == nil then # here's a comment
-				let result = do_something()
+				let result = do_something()?
 				return result
 			end
 		end
@@ -71,6 +71,7 @@ fn test_simple_function() {
 			token!(TokenKind::Identifier(do_something)),
 			token!(TokenKind::OpenParens),
 			token!(TokenKind::CloseParens),
+			token!(TokenKind::Operator(Operator::Try)),
 			token!(TokenKind::Keyword(Keyword::Return)),
 			token!(TokenKind::Identifier(result2)),
 			token!(TokenKind::Keyword(Keyword::End)),

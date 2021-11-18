@@ -1,0 +1,16 @@
+function oops(ill)
+	if ill then
+		std.error("something went wrong", nil)
+	else
+		"it works!"
+	end
+end
+
+
+function handle()
+	let first = oops(false)?
+	std.print(first)
+
+	let second = oops(true)?
+	std.print(second)
+end

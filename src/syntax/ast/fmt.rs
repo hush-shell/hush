@@ -190,6 +190,7 @@ impl std::fmt::Display for UnaryOp {
 		match self {
 			Self::Minus => Operator::Minus.fmt(f),
 			Self::Not => Operator::Not.fmt(f),
+			Self::Try => Operator::Try.fmt(f),
 		}
 	}
 }
@@ -231,8 +232,20 @@ impl<'a> Display<'a> for Expr {
 			Self::Literal { literal, .. } => literal.fmt(f, context),
 
 			Self::UnaryOp { op, operand, .. } => {
-				write!(f, "({} ", op)?;
+				let postfix = op.is_postfix();
+
+				"(".fmt(f)?;
+
+				if !postfix {
+					write!(f, "{} ", op)?;
+				}
+
 				operand.fmt(f, context.inlined())?;
+
+				if postfix {
+					write!(f, " {}", op)?;
+				}
+
 				")".fmt(f)
 			},
 
