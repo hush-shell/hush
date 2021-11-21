@@ -5,6 +5,7 @@ use std::{
 	borrow::Cow,
 	collections::HashMap,
 	os::unix::ffi::OsStrExt,
+	path::PathBuf,
 	process
 };
 
@@ -315,7 +316,15 @@ impl Runtime {
 
 				program::ArgPart::Home => {
 					// TODO: should we emit an error value here?
-					let home = std::env::var_os("HOME").unwrap_or_default();
+					let home = std::env::var_os("HOME")
+						.map(
+							|home| {
+								let mut path = PathBuf::from(home);
+								path.push("");
+								path.into_os_string()
+							}
+						)
+						.unwrap_or_default();
 
 					args.push_literal(home.as_bytes());
 				}
