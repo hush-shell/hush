@@ -1,3 +1,5 @@
+mod expansion;
+
 use crate::io::{self, FileDescriptor};
 use super::{
 	ast,
@@ -133,7 +135,7 @@ where
 
 	/// Parse a single argument.
 	fn parse_argument(&mut self) -> Result<ast::Argument, Error> {
-		let (token_parts, pos) = self.eat(|token| match token {
+		let (arg_parts, pos) = self.eat(|token| match token {
 			Token { kind: TokenKind::Argument(parts), pos } => Ok((parts, pos)),
 			token => Err((Error::unexpected_msg(token.clone(), "argument"), token)),
 		})?;
@@ -141,7 +143,7 @@ where
 		let mut parts = Vec::<ast::ArgPart>::new();
 		let mut literal = Vec::<u8>::new();
 
-		let join_literal = |literal: &mut Vec<u8>, lit: Box<[u8]>| {
+		let join_owned_literal = |literal: &mut Vec<u8>, lit: Box<[u8]>| {
 			if literal.is_empty() {
 				*literal = lit.into(); // Reuse allocation.
 			} else {
@@ -158,22 +160,31 @@ where
 			}
 		};
 
-		let push_dollar = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, symbol, pos| {
+		let push_part = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, part| {
 			push_literal(literal, parts);
-			parts.push(
+			parts.push(part);
+		};
+
+		let push_dollar = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, symbol, pos| {
+			push_part(
+				literal,
+				parts,
 				ast::ArgPart::Unit(ast::ArgUnit::Dollar { symbol, pos })
 			);
 		};
 
-		for part in token_parts.into_vec() { // Use vec's owned iterator.
+		// Allow home expansion in the beggining of the argument.
+		let mut allow_home = true;
+
+		for part in arg_parts.into_vec() { // Use vec's owned iterator.
 			match part {
-				ArgPart::SingleQuoted(lit) => join_literal(&mut literal, lit),
+				ArgPart::SingleQuoted(lit) => join_owned_literal(&mut literal, lit),
 
 				ArgPart::DoubleQuoted(units) => for unit in units.into_vec() {
 					match unit {
 						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
 						// Literals in double quotes don't expand to patterns.
-						ArgUnit::Literal(lit) => join_literal(&mut literal, lit),
+						ArgUnit::Literal(lit) => join_owned_literal(&mut literal, lit),
 					}
 				}
 
@@ -181,10 +192,27 @@ where
 					match unit {
 						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
 						// TODO: parse patterns (home, range, collection, star, question, charclass)
-						ArgUnit::Literal(lit) => join_literal(&mut literal, lit),
+						ArgUnit::Literal(lit) => {
+							let expansions = expansion::Parser
+								::new(&lit)
+								.allow_home(allow_home);
+
+							for expanded in expansions {
+								match expanded {
+									expansion::Expanded::Literal(lit) => literal.extend(lit),
+									expansion::Expanded::Expansion(expansion) => push_part(
+										&mut literal,
+										&mut parts,
+										ast::ArgPart::Expansion(expansion)
+									)
+								}
+							}
+						}
 					}
 				}
 			}
+
+			allow_home = false;
 		}
 
 		// Push the trailing literal, if any.

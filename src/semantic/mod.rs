@@ -664,9 +664,18 @@ impl<'a> Analyzer<'a> {
 			ast::ArgPart::Unit(unit) => self
 				.analyze_arg_unit(unit)
 				.map(ArgPart::Unit),
-			ast::ArgPart::Home => Some(ArgPart::Home),
-			ast::ArgPart::Range(from, to) => Some(ArgPart::Range(from, to)),
-			ast::ArgPart::Collection(items) => {
+			ast::ArgPart::Expansion(unit) => self.analyze_arg_expansion(unit),
+		}
+	}
+
+
+	/// Analyze a command argument expansion.
+	/// None is returned if any error is detected.
+	fn analyze_arg_expansion(&mut self, expansion: ast::ArgExpansion) -> Option<ArgPart> {
+		match expansion {
+			ast::ArgExpansion::Home => Some(ArgPart::Home),
+			ast::ArgExpansion::Range(from, to) => Some(ArgPart::Range(from, to)),
+			ast::ArgExpansion::Collection(items) => {
 				let items = self.analyze_items(
 					Self::analyze_arg_unit,
 					items.into_vec() // Use vec's owned iterator.
@@ -674,9 +683,9 @@ impl<'a> Analyzer<'a> {
 
 				Some(ArgPart::Collection(items))
 			},
-			ast::ArgPart::Star => Some(ArgPart::Star),
-			ast::ArgPart::Question => Some(ArgPart::Question),
-			ast::ArgPart::CharClass(chars) => Some(ArgPart::CharClass(chars)),
+			ast::ArgExpansion::Star => Some(ArgPart::Star),
+			ast::ArgExpansion::Question => Some(ArgPart::Question),
+			ast::ArgExpansion::CharClass(chars) => Some(ArgPart::CharClass(chars)),
 		}
 	}
 

@@ -7,6 +7,7 @@ mod runtime;
 mod semantic;
 mod symbol;
 mod syntax;
+mod slice;
 mod term;
 #[cfg(test)]
 mod tests;

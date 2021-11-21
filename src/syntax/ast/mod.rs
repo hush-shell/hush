@@ -5,6 +5,7 @@ use super::{lexer, SourcePos};
 pub use crate::symbol::Symbol;
 pub use command::{
 	ArgPart,
+	ArgExpansion,
 	ArgUnit,
 	Argument,
 	BasicCommand,

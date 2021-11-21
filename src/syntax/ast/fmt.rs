@@ -3,6 +3,7 @@ use std::fmt::Display as _;
 use super::{
 	lexer::{CommandOperator, Keyword, Operator, TokenKind},
 	ArgPart,
+	ArgExpansion,
 	ArgUnit,
 	Argument,
 	Ast,
@@ -429,12 +430,11 @@ impl<'a> Display<'a> for ArgUnit {
 }
 
 
-impl<'a> Display<'a> for ArgPart {
+impl<'a> Display<'a> for ArgExpansion {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
-			Self::Unit(unit) => unit.fmt(f, context),
 			Self::Home => "~/".fmt(f),
 			Self::Range(start, end) => write!(f, "{{{}..{}}}", start, end),
 			Self::Collection(items) => {
@@ -452,6 +452,18 @@ impl<'a> Display<'a> for ArgPart {
 			Self::Star => "*".fmt(f),
 			Self::Question => "?".fmt(f),
 			Self::CharClass(chars) => write!(f, "[{}]", String::from_utf8_lossy(chars).escape_debug()),
+		}
+	}
+}
+
+
+impl<'a> Display<'a> for ArgPart {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		match self {
+			Self::Unit(unit) => unit.fmt(f, context),
+			Self::Expansion(expansion) => expansion.fmt(f, context),
 		}
 	}
 }

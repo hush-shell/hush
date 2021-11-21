@@ -13,20 +13,24 @@ pub enum ArgUnit {
 }
 
 
-/// The most basic part of an argument.
+/// An argument expansion.
 #[derive(Debug)]
-pub enum ArgPart {
-	Unit(ArgUnit),
-
-	// Expansions:
+pub enum ArgExpansion {
 	Home, // ~/
 	Range(i64, i64), // {x..y}
 	Collection(Box<[ArgUnit]>), // {a,b,c}
 
-	// Regex expansions:
 	Star, // *
 	Question, // ?
 	CharClass(Box<[u8]>), // [...]
+}
+
+
+/// The most basic part of an argument.
+#[derive(Debug)]
+pub enum ArgPart {
+	Unit(ArgUnit),
+	Expansion(ArgExpansion),
 }
 
 
