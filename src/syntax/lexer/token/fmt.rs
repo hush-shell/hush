@@ -1,6 +1,16 @@
 use std::fmt::Display as _;
 
-use super::{ArgPart, ArgUnit, CommandOperator, Keyword, Literal, Operator, Token, TokenKind};
+use super::{
+	ArgPart,
+	ArgExpansion,
+	ArgUnit,
+	CommandOperator,
+	Keyword,
+	Literal,
+	Operator,
+	Token,
+	TokenKind
+};
 use crate::{
 	fmt::{self, Display},
 	symbol,
@@ -95,6 +105,51 @@ impl<'a> Display<'a> for ArgUnit {
 }
 
 
+impl<'a> Display<'a> for ArgExpansion {
+	type Context = &'a symbol::Interner;
+
+	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		match self {
+			Self::Home => color::Fg(color::Yellow, "~/").fmt(f),
+			Self::Range(start, end) => {
+				color::Fg(color::Yellow, "{").fmt(f)?;
+				start.fmt(f)?;
+				color::Fg(color::Yellow, "..").fmt(f)?;
+				end.fmt(f)?;
+				color::Fg(color::Yellow, "}").fmt(f)
+			},
+			Self::Collection(items) => {
+				color::Fg(color::Yellow, "{").fmt(f)?;
+
+				fmt::sep_by(
+					items.iter(),
+					f,
+					|item, f| item.fmt(f, context),
+					color::Fg(color::Yellow, ",")
+				)?;
+
+				color::Fg(color::Yellow, "}").fmt(f)
+			},
+
+			Self::Star => color::Fg(color::Yellow, "*").fmt(f),
+			Self::Percent => color::Fg(color::Yellow, "%").fmt(f),
+			Self::CharClass(chars) => {
+				color::Fg(color::Yellow, "[").fmt(f)?;
+
+				color
+					::Fg(
+						color::Yellow,
+						String::from_utf8_lossy(chars).escape_debug()
+					)
+					.fmt(f)?;
+
+				color::Fg(color::Yellow, "]").fmt(f)
+			},
+		}
+	}
+}
+
+
 impl<'a> Display<'a> for ArgPart {
 	type Context = &'a symbol::Interner;
 
@@ -110,7 +165,8 @@ impl<'a> Display<'a> for ArgPart {
 				}
 
 				'"'.fmt(f)
-			}
+			},
+			Self::Expansion(expansion) => expansion.fmt(f, context),
 		}
 	}
 }

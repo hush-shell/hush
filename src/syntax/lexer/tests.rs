@@ -384,3 +384,89 @@ fn test_command_block() {
 			}
 	);
 }
+
+
+#[test]
+fn test_expansions() {
+	let input = r#"
+		{
+			ls ~/;
+			ls *~/;
+			ls file-%.*;
+			ls ~/*%file%*?;
+			ls "*~/";
+		}
+	"#;
+
+	let mut interner = symbol::Interner::new();
+	let path = interner.get_or_intern("<test>");
+	let source = Source { path, contents: input.as_bytes().into() };
+	let cursor = Cursor::from(&source);
+	let lexer = Lexer::new(cursor, &mut interner);
+
+	let tokens: Vec<Result<Token, Error>> = lexer.collect();
+
+	let unquoted = ArgPart::Unquoted;
+	let expansion = ArgPart::Expansion;
+	let double_quoted = |parts: &[ArgUnit]| ArgPart::DoubleQuoted(parts.to_vec().into());
+
+	let literal = |lit: &str| ArgUnit::Literal(lit.as_bytes().into());
+
+	assert_matches!(
+		&tokens[..],
+		[
+			token!(TokenKind::Command),
+			token!(TokenKind::Argument(args0)),
+			token!(TokenKind::Argument(args1)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::Argument(args2)),
+			token!(TokenKind::Argument(args3)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::Argument(args4)),
+			token!(TokenKind::Argument(args5)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::Argument(args6)),
+			token!(TokenKind::Argument(args7)),
+			token!(TokenKind::CmdOperator(CommandOperator::Try)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::Argument(args8)),
+			token!(TokenKind::Argument(args9)),
+			token!(TokenKind::Semicolon),
+			token!(TokenKind::CloseCommand),
+		]
+			=> {
+				assert_eq!(args0.as_ref(), &[unquoted(literal("ls"))]);
+				assert_eq!(args1.as_ref(), &[expansion(ArgExpansion::Home)]);
+
+				assert_eq!(args2.as_ref(), &[unquoted(literal("ls"))]);
+				assert_eq!(args3.as_ref(), &[expansion(ArgExpansion::Star), unquoted(literal("~/"))]);
+
+				assert_eq!(args4.as_ref(), &[unquoted(literal("ls"))]);
+				assert_eq!(
+					args5.as_ref(),
+					&[
+						unquoted(literal("file-")),
+						expansion(ArgExpansion::Percent),
+						unquoted(literal(".")),
+						expansion(ArgExpansion::Star)
+					]
+				);
+
+				assert_eq!(args6.as_ref(), &[unquoted(literal("ls"))]);
+				assert_eq!(
+					args7.as_ref(),
+					&[
+						expansion(ArgExpansion::Home),
+						expansion(ArgExpansion::Star),
+						expansion(ArgExpansion::Percent),
+						unquoted(literal("file")),
+						expansion(ArgExpansion::Percent),
+						expansion(ArgExpansion::Star),
+					]
+				);
+
+				assert_eq!(args8.as_ref(), &[unquoted(literal("ls"))]);
+				assert_eq!(args9.as_ref(), &[double_quoted(&[literal("*~/")])]);
+			}
+	);
+}

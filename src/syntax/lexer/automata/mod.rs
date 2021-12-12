@@ -1,6 +1,7 @@
 mod argument;
 mod command;
 mod comment;
+mod expansion;
 mod number;
 mod root;
 mod string;
@@ -9,6 +10,7 @@ mod word;
 
 use self::{
 	argument::{Argument, DoubleQuoted, SingleQuoted},
+	expansion::Expansion,
 	command::Command,
 	comment::Comment,
 	number::NumberLiteral,
@@ -19,9 +21,11 @@ use self::{
 };
 use super::{
 	ArgPart,
+	ArgExpansion,
 	ArgUnit,
 	CommandOperator,
 	Cursor,
+	Checkpoint,
 	Error,
 	ErrorKind,
 	Keyword,
@@ -38,13 +42,35 @@ use crate::symbol::Interner as SymbolInterner;
 type Output = Result<Token, Error>;
 
 
+#[derive(Debug)]
+enum Step {
+	/// Don't move.
+	Resume,
+	/// Move one character forward.
+	Forward,
+	/// Rollback to the given checkpoint.
+	Rollback(Checkpoint),
+}
+
+
+impl Step {
+	fn apply(&self, cursor: &mut Cursor) {
+		match self {
+			Self::Resume => (),
+			Self::Forward => cursor.step(),
+			Self::Rollback(checkpoint) => cursor.rollback(*checkpoint),
+		}
+	}
+}
+
+
 /// The transition to be made after a character in the input has been visited.
 #[derive(Debug)]
 struct Transition {
 	/// The next state.
 	state: State,
-	/// Whether to consume the visited input character.
-	consume: bool,
+	/// Where to move.
+	step: Step,
 	/// The produced output, if any.
 	output: Option<Output>,
 }
@@ -54,14 +80,14 @@ impl Transition {
 	/// Consume the character while updating the machine state, but not producing a token
 	/// yet.
 	pub fn step<S: Into<State>>(state: S) -> Self {
-		Self { state: state.into(), consume: true, output: None }
+		Self { state: state.into(), step: Step::Forward, output: None }
 	}
 
 	/// Consume the input character and produce a token.
 	pub fn produce<S: Into<State>>(state: S, token: Token) -> Self {
 		Self {
 			state: state.into(),
-			consume: true,
+			step: Step::Forward,
 			output: Some(Ok(token)),
 		}
 	}
@@ -70,21 +96,21 @@ impl Transition {
 	pub fn error<S: Into<State>>(state: S, error: Error) -> Self {
 		Self {
 			state: state.into(),
-			consume: true,
+			step: Step::Forward,
 			output: Some(Err(error)),
 		}
 	}
 
 	/// Don't consume the input character, updating the machine state instead.
 	pub fn resume<S: Into<State>>(state: S) -> Self {
-		Self { state: state.into(), consume: false, output: None }
+		Self { state: state.into(), step: Step::Resume, output: None }
 	}
 
 	/// Don't consume the input character, but produce a token.
 	pub fn resume_produce<S: Into<State>>(state: S, output: Token) -> Self {
 		Self {
 			state: state.into(),
-			consume: false,
+			step: Step::Resume,
 			output: Some(Ok(output)),
 		}
 	}
@@ -93,8 +119,17 @@ impl Transition {
 	pub fn resume_error<S: Into<State>>(state: S, error: Error) -> Self {
 		Self {
 			state: state.into(),
-			consume: false,
+			step: Step::Resume,
 			output: Some(Err(error)),
+		}
+	}
+
+	/// Rollback to a checkpoint with the given state.
+	pub fn rollback<S: Into<State>>(checkpoint: Checkpoint, state: S) -> Self {
+		Self {
+			state: state.into(),
+			step: Step::Rollback(checkpoint),
+			output: None,
 		}
 	}
 }
@@ -116,6 +151,8 @@ enum State {
 	Command(Command),
 	CommandComment(Comment<Command>),
 	Argument(Argument),
+	Expansion(Expansion<Argument>),
+	ExpansionWord(Expansion<argument::Word<Argument>>),
 	SingleQuoted(SingleQuoted),
 	DoubleQuoted(DoubleQuoted),
 	UnquotedWord(argument::Word<Argument>),
@@ -148,6 +185,8 @@ impl State {
 			Self::Command(state) => state.visit(cursor),
 			Self::CommandComment(state) => state.visit(cursor),
 			Self::Argument(state) => state.visit(cursor),
+			Self::Expansion(state) => state.visit(cursor),
+			Self::ExpansionWord(state) => state.visit(cursor),
 			Self::SingleQuoted(state) => state.visit(cursor),
 			Self::DoubleQuoted(state) => state.visit(cursor),
 			Self::UnquotedWord(state) => state.visit(cursor),
@@ -185,16 +224,14 @@ impl<'a, 'b> Iterator for Automata<'a, 'b> {
 			// We must temporarily take the state so that we can consume it.
 			let state = std::mem::take(&mut self.state);
 
-			let transition = state.visit(&self.cursor, self.interner);
+			let transition = state.visit(&mut self.cursor, self.interner);
 
 			self.state = transition.state;
 
 			// Check EOF *before* stepping.
 			let eof = self.cursor.is_eof();
 
-			if transition.consume {
-				self.cursor.step();
-			}
+			transition.step.apply(&mut self.cursor);
 
 			if let Some(output) = transition.output {
 				return Some(output);

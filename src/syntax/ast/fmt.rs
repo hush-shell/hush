@@ -435,23 +435,41 @@ impl<'a> Display<'a> for ArgExpansion {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
-			Self::Home => "~/".fmt(f),
-			Self::Range(start, end) => write!(f, "{{{}..{}}}", start, end),
+			Self::Home => color::Fg(color::Yellow, "~/").fmt(f),
+			Self::Range(start, end) => {
+				color::Fg(color::Yellow, "{").fmt(f)?;
+				start.fmt(f)?;
+				color::Fg(color::Yellow, "..").fmt(f)?;
+				end.fmt(f)?;
+				color::Fg(color::Yellow, "}").fmt(f)
+			},
 			Self::Collection(items) => {
-				"{".fmt(f)?;
+				color::Fg(color::Yellow, "{").fmt(f)?;
 
 				fmt::sep_by(
 					items.iter(),
 					f,
 					|item, f| item.fmt(f, context),
-					","
+					color::Fg(color::Yellow, ",")
 				)?;
 
-				"}".fmt(f)
+				color::Fg(color::Yellow, "}").fmt(f)
 			},
-			Self::Star => "*".fmt(f),
-			Self::Question => "?".fmt(f),
-			Self::CharClass(chars) => write!(f, "[{}]", String::from_utf8_lossy(chars).escape_debug()),
+
+			Self::Star => color::Fg(color::Yellow, "*").fmt(f),
+			Self::Percent => color::Fg(color::Yellow, "%").fmt(f),
+			Self::CharClass(chars) => {
+				color::Fg(color::Yellow, "[").fmt(f)?;
+
+				color
+					::Fg(
+						color::Yellow,
+						String::from_utf8_lossy(chars).escape_debug()
+					)
+					.fmt(f)?;
+
+				color::Fg(color::Yellow, "]").fmt(f)
+			},
 		}
 	}
 }

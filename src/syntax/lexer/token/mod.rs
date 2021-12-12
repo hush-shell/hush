@@ -123,12 +123,24 @@ impl ArgUnit {
 }
 
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArgExpansion {
+	Home, // ~/
+	Range(i64, i64), // {x..y}
+	Collection(Box<[ArgUnit]>), // {a,b,c}
+
+	Star, // *
+	Percent, // %
+	CharClass(Box<[u8]>), // [...]
+}
+
 /// Argument parts may be single, double ou unquoted.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArgPart {
 	Unquoted(ArgUnit),
 	SingleQuoted(Box<[u8]>),
 	DoubleQuoted(Box<[ArgUnit]>),
+	Expansion(ArgExpansion),
 }
 
 

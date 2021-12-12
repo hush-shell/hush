@@ -684,7 +684,7 @@ impl<'a> Analyzer<'a> {
 				Some(ArgPart::Collection(items))
 			},
 			ast::ArgExpansion::Star => Some(ArgPart::Star),
-			ast::ArgExpansion::Question => Some(ArgPart::Question),
+			ast::ArgExpansion::Percent => Some(ArgPart::Percent),
 			ast::ArgExpansion::CharClass(chars) => Some(ArgPart::CharClass(chars)),
 		}
 	}

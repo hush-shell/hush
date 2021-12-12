@@ -7,7 +7,15 @@ use std::iter::Peekable;
 use super::{
 	SourcePos,
 	ast,
-	lexer::{ArgPart, ArgUnit, Keyword, Token, TokenKind, Operator, CommandOperator}
+	lexer::{
+		ArgPart,
+		ArgUnit,
+		Keyword,
+		Token,
+		TokenKind,
+		Operator,
+		CommandOperator
+	}
 };
 use sync::{ResultExt, WithSync, Synchronizable};
 pub use error::Error;

@@ -27,7 +27,7 @@ pub enum ArgPart {
 
 	// Regex expansions:
 	Star, // *
-	Question, // ?
+	Percent, // %
 	CharClass(Box<[u8]>), // [...]
 }
 

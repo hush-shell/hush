@@ -1,5 +1,3 @@
-mod expansion;
-
 use crate::io::{self, FileDescriptor};
 use super::{
 	ast,
@@ -173,9 +171,6 @@ where
 			);
 		};
 
-		// Allow home expansion in the beggining of the argument.
-		let mut allow_home = true;
-
 		for part in arg_parts.into_vec() { // Use vec's owned iterator.
 			match part {
 				ArgPart::SingleQuoted(lit) => join_owned_literal(&mut literal, lit),
@@ -191,28 +186,16 @@ where
 				ArgPart::Unquoted(unit) => {
 					match unit {
 						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
-						// TODO: parse patterns (home, range, collection, star, question, charclass)
-						ArgUnit::Literal(lit) => {
-							let expansions = expansion::Parser
-								::new(&lit)
-								.allow_home(allow_home);
-
-							for expanded in expansions {
-								match expanded {
-									expansion::Expanded::Literal(lit) => literal.extend(lit),
-									expansion::Expanded::Expansion(expansion) => push_part(
-										&mut literal,
-										&mut parts,
-										ast::ArgPart::Expansion(expansion)
-									)
-								}
-							}
-						}
+						ArgUnit::Literal(lit) => join_owned_literal(&mut literal, lit),
 					}
 				}
-			}
 
-			allow_home = false;
+				ArgPart::Expansion(expansion) => push_part(
+					&mut literal,
+					&mut parts,
+					ast::ArgPart::Expansion(expansion.into())
+				),
+			}
 		}
 
 		// Push the trailing literal, if any.

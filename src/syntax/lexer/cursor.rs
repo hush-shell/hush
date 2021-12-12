@@ -50,6 +50,22 @@ impl<'a> Cursor<'a> {
 
 		self.offset += 1;
 	}
+
+
+	/// Save a checkpoint in the current position.
+	pub fn checkpoint(&self) -> Checkpoint {
+		Checkpoint {
+			offset: self.offset,
+			pos: self.pos,
+		}
+	}
+
+
+	/// Rollback to the given checkpoint.
+	pub fn rollback(&mut self, checkpoint: Checkpoint) {
+		self.offset = checkpoint.offset;
+		self.pos = checkpoint.pos;
+	}
 }
 
 
@@ -61,4 +77,13 @@ impl<'a> From<&'a Source> for Cursor<'a> {
 			pos: SourcePos { line: 1, column: 0, path: source.path }
 		}
 	}
+}
+
+
+/// A cursor checkpoint.
+/// This can be used to save and restore a position.
+#[derive(Debug, Copy, Clone)]
+pub struct Checkpoint {
+	offset: usize,
+	pos: SourcePos,
 }

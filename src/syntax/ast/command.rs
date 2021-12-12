@@ -13,6 +13,16 @@ pub enum ArgUnit {
 }
 
 
+impl From<lexer::ArgUnit> for ArgUnit {
+	fn from(unit: lexer::ArgUnit) -> Self {
+		match unit {
+			lexer::ArgUnit::Literal(lit) => Self::Literal(lit),
+			lexer::ArgUnit::Dollar { symbol, pos } => Self::Dollar { symbol, pos }
+		}
+	}
+}
+
+
 /// An argument expansion.
 #[derive(Debug)]
 pub enum ArgExpansion {
@@ -21,8 +31,28 @@ pub enum ArgExpansion {
 	Collection(Box<[ArgUnit]>), // {a,b,c}
 
 	Star, // *
-	Question, // ?
+	Percent, // %
 	CharClass(Box<[u8]>), // [...]
+}
+
+
+impl From<lexer::ArgExpansion> for ArgExpansion {
+	fn from(expansion: lexer::ArgExpansion) -> Self {
+		match expansion {
+			lexer::ArgExpansion::Home => Self::Home,
+			lexer::ArgExpansion::Range(from ,to) => Self::Range(from ,to),
+			lexer::ArgExpansion::Collection(items) => Self::Collection(
+				items
+					.into_vec() // Use vec's owned iterator.
+					.into_iter()
+					.map(Into::into)
+					.collect()
+			),
+			lexer::ArgExpansion::Star => Self::Star,
+			lexer::ArgExpansion::Percent => Self::Percent,
+			lexer::ArgExpansion::CharClass(class) => Self::CharClass(class),
+		}
+	}
 }
 
 

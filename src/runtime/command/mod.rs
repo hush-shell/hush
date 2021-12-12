@@ -357,7 +357,7 @@ impl Runtime {
 				},
 
 				program::ArgPart::Star => args.push_regex(b".*"),
-				program::ArgPart::Question => args.push_regex(b"?"),
+				program::ArgPart::Percent => args.push_regex(b"?"),
 				program::ArgPart::CharClass(class) => {
 					args.push_regex(b"[");
 					args.push_regex(class);

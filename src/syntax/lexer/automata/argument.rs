@@ -1,9 +1,11 @@
 use super::{
 	word::{self, IsWord},
+	expansion::{self, Expansion, ExpansionContext},
 	ArgPart,
 	ArgUnit,
 	Command,
 	Cursor,
+	Checkpoint,
 	Error,
 	SourcePos,
 	State,
@@ -18,9 +20,11 @@ use crate::symbol::Symbol;
 /// The state context for the Word state.
 /// The Word state is generic in the sense that it returns to the previous state once it
 /// is finished. Such previous state is the WordContext.
-pub(super) trait WordContext {
+pub(super) trait WordContext: Sized {
 	/// The transition to make when the argument has been consumed.
 	fn resume_produce(self, value: Vec<u8>) -> Transition;
+	/// Check if a character starts an expansion.
+	fn expansion_start(state: Word<Self>, cursor: &Cursor, value: u8) -> Result<Transition, Word<Self>>;
 	/// Check if a character should be consumed.
 	fn is_word(value: u8) -> bool;
 	/// Check if a character is a valid escape sequence, and return it's corresponding
@@ -36,6 +40,8 @@ pub(super) struct Word<C> {
 	value: Vec<u8>,
 	/// The position of the current escape sequence, if any.
 	escaping: Option<(usize, SourcePos)>,
+	/// Whether to allow expansion start in the next character.
+	allow_expansion_start: bool,
 	/// The argument context.
 	context: C,
 }
@@ -67,9 +73,21 @@ where
 				Transition::step(self)
 			}
 
-			// Word character.
+			// Word character, try expansion.
+			(_, Some(c)) if C::is_word(c) && self.allow_expansion_start => {
+				match C::expansion_start(self, cursor, c) {
+					Ok(transition) => transition,
+					Err(mut state) => {
+						state.value.push(c);
+						Transition::step(state)
+					},
+				}
+			}
+
+			// Word character, no expansion.
 			(_, Some(c)) if C::is_word(c) => {
 				self.value.push(c);
+				self.allow_expansion_start = true;
 				Transition::step(self)
 			}
 
@@ -84,6 +102,7 @@ impl<C: WordContext> From<C> for Word<C> {
 	fn from(context: C) -> Self {
 		Self {
 			value: Vec::with_capacity(8), // We expect most literals not to be empty.
+			allow_expansion_start: true,
 			escaping: None,
 			context,
 		}
@@ -361,6 +380,10 @@ impl WordContext for SingleQuoted {
 		value != b'\''
 	}
 
+	fn expansion_start(state: Word<Self>, _: &Cursor, _: u8) -> Result<Transition, Word<Self>> {
+		Err(state) // No expansions inside single quotes.
+	}
+
 	fn validate_escape(value: u8) -> Option<u8> {
 		match value {
 			// Syntactical escape sequences:
@@ -445,6 +468,10 @@ impl WordContext for DoubleQuoted {
 		value != b'"' && value != b'$'
 	}
 
+	fn expansion_start(state: Word<Self>, _: &Cursor, _: u8) -> Result<Transition, Word<Self>> {
+		Err(state) // No expansions inside double quotes.
+	}
+
 	fn validate_escape(value: u8) -> Option<u8> {
 		match value {
 			// Syntactical escape sequences:
@@ -479,6 +506,8 @@ pub(super) struct Argument {
 	/// The parts of the argument. This can be empty if only errors are produced when lexing
 	/// the argument.
 	parts: Vec<ArgPart>,
+	/// Whether to allow home expansion. We should only allow that in the start of the argument.
+	allow_home: bool,
 	pos: SourcePos,
 }
 
@@ -487,12 +516,16 @@ impl Argument {
 	pub fn at(cursor: &Cursor) -> Self {
 		Self {
 			parts: Vec::with_capacity(1), // Any arg should have at least one part.
+			allow_home: true, // Allow home in argument start.
 			pos: cursor.pos(),
 		}
 	}
 
 
-	pub fn visit(self, cursor: &Cursor) -> Transition {
+	pub fn visit(mut self, cursor: &Cursor) -> Transition {
+		let allow_home = self.allow_home;
+		self.allow_home = false;
+
 		match cursor.peek() {
 			// Dollar.
 			Some(b'$') => Transition::step(Dollar::at(cursor, self)),
@@ -502,6 +535,11 @@ impl Argument {
 
 			// Double quotes.
 			Some(b'"') => Transition::step(DoubleQuoted::from(self)),
+
+			// Expansion.
+			Some(c) if expansion::is_start(c) => Transition::resume(
+				Expansion::at(cursor, allow_home, self)
+			),
 
 			// Unquoted.
 			Some(c) if Self::is_word(c) => Transition::resume(Word::from(self)),
@@ -540,6 +578,19 @@ impl WordContext for Argument {
 		}
 	}
 
+	fn expansion_start(state: Word<Self>, cursor: &Cursor, value: u8) -> Result<Transition, Word<Self>> {
+		// Allow expansions in unquoted.
+		if expansion::is_start(value) {
+			Ok(
+				Transition::resume(
+					Expansion::at(cursor, false, state)
+				)
+			)
+		} else {
+			Err(state)
+		}
+	}
+
 	fn validate_escape(value: u8) -> Option<u8> {
 		match value {
 			// Syntactical escape sequences:
@@ -560,6 +611,54 @@ impl WordContext for Argument {
 		}
 	}
 }
+
+
+impl ExpansionContext for Argument {
+	fn produce(mut self, expansion: crate::syntax::lexer::ArgExpansion) -> Transition {
+		self.parts.push(
+			ArgPart::Expansion(expansion)
+		);
+
+		Transition::step(self)
+	}
+
+	fn rollback(self, checkpoint: Checkpoint) -> Transition {
+		// If expansion parsing fails, handle it like a word.
+		Transition::rollback(checkpoint, Word::from(self))
+	}
+
+	fn is_expansion_word(value: u8) -> bool {
+		Self::is_word(value)
+	}
+}
+
+
+impl ExpansionContext for Word<Argument> {
+	fn produce(self, expansion: crate::syntax::lexer::ArgExpansion) -> Transition {
+		let mut argument_state = self.context;
+
+		argument_state.parts.push(ArgPart::Unquoted(ArgUnit::Literal(
+			self.value.into_boxed_slice(),
+		)));
+
+		argument_state.parts.push(
+			ArgPart::Expansion(expansion)
+		);
+
+		Transition::step(argument_state)
+	}
+
+	fn rollback(mut self, checkpoint: Checkpoint) -> Transition {
+		self.allow_expansion_start = false;
+		// If expansion parsing fails, handle it like a word.
+		Transition::rollback(checkpoint, self)
+	}
+
+	fn is_expansion_word(value: u8) -> bool {
+		Argument::is_word(value)
+	}
+}
+
 
 
 impl From<Argument> for State {
