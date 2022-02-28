@@ -6,19 +6,19 @@ use std::{
 	collections::HashMap,
 	os::unix::ffi::OsStrExt,
 	path::PathBuf,
-	process
+	process, ops::DerefMut
 };
 
 use super::{
 	program,
 	Dict,
-	Error,
 	Panic,
 	Runtime,
 	SourcePos,
 	Value,
 };
 use arg::Args;
+use exec::IntoValue;
 
 
 impl Runtime {
@@ -34,12 +34,12 @@ impl Runtime {
 					process::Stdio::inherit,
 					process::Stdio::inherit,
 				)
-				.map(Into::into)
+				.map(|status| status.errors.into_value(self.interner()))
 				.map_err(Into::into),
 
 			program::CommandBlockKind::Capture => {
 				thread_local! {
-					pub static STATUS: Value = "status".into();
+					pub static ERROR: Value = "error".into();
 					pub static STDOUT: Value = "stdout".into();
 					pub static STDERR: Value = "stderr".into();
 				}
@@ -51,22 +51,38 @@ impl Runtime {
 					)
 					.map_err(Into::into)?;
 
-				let out = std::mem::take(&mut block_status.stdout).into_boxed_slice();
-				let err = std::mem::take(&mut block_status.stderr).into_boxed_slice();
+				let mut result = block_status.errors.into_value(self.interner());
+				let mut captures = {
+					let out = std::mem::take(&mut block_status.stdout).into_boxed_slice();
+					let err = std::mem::take(&mut block_status.stderr).into_boxed_slice();
 
-				let mut dict = HashMap::new();
+					let mut dict = HashMap::new();
 
-				STDOUT.with(
-					|stdout| dict.insert(stdout.copy(), out.into())
-				);
-				STDERR.with(
-					|stderr| dict.insert(stderr.copy(), err.into())
-				);
-				STATUS.with(
-					|status| dict.insert(status.copy(), block_status.into())
-				);
+					STDOUT.with(
+						|stdout| dict.insert(stdout.copy(), out.into())
+					);
+					STDERR.with(
+						|stderr| dict.insert(stderr.copy(), err.into())
+					);
 
-				Ok(Dict::new(dict).into())
+					dict
+				};
+
+				match &mut result {
+					Value::Nil => Ok(Dict::new(captures).into()),
+					Value::Error(error) => {
+						let ctx = std::mem::take(error.context.borrow_mut().deref_mut());
+
+						ERROR.with(
+							|error| captures.insert(error.copy(), ctx)
+						);
+
+						*error.context.borrow_mut() = Dict::new(captures).into();
+
+						Ok(result)
+					},
+					_ => unreachable!("exec should only produce nil or error"),
+				}
 			}
 
 			program::CommandBlockKind::Asynchronous => {

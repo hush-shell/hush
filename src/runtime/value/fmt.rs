@@ -85,7 +85,7 @@ impl<'a> Display<'a> for Dict {
 		for (k, v) in iter {
 			write!(
 				f,
-				", {}:{}",
+				", {}: {}",
 				fmt::Show(k, context),
 				fmt::Show(v, context)
 			)?;

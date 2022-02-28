@@ -1,62 +1,21 @@
-mod panic;
+mod error;
 mod fmt;
 mod join;
 
 use std::{
 	ffi::{OsStr, OsString},
-	fmt::Display,
 	fs::{File, OpenOptions},
 	io::{self, Read, Write},
 	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt},
-	process::{self, Child}
+	process,
 };
 
 use regex::bytes::Regex;
 
 use crate::io::FileDescriptor;
-use super::{program, Error, SourcePos, Value};
+use super::{program, SourcePos};
 pub use join::Join;
-pub use panic::Panic;
-
-
-#[derive(Debug)]
-pub enum ExecError {
-	Io(io::Error),
-	Panic(Panic),
-}
-
-
-impl ExecError {
-	/// Failed to setup pipe.
-	pub fn pipe_fail() -> Self {
-		#[derive(Debug)]
-		struct PipeFail;
-
-		impl Display for PipeFail {
-			fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-				write!(f, "failed to open pipe")
-			}
-		}
-
-		impl std::error::Error for PipeFail { }
-
-		io::Error::new(io::ErrorKind::Other, PipeFail).into()
-	}
-}
-
-
-impl From<io::Error> for ExecError {
-	fn from(error: io::Error) -> Self {
-		Self::Io(error)
-	}
-}
-
-
-impl From<Panic> for ExecError {
-	fn from(panic: Panic) -> Self {
-		Self::Panic(panic)
-	}
-}
+pub use error::{Panic, Error, PipelineErrors, IntoValue};
 
 
 /// Status to be produced when an IO error occurs
@@ -67,24 +26,25 @@ const SIGNAL_STATUS_OFFSET: i32 = 0xFF;
 
 /// Execution status of a single command.
 #[derive(Debug)]
-pub enum Status {
-	Success,
-	Error {
-		description: String,
-		status: i32,
-	}
+pub struct ErrorStatus {
+	description: String,
+	status: i32,
+	pos: SourcePos,
 }
 
 
-impl Status {
+impl ErrorStatus {
 	/// Wait a child process, and return the status.
-	fn wait_child(mut child: Child) -> Self {
-		let status = match child.wait() {
+	fn wait_child(mut child: Child) -> Option<Self> {
+		let status = match child.process.wait() {
 			Ok(status) => status,
-			Err(error) => return Self::Error {
-				description: error.to_string(),
-				status: IO_ERROR_STATUS,
-			}
+			Err(error) => return Some(
+				Self {
+					description: error.to_string(),
+					status: IO_ERROR_STATUS,
+					pos: child.pos,
+				}
+			)
 		};
 
 		let code = status
@@ -99,65 +59,15 @@ impl Status {
 			.unwrap_or(255);
 
 		if code == 0 {
-			Self::Success
+			None
 		} else {
-			Self::Error {
-				description: "command returned non-zero".into(),
-				status: code
-			}
-		}
-	}
-
-
-	/// Check if the status indicates an error.
-	pub fn is_error(&self) -> bool {
-		matches!(self, Self::Error { .. })
-	}
-}
-
-
-impl From<Status> for Value {
-	fn from(status: Status) -> Self {
-		match status {
-			Status::Success => Value::Int(0),
-			Status::Error { description, status } => Error::new(
-				description.into(),
-				Value::Int(status as i64),
-			).into()
-		}
-	}
-}
-
-
-/// Execution status of a pipeline.
-#[derive(Debug)]
-pub struct PipelineStatus {
-	head: Status,
-	tail: Box<[Status]>,
-}
-
-
-impl From<Status> for PipelineStatus {
-	fn from(status: Status) -> Self {
-		Self {
-			head: status,
-			tail: Default::default(),
-		}
-	}
-}
-
-
-impl From<PipelineStatus> for Value {
-	fn from(status: PipelineStatus) -> Self {
-		if status.tail.is_empty() {
-			status.head.into()
-		} else {
-			std::iter
-				::once(status.head)
-				.chain(status.tail.into_vec())
-				.map(Into::into)
-				.collect::<Vec<Value>>()
-				.into()
+			Some(
+				Self {
+					description: "command returned non-zero".into(),
+					status: code,
+					pos: child.pos,
+				}
+			)
 		}
 	}
 }
@@ -166,36 +76,18 @@ impl From<PipelineStatus> for Value {
 /// Execution status of a command block.
 #[derive(Debug)]
 pub struct BlockStatus {
-	pub head: PipelineStatus,
-	pub tail: Box<[PipelineStatus]>,
+	pub errors: Box<[PipelineErrors]>,
 	pub stdout: Vec<u8>,
 	pub stderr: Vec<u8>,
 }
 
 
-impl From<PipelineStatus> for BlockStatus {
-	fn from(status: PipelineStatus) -> Self {
+impl From<PipelineErrors> for BlockStatus {
+	fn from(error: PipelineErrors) -> Self {
 		Self {
-			head: status,
-			tail: Default::default(),
+			errors: [error].into(),
 			stdout: Vec::new(),
 			stderr: Vec::new(),
-		}
-	}
-}
-
-
-impl From<BlockStatus> for Value {
-	fn from(status: BlockStatus) -> Self {
-		if status.tail.is_empty() {
-			status.head.into()
-		} else {
-			std::iter
-				::once(status.head)
-				.chain(status.tail.into_vec())
-				.map(Into::into)
-				.collect::<Vec<Value>>()
-				.into()
 		}
 	}
 }
@@ -261,7 +153,11 @@ pub enum Builtin {
 
 
 impl Builtin {
-	pub fn exec(self, arguments: Box<[Argument]>, pos: SourcePos) -> Result<Status, ExecError> {
+	pub fn exec(
+		self,
+		arguments: Box<[Argument]>,
+		pos: SourcePos,
+	) -> Result<Option<ErrorStatus>, Error> {
 		let mut arguments = arguments.into_vec();
 
 		match self {
@@ -278,16 +174,18 @@ impl Builtin {
 					);
 				}
 
-				let args = arg.resolve()?;
+				let args = arg.resolve()
+					.map_err(|error| Error::io(error, pos.copy()))?;
 
 				match args.as_ref() {
-					[ dir ] => std::env::set_current_dir(dir.as_ref())?,
+					[ dir ] => std::env::set_current_dir(dir.as_ref())
+						.map_err(|error| Error::io(error, pos.copy()))?,
 					other => return Err(
 						Panic::invalid_args("argument", other.len() as u32, pos).into()
 					),
 				};
 
-				Ok(Status::Success)
+				Ok(None)
 			}
 		}
 	}
@@ -323,23 +221,28 @@ pub struct BasicCommand {
 	pub redirections: Box<[Redirection]>,
 	/// Whether to abort the command block execution if the command fails.
 	pub abort_on_error: bool,
+	/// Source position of the command.
 	pub pos: SourcePos,
 }
 
 
 impl BasicCommand {
-	pub fn exec(self, stdio: Stdio) -> Result<Child, ExecError> {
-		let program_args = self.program.resolve()?;
+	pub fn exec(self, stdio: Stdio) -> Result<Child, Error> {
+		let pos = self.pos.copy();
+
+		let program_args = self.program.resolve()
+			.map_err(|error| Error::io(error, pos.copy()))?;
 
 		let mut command = match program_args.as_ref() {
 			[ program ] => process::Command::new(program),
 			other => return Err(
-				Panic::invalid_args("program", other.len() as u32, self.pos.copy()).into()
+				Panic::invalid_args("program", other.len() as u32, pos.copy()).into()
 			),
 		};
 
 		for argument in self.arguments.into_vec() {
-			let args = argument.resolve()?;
+			let args = argument.resolve()
+				.map_err(|error| Error::io(error, pos.copy()))?;
 
 			for arg in args.iter() {
 				command.arg(arg);
@@ -359,7 +262,7 @@ impl BasicCommand {
 		command: &mut process::Command,
 		redirections: Box<[Redirection]>,
 		pos: SourcePos,
-	) -> Result<Child, ExecError> {
+	) -> Result<Child, Error> {
 		let mut input = None;
 
 		for redirection in redirections.into_vec() { // Use vec's owned iterator.
@@ -377,7 +280,8 @@ impl BasicCommand {
 				}
 
 				Redirection::Input { literal, source } => {
-					let args = source.resolve()?;
+					let args = source.resolve()
+						.map_err(|error| Error::io(error, pos.copy()))?;
 
 					let source = match args.as_ref() {
 						[ source ] => source,
@@ -391,7 +295,8 @@ impl BasicCommand {
 							input = Some(OsString::from(source));
 							process::Stdio::piped()
 						} else {
-							let file = File::open(source.as_ref())?;
+							let file = File::open(source.as_ref())
+								.map_err(|error| Error::io(error, pos.copy()))?;
 							process::Stdio::from(file)
 						};
 
@@ -400,35 +305,36 @@ impl BasicCommand {
 			}
 		}
 
-		let mut child = command.spawn()?;
+		let mut process = command.spawn()
+			.map_err(|error| Error::io(error, pos.copy()))?;
 
 		if let Some(mut input) = input {
 			input.push("\n");
 
-			let mut stdin = child.stdin
+			let mut stdin = process.stdin
 				.take()
-				.ok_or_else(ExecError::pipe_fail)?;
+				.ok_or_else(|| Error::pipe_fail(pos.copy()))?;
 
-			stdin.write_all(input.as_bytes())?;
+			stdin.write_all(input.as_bytes())
+				.map_err(|error| Error::io(error, pos.copy()))?;
 		}
 
-		Ok(child)
+		Ok(Child { process, pos })
 	}
 
 
-	fn resolve_target(
-		target: RedirectionTarget,
-		pos: SourcePos,
-	) -> Result<process::Stdio, ExecError> {
+	fn resolve_target(target: RedirectionTarget, pos: SourcePos) -> Result<process::Stdio, Error> {
 		let open = |arg: Argument, append| {
-			let args = arg.resolve()?;
+			let args = arg.resolve()
+				.map_err(|error| Error::io(error, pos.copy()))?;
 
 			let file = match args.as_ref() {
 				[ file ] => OpenOptions::new()
 					.create(true)
 					.write(true)
 					.append(append)
-					.open(file.as_ref())?,
+					.open(file.as_ref())
+					.map_err(|error| Error::io(error, pos.copy()))?,
 
 				other => return Err(
 					Panic::invalid_args("redirection", other.len() as u32, pos).into()
@@ -450,8 +356,15 @@ impl BasicCommand {
 
 
 #[derive(Debug)]
+pub struct Child {
+	process: process::Child,
+	pos: SourcePos,
+}
+
+
+#[derive(Debug)]
 pub struct CommandExec {
-	pub status: PipelineStatus,
+	pub errors: PipelineErrors,
 	pub abort: bool,
 	pub stdout: Option<process::ChildStdout>,
 	pub stderr: Option<process::ChildStderr>,
@@ -468,6 +381,7 @@ pub enum Command {
 		arguments: Box<[Argument]>,
 		/// Whether to abort the command block execution if the command fails.
 		abort_on_error: bool,
+		/// Source position of the command.
 		pos: SourcePos,
 	},
 	External {
@@ -485,14 +399,14 @@ impl Command {
 		self,
 		stdout: process::Stdio,
 		stderr: process::Stdio,
-	) -> Result<CommandExec, ExecError> {
+	) -> Result<CommandExec, Error> {
 		match self {
 			Command::Builtin { program, arguments, abort_on_error, pos } => {
-				let status = program.exec(arguments, pos)?;
-				let abort = abort_on_error && status.is_error();
+				let error = program.exec(arguments, pos)?;
+				let abort = abort_on_error && error.is_some();
 				Ok(
 					CommandExec {
-						status: status.into(),
+						errors: error.into(),
 						abort,
 						stdout: None,
 						stderr: None,
@@ -515,9 +429,9 @@ impl Command {
 						}
 					)?;
 
-					last_stdout = child.stdin
+					last_stdout = child.process.stdin
 						.take()
-						.ok_or_else(ExecError::pipe_fail)?
+						.ok_or_else(|| Error::pipe_fail(child.pos.copy()))?
 						.into();
 					last_stderr = process::Stdio::inherit();
 
@@ -533,34 +447,43 @@ impl Command {
 					}
 				)?;
 
-				let mut last_stdout = head_child.stdout.take();
-				let mut last_stderr = head_child.stderr.take();
-				let head_status = Status::wait_child(head_child);
+				let mut abort = false;
+				let mut errors = Vec::new();
+				let mut last_stdout = head_child.process.stdout.take();
+				let mut last_stderr = head_child.process.stderr.take();
 
-				let mut abort = head_abort_on_error && head_status.is_error();
+				// Wait on head command.
+				if let Some(error) = ErrorStatus::wait_child(head_child) {
+					abort |= head_abort_on_error;
+					errors.push(error.into());
+				}
 
 				// Wait on tail commands.
-				let mut tail_statuses = Vec::new();
 				for (mut child, abort_on_error) in tail_children.into_iter().rev() {
-					last_stdout = child.stdout.take();
-					last_stderr = child.stderr.take();
-					let status = Status::wait_child(child);
-					abort |= abort_on_error && status.is_error();
-					tail_statuses.push(status);
+					last_stdout = child.process.stdout.take();
+					last_stderr = child.process.stderr.take();
+					if let Some(error) = ErrorStatus::wait_child(child) {
+						abort |= abort_on_error;
+						errors.push(error);
+					}
 				}
 
 				Ok(
 					CommandExec {
-						status: PipelineStatus {
-							head: head_status,
-							tail: tail_statuses.into(),
-						},
+						errors: errors.into(),
 						abort,
 						stdout: last_stdout,
 						stderr: last_stderr,
 					}
 				)
 			}
+		}
+	}
+
+	pub fn pos(&self) -> SourcePos {
+		match self {
+			Command::Builtin { pos, .. } => pos.copy(),
+			Command::External { head, .. } => head.pos.copy(),
 		}
 	}
 }
@@ -582,74 +505,78 @@ impl Block {
 	{
 		match self._exec(stdout, stderr) {
 			Ok(status) => Ok(status),
-			Err(ExecError::Panic(panic)) => Err(panic),
-			Err(ExecError::Io(error)) => {
-				let status = Status::Error {
+			Err(Error::Panic(panic)) => Err(panic),
+			Err(Error::Io { error, pos }) => {
+				let error = ErrorStatus {
 					description: error.to_string(),
 					status: IO_ERROR_STATUS,
+					pos,
 				};
 
-				Ok(PipelineStatus::from(status).into())
+				Ok(PipelineErrors::from(error).into())
 			},
 		}
 	}
 
 
-	fn _exec<F, G>(self, mut stdout: F, mut stderr: G,) -> Result<BlockStatus, ExecError>
+	fn _exec<F, G>(self, mut stdout: F, mut stderr: G,) -> Result<BlockStatus, Error>
 	where
 		F: FnMut() -> process::Stdio,
 		G: FnMut() -> process::Stdio,
 	{
+		let mut errors = Vec::new();
 		let mut stdout_data = Vec::new();
 		let mut stderr_data = Vec::new();
 
+		let pos = self.head.pos();
 		let head = self.head.exec(stdout(), stderr())?;
 
+		if !head.errors.is_empty() {
+			errors.push(head.errors);
+		}
 		if let Some(mut data) = head.stdout {
-			data.read_to_end(&mut stdout_data)?;
+			data.read_to_end(&mut stdout_data)
+				.map_err(|error| Error::io(error, pos.copy()))?;
 		}
 		if let Some(mut data) = head.stderr {
-			data.read_to_end(&mut stderr_data)?;
+			data.read_to_end(&mut stderr_data)
+				.map_err(|error| Error::io(error, pos))?;
 		}
 
 		if head.abort {
 			return Ok(
 				BlockStatus {
-					head: head.status,
-					tail: Default::default(),
+					errors: errors.into(),
 					stdout: stdout_data,
 					stderr: stderr_data,
 				}
 			)
 		}
 
-		let tail = {
-			let mut statuses = Vec::new();
+		for command in self.tail.into_vec() { // Use vec's owned iterator.
+			let pos = command.pos();
+			let child = command.exec(stdout(), stderr())?;
 
-			for command in self.tail.into_vec() { // Use vec's owned iterator.
-				let child = command.exec(stdout(), stderr())?;
-
-				if let Some(mut data) = child.stdout {
-					data.read_to_end(&mut stdout_data)?;
-				}
-				if let Some(mut data) = child.stderr {
-					data.read_to_end(&mut stderr_data)?;
-				}
-
-				statuses.push(child.status);
-
-				if child.abort {
-					break;
-				}
+			if !child.errors.is_empty() {
+				errors.push(child.errors);
+			}
+			if let Some(mut data) = child.stdout {
+				data.read_to_end(&mut stdout_data)
+					.map_err(|error| Error::io(error, pos.copy()))?;
+			}
+			if let Some(mut data) = child.stderr {
+				data.read_to_end(&mut stderr_data)
+					.map_err(|error| Error::io(error, pos))?;
 			}
 
-			statuses.into()
-		};
+			if child.abort {
+				break;
+			}
+		}
 
 		Ok(
 			BlockStatus {
-				head: head.status,
-				tail,
+				errors: errors.into(),
 				stdout: stdout_data,
 				stderr: stderr_data,
 			}

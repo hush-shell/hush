@@ -33,7 +33,7 @@ impl SourcePos {
 }
 
 
-/// SourcePos has not garbage-collected fields.
+/// SourcePos has no garbage-collected fields.
 unsafe impl Trace for SourcePos {
 	gc::unsafe_empty_trace!();
 }

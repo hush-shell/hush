@@ -2,7 +2,7 @@ use gc::{Finalize, GcCell, Trace};
 
 use crate::runtime::value::{CallContext, NativeFun, Value};
 
-use super::{BlockStatus, Panic};
+use super::{BlockStatus, Panic, IntoValue};
 
 
 #[derive(Finalize)]
@@ -43,7 +43,7 @@ impl NativeFun for Join {
 				};
 
 				result
-					.map(Into::into)
+					.map(|status| status.errors.into_value(context.interner()))
 					.map_err(Into::into)
 			},
 
