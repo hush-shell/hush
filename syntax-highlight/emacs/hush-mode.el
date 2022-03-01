@@ -59,4 +59,4 @@
 ;; Babel:
 (defun org-babel-execute:hush (body params)
   "Execute a block of Hush code with org-babel."
-  (org-babel-eval "hush 2>&1" body))
+  (org-babel-eval "hush" body))
