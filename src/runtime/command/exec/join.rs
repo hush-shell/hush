@@ -2,12 +2,12 @@ use gc::{Finalize, GcCell, Trace};
 
 use crate::runtime::value::{CallContext, NativeFun, Value};
 
-use super::{BlockStatus, Panic, IntoValue};
+use super::{Panic, PipelineErrors, IntoValue};
 
 
 #[derive(Finalize)]
 struct JoinHandle(
-	std::thread::JoinHandle<Result<BlockStatus, Panic>>
+	std::thread::JoinHandle<Result<Box<[PipelineErrors]>, Panic>>
 );
 
 
@@ -21,7 +21,7 @@ pub struct Join(GcCell<Option<JoinHandle>>);
 
 
 impl Join {
-	pub fn new(handle: std::thread::JoinHandle<Result<BlockStatus, Panic>>) -> Self {
+	pub fn new(handle: std::thread::JoinHandle<Result<Box<[PipelineErrors]>, Panic>>) -> Self {
 		Self(
 			GcCell::new(
 				Some(JoinHandle(handle))
@@ -43,7 +43,7 @@ impl NativeFun for Join {
 				};
 
 				result
-					.map(|status| status.errors.into_value(context.interner()))
+					.map(|errors| errors.into_value(context.interner()))
 					.map_err(Into::into)
 			},
 

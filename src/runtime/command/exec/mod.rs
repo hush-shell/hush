@@ -3,9 +3,9 @@ mod fmt;
 mod join;
 
 use std::{
-	ffi::{OsStr, OsString},
+	ffi::OsStr,
 	fs::{File, OpenOptions},
-	io::{self, Read, Write},
+	io::{self, Write},
 	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd},
 	process,
 };
@@ -68,26 +68,6 @@ impl ErrorStatus {
 					pos: child.pos,
 				}
 			)
-		}
-	}
-}
-
-
-/// Execution status of a command block.
-#[derive(Debug)]
-pub struct BlockStatus {
-	pub errors: Box<[PipelineErrors]>,
-	pub stdout: Vec<u8>,
-	pub stderr: Vec<u8>,
-}
-
-
-impl From<PipelineErrors> for BlockStatus {
-	fn from(error: PipelineErrors) -> Self {
-		Self {
-			errors: [error].into(),
-			stdout: Vec::new(),
-			stderr: Vec::new(),
 		}
 	}
 }
@@ -204,9 +184,9 @@ impl<'a> From<&'a program::command::Builtin> for Builtin {
 
 #[derive(Debug)]
 pub struct Stdio {
-	pub stdin: process::Stdio,
-	pub stdout: process::Stdio,
-	pub stderr: process::Stdio,
+	pub stdin: os_pipe::PipeReader,
+	pub stdout: os_pipe::PipeWriter,
+	pub stderr: os_pipe::PipeWriter,
 }
 
 
@@ -249,30 +229,24 @@ impl BasicCommand {
 			}
 		}
 
-		// Setup pipes before redirections, as in Bash.
-		command.stdin(stdio.stdin);
-		command.stdout(stdio.stdout);
-		command.stderr(stdio.stderr);
-
-		Self::spawn(&mut command, self.redirections, self.pos)
+		Self::spawn(&mut command, stdio, self.redirections, self.pos)
 	}
 
 
 	fn spawn(
 		command: &mut process::Command,
+		mut stdio: Stdio,
 		redirections: Box<[Redirection]>,
 		pos: SourcePos,
 	) -> Result<Child, Error> {
-		let mut input = None;
-
 		for redirection in redirections.into_vec() { // Use vec's owned iterator.
 			match redirection {
 				Redirection::Output { source, target } => {
-					let target = Self::resolve_target(target, pos.copy())?;
+					let target = Self::resolve_target(target, &stdio, pos.copy())?;
 
 					match source {
-						1 => command.stdout(target),
-						2 => command.stderr(target),
+						1 => stdio.stdout = target,
+						2 => stdio.stderr = target,
 						other => return Err(
 							Panic::unsupported_fd(other, pos.copy()).into()
 						),
@@ -290,40 +264,43 @@ impl BasicCommand {
 						),
 					};
 
-					let stdin =
+					let stdin: os_pipe::PipeReader =
 						if literal {
-							input = Some(OsString::from(source));
-							process::Stdio::piped()
+							let (reader, mut writer) = os_pipe::pipe()
+								.map_err(|error| Error::io(error, pos.copy()))?;
+
+							writer.write_all(source.as_bytes())
+								.map_err(|error| Error::io(error, pos.copy()))?;
+
+							writer.write_all(b"\n")
+								.map_err(|error| Error::io(error, pos.copy()))?;
+
+							reader.into()
 						} else {
 							let file = File::open(source.as_ref())
-								.map_err(|error| Error::io(error, pos.copy()))?;
-							process::Stdio::from(file)
+								.map_err(|error| Error::io(error, pos.copy()))?
+								.into_raw_fd();
+
+							unsafe { os_pipe::PipeReader::from_raw_fd(file) }
 						};
 
-					command.stdin(stdin);
+					stdio.stdin = stdin;
 				}
 			}
 		}
 
-		let mut process = command.spawn()
+		command.stdin(stdio.stdin);
+		command.stdout(stdio.stdout);
+		command.stderr(stdio.stderr);
+
+		let process = command.spawn()
 			.map_err(|error| Error::io(error, pos.copy()))?;
-
-		if let Some(mut input) = input {
-			input.push("\n");
-
-			let mut stdin = process.stdin
-				.take()
-				.ok_or_else(|| Error::pipe_fail(pos.copy()))?;
-
-			stdin.write_all(input.as_bytes())
-				.map_err(|error| Error::io(error, pos.copy()))?;
-		}
 
 		Ok(Child { process, pos })
 	}
 
 
-	fn resolve_target(target: RedirectionTarget, pos: SourcePos) -> Result<process::Stdio, Error> {
+	fn resolve_target(target: RedirectionTarget, stdio: &Stdio, pos: SourcePos) -> Result<os_pipe::PipeWriter, Error> {
 		let open = |arg: Argument, append| {
 			let args = arg.resolve()
 				.map_err(|error| Error::io(error, pos.copy()))?;
@@ -334,29 +311,34 @@ impl BasicCommand {
 					.write(true)
 					.append(append)
 					.open(file.as_ref())
-					.map_err(|error| Error::io(error, pos.copy()))?,
+					.map_err(|error| Error::io(error, pos.copy()))?
+					.into_raw_fd(),
 
 				other => return Err(
 					Panic::invalid_args("redirection", other.len() as u32, pos.copy()).into()
 				),
 			};
 
-			Ok(process::Stdio::from(file))
+			Ok(
+				unsafe { os_pipe::PipeWriter::from_raw_fd(file) }
+			)
 		};
 
 		match target {
-			RedirectionTarget::Fd(fd) => {
-				let file = unsafe { File::from_raw_fd(fd) };
-
-				let target = file.try_clone()
-					.map_err(|error| Error::io(error, pos))?;
-
-				file.into_raw_fd(); // Prevent File from closing the FD.
-
-				Ok(target.into())
-			}
 			RedirectionTarget::Overwrite(arg) => open(arg, false),
 			RedirectionTarget::Append(arg) => open(arg, true),
+			RedirectionTarget::Fd(fd) => {
+				let writer = match fd {
+					1 => &stdio.stdout,
+					2 => &stdio.stderr,
+					other => return Err(
+						Panic::unsupported_fd(other, pos.copy()).into()
+					),
+				};
+
+				writer.try_clone()
+					.map_err(|error| Error::io(error, pos))
+			}
 		}
 	}
 }
@@ -373,8 +355,6 @@ pub struct Child {
 pub struct CommandExec {
 	pub errors: PipelineErrors,
 	pub abort: bool,
-	pub stdout: Option<process::ChildStdout>,
-	pub stderr: Option<process::ChildStderr>,
 }
 
 
@@ -404,8 +384,8 @@ impl Command {
 	/// Returns a pair of result value and whether to abort.
 	pub fn exec(
 		self,
-		stdout: process::Stdio,
-		stderr: process::Stdio,
+		stdout: os_pipe::PipeWriter,
+		stderr: os_pipe::PipeWriter,
 	) -> Result<CommandExec, Error> {
 		match self {
 			Command::Builtin { program, arguments, abort_on_error, pos } => {
@@ -415,8 +395,6 @@ impl Command {
 					CommandExec {
 						errors: error.into(),
 						abort,
-						stdout: None,
-						stderr: None,
 					}
 				)
 			}
@@ -428,27 +406,35 @@ impl Command {
 				let mut tail_children = Vec::new();
 				for cmd in tail.into_vec().into_iter().rev() {
 					let child_abort_on_error = cmd.abort_on_error;
-					let mut child = cmd.exec(
+
+					let (pipe_reader, pipe_writer) = os_pipe::pipe()
+						.map_err(|error| Error::io(error, cmd.pos.copy()))?;
+
+					let child = cmd.exec(
 						Stdio {
-							stdin: process::Stdio::piped(),
+							stdin: pipe_reader,
 							stdout: last_stdout,
 							stderr: last_stderr,
 						}
 					)?;
 
-					last_stdout = child.process.stdin
-						.take()
-						.ok_or_else(|| Error::pipe_fail(child.pos.copy()))?
+					last_stdout = pipe_writer.into();
+					last_stderr = os_pipe::dup_stderr()
+						.map_err(|error| Error::io(error, child.pos.copy()))?
 						.into();
-					last_stderr = process::Stdio::inherit();
 
 					tail_children.push((child, child_abort_on_error));
 				}
 
 				let head_abort_on_error = head.abort_on_error;
-				let mut head_child = head.exec(
+
+				let stdin = os_pipe::dup_stdin()
+					.map_err(|error| Error::io(error, head.pos.copy()))?
+					.into();
+
+				let head_child = head.exec(
 					Stdio {
-						stdin: process::Stdio::inherit(),
+						stdin,
 						stdout: last_stdout,
 						stderr: last_stderr,
 					}
@@ -456,8 +442,6 @@ impl Command {
 
 				let mut abort = false;
 				let mut errors = Vec::new();
-				let mut last_stdout = head_child.process.stdout.take();
-				let mut last_stderr = head_child.process.stderr.take();
 
 				// Wait on head command.
 				if let Some(error) = ErrorStatus::wait_child(head_child) {
@@ -466,9 +450,7 @@ impl Command {
 				}
 
 				// Wait on tail commands.
-				for (mut child, abort_on_error) in tail_children.into_iter().rev() {
-					last_stdout = child.process.stdout.take();
-					last_stderr = child.process.stderr.take();
+				for (child, abort_on_error) in tail_children.into_iter().rev() {
 					if let Some(error) = ErrorStatus::wait_child(child) {
 						abort |= abort_on_error;
 						errors.push(error);
@@ -479,8 +461,6 @@ impl Command {
 					CommandExec {
 						errors: errors.into(),
 						abort,
-						stdout: last_stdout,
-						stderr: last_stderr,
 					}
 				)
 			}
@@ -505,10 +485,10 @@ pub struct Block {
 
 
 impl Block {
-	pub fn exec<F, G>(self, stdout: F, stderr: G) -> Result<BlockStatus, Panic>
+	pub fn exec<F, G>(self, stdout: F, stderr: G) -> Result<Box<[PipelineErrors]>, Panic>
 	where
-		F: FnMut() -> process::Stdio,
-		G: FnMut() -> process::Stdio,
+		F: FnMut() -> io::Result<os_pipe::PipeWriter>,
+		G: FnMut() -> io::Result<os_pipe::PipeWriter>,
 	{
 		match self._exec(stdout, stderr) {
 			Ok(status) => Ok(status),
@@ -520,60 +500,46 @@ impl Block {
 					pos,
 				};
 
-				Ok(PipelineErrors::from(error).into())
+				Ok(Box::new([PipelineErrors::from(error)]))
 			},
 		}
 	}
 
 
-	fn _exec<F, G>(self, mut stdout: F, mut stderr: G,) -> Result<BlockStatus, Error>
+	fn _exec<F, G>(self, mut stdout: F, mut stderr: G,) -> Result<Box<[PipelineErrors]>, Error>
 	where
-		F: FnMut() -> process::Stdio,
-		G: FnMut() -> process::Stdio,
+		F: FnMut() -> io::Result<os_pipe::PipeWriter>,
+		G: FnMut() -> io::Result<os_pipe::PipeWriter>,
 	{
 		let mut errors = Vec::new();
-		let mut stdout_data = Vec::new();
-		let mut stderr_data = Vec::new();
 
 		let pos = self.head.pos();
-		let head = self.head.exec(stdout(), stderr())?;
+		let head = self.head.exec(
+			stdout()
+				.map_err(|error| Error::io(error, pos.copy()))?,
+			stderr()
+				.map_err(|error| Error::io(error, pos.copy()))?,
+		)?;
 
 		if !head.errors.is_empty() {
 			errors.push(head.errors);
 		}
-		if let Some(mut data) = head.stdout {
-			data.read_to_end(&mut stdout_data)
-				.map_err(|error| Error::io(error, pos.copy()))?;
-		}
-		if let Some(mut data) = head.stderr {
-			data.read_to_end(&mut stderr_data)
-				.map_err(|error| Error::io(error, pos))?;
-		}
 
 		if head.abort {
-			return Ok(
-				BlockStatus {
-					errors: errors.into(),
-					stdout: stdout_data,
-					stderr: stderr_data,
-				}
-			)
+			return Ok(errors.into())
 		}
 
 		for command in self.tail.into_vec() { // Use vec's owned iterator.
 			let pos = command.pos();
-			let child = command.exec(stdout(), stderr())?;
+			let child = command.exec(
+				stdout()
+					.map_err(|error| Error::io(error, pos.copy()))?,
+				stderr()
+					.map_err(|error| Error::io(error, pos.copy()))?,
+			)?;
 
 			if !child.errors.is_empty() {
 				errors.push(child.errors);
-			}
-			if let Some(mut data) = child.stdout {
-				data.read_to_end(&mut stdout_data)
-					.map_err(|error| Error::io(error, pos.copy()))?;
-			}
-			if let Some(mut data) = child.stderr {
-				data.read_to_end(&mut stderr_data)
-					.map_err(|error| Error::io(error, pos))?;
 			}
 
 			if child.abort {
@@ -581,12 +547,6 @@ impl Block {
 			}
 		}
 
-		Ok(
-			BlockStatus {
-				errors: errors.into(),
-				stdout: stdout_data,
-				stderr: stderr_data,
-			}
-		)
+		Ok(errors.into())
 	}
 }

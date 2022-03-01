@@ -400,7 +400,7 @@ impl Runtime {
 
 			// CommandBlock.
 			program::Expr::CommandBlock { block, pos } => {
-				let value = self.eval_command_block(block)?;
+				let value = self.eval_command_block(block, pos.into())?;
 				Ok((Flow::Regular(value), pos.into(), Value::default()))
 			}
 		}

@@ -6,7 +6,7 @@ use std::{
 	collections::HashMap,
 	os::unix::ffi::OsStrExt,
 	path::PathBuf,
-	process, ops::DerefMut
+	ops::DerefMut, io::Read
 };
 
 use super::{
@@ -24,18 +24,21 @@ use exec::IntoValue;
 impl Runtime {
 	pub(super) fn eval_command_block(
 		&mut self,
-		block: &'static program::CommandBlock
+		block: &'static program::CommandBlock,
+		pos: SourcePos,
 	) -> Result<Value, Panic> {
 		let command_block = self.build_command_block(&block.head, &block.tail)?;
 
 		match block.kind {
-			program::CommandBlockKind::Synchronous => command_block
-				.exec(
-					process::Stdio::inherit,
-					process::Stdio::inherit,
-				)
-				.map(|status| status.errors.into_value(self.interner()))
-				.map_err(Into::into),
+			program::CommandBlockKind::Synchronous => {
+				command_block
+					.exec(
+						os_pipe::dup_stdout,
+						os_pipe::dup_stderr,
+					)
+					.map(|errors| errors.into_value(self.interner()))
+					.map_err(Into::into)
+			}
 
 			program::CommandBlockKind::Capture => {
 				thread_local! {
@@ -44,17 +47,36 @@ impl Runtime {
 					pub static STDERR: Value = "stderr".into();
 				}
 
-				let mut block_status = command_block
+				let (mut stdout_read, stdout_write) = os_pipe::pipe()
+					.map_err(|error| Panic::io(error, pos.copy()))?;
+
+				let (mut stderr_read, stderr_write) = os_pipe::pipe()
+					.map_err(|error| Panic::io(error, pos.copy()))?;
+
+				let errors = command_block
 					.exec(
-						process::Stdio::piped,
-						process::Stdio::piped,
+						|| stdout_write.try_clone(),
+						|| stderr_write.try_clone(),
 					)
 					.map_err(Into::into)?;
 
-				let mut result = block_status.errors.into_value(self.interner());
+				// We must drop all writers before attempting to read, otherwise we'll deadlock.
+				drop(stdout_write);
+				drop(stderr_write);
+
+				let mut result = errors.into_value(self.interner());
 				let mut captures = {
-					let out = std::mem::take(&mut block_status.stdout).into_boxed_slice();
-					let err = std::mem::take(&mut block_status.stderr).into_boxed_slice();
+					let mut out = Vec::with_capacity(512);
+					let mut err = Vec::with_capacity(512);
+
+					stdout_read.read_to_end(&mut out)
+						.map_err(|error| Panic::io(error, pos.copy()))?;
+
+					stderr_read.read_to_end(&mut err)
+						.map_err(|error| Panic::io(error, pos.copy()))?;
+
+					let out = out.into_boxed_slice();
+					let err = err.into_boxed_slice();
 
 					let mut dict = HashMap::new();
 
@@ -92,8 +114,8 @@ impl Runtime {
 
 				let join_handle = std::thread::spawn(
 					|| command_block.exec(
-						process::Stdio::inherit,
-						process::Stdio::inherit,
+						os_pipe::dup_stdout,
+						os_pipe::dup_stderr,
 					)
 				);
 

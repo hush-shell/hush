@@ -1,6 +1,6 @@
 use std::{
 	io,
-	fmt::Display, collections::HashMap,
+	collections::HashMap,
 };
 
 use crate::{
@@ -120,25 +120,6 @@ pub enum Error {
 impl Error {
 	pub fn io(error: io::Error, pos: SourcePos) -> Self {
 		Self::Io { error, pos }
-	}
-
-	/// Failed to setup pipe.
-	pub fn pipe_fail(pos: SourcePos) -> Self {
-		#[derive(Debug)]
-		struct PipeFail;
-
-		impl Display for PipeFail {
-			fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-				write!(f, "failed to open pipe")
-			}
-		}
-
-		impl std::error::Error for PipeFail { }
-
-		Self::io(
-			io::Error::new(io::ErrorKind::Other, PipeFail),
-			pos,
-		)
 	}
 }
 
