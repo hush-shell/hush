@@ -6,7 +6,7 @@ use std::{
 	ffi::{OsStr, OsString},
 	fs::{File, OpenOptions},
 	io::{self, Read, Write},
-	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt},
+	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd},
 	process,
 };
 
@@ -337,7 +337,7 @@ impl BasicCommand {
 					.map_err(|error| Error::io(error, pos.copy()))?,
 
 				other => return Err(
-					Panic::invalid_args("redirection", other.len() as u32, pos).into()
+					Panic::invalid_args("redirection", other.len() as u32, pos.copy()).into()
 				),
 			};
 
@@ -345,9 +345,16 @@ impl BasicCommand {
 		};
 
 		match target {
-			RedirectionTarget::Fd(fd) => Ok(
-				unsafe { process::Stdio::from_raw_fd(fd) } // TODO: test
-			),
+			RedirectionTarget::Fd(fd) => {
+				let file = unsafe { File::from_raw_fd(fd) };
+
+				let target = file.try_clone()
+					.map_err(|error| Error::io(error, pos))?;
+
+				file.into_raw_fd(); // Prevent File from closing the FD.
+
+				Ok(target.into())
+			}
 			RedirectionTarget::Overwrite(arg) => open(arg, false),
 			RedirectionTarget::Append(arg) => open(arg, true),
 		}

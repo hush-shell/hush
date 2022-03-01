@@ -1,0 +1,19 @@
+let result = ${
+	src/runtime/tests/data/stdout-stderr.sh
+}
+
+std.assert(result.stdout == "stdout\n")
+std.assert(result.stderr == "stderr\n")
+
+result = ${
+	src/runtime/tests/data/stdout-stderr.sh 2>1 > /dev/null
+}
+
+std.assert(result.stdout == "stderr\n")
+
+
+result = ${
+	src/runtime/tests/data/stdout-stderr.sh 1>2 2> /dev/null
+}
+
+std.assert(result.stderr == "stdout\n")
