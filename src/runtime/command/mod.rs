@@ -58,7 +58,7 @@ impl Runtime {
 						|| stdout_write.try_clone(),
 						|| stderr_write.try_clone(),
 					)
-					.map_err(Into::into)?;
+					.map_err(Panic::from)?;
 
 				// We must drop all writers before attempting to read, otherwise we'll deadlock.
 				drop(stdout_write);

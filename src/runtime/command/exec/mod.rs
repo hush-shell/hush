@@ -275,12 +275,13 @@ impl BasicCommand {
 							writer.write_all(b"\n")
 								.map_err(|error| Error::io(error, pos.copy()))?;
 
-							reader.into()
+							reader
 						} else {
 							let file = File::open(source.as_ref())
 								.map_err(|error| Error::io(error, pos.copy()))?
 								.into_raw_fd();
 
+							// SAFETY: converting from a FD originated from a File is fine.
 							unsafe { os_pipe::PipeReader::from_raw_fd(file) }
 						};
 
@@ -320,6 +321,7 @@ impl BasicCommand {
 			};
 
 			Ok(
+				// SAFETY: converting from a FD originated from a File is fine.
 				unsafe { os_pipe::PipeWriter::from_raw_fd(file) }
 			)
 		};
@@ -418,10 +420,9 @@ impl Command {
 						}
 					)?;
 
-					last_stdout = pipe_writer.into();
+					last_stdout = pipe_writer;
 					last_stderr = os_pipe::dup_stderr()
-						.map_err(|error| Error::io(error, child.pos.copy()))?
-						.into();
+						.map_err(|error| Error::io(error, child.pos.copy()))?;
 
 					tail_children.push((child, child_abort_on_error));
 				}
@@ -429,8 +430,7 @@ impl Command {
 				let head_abort_on_error = head.abort_on_error;
 
 				let stdin = os_pipe::dup_stdin()
-					.map_err(|error| Error::io(error, head.pos.copy()))?
-					.into();
+					.map_err(|error| Error::io(error, head.pos.copy()))?;
 
 				let head_child = head.exec(
 					Stdio {
@@ -446,7 +446,7 @@ impl Command {
 				// Wait on head command.
 				if let Some(error) = ErrorStatus::wait_child(head_child) {
 					abort |= head_abort_on_error;
-					errors.push(error.into());
+					errors.push(error);
 				}
 
 				// Wait on tail commands.

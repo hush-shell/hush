@@ -70,11 +70,11 @@ impl std::fmt::Display for Panic {
 impl std::error::Error for Panic { }
 
 
-impl Into<crate::runtime::Panic> for Panic {
-	fn into(self) -> crate::runtime::Panic {
+impl From<Panic> for crate::runtime::Panic {
+	fn from(panic: Panic) -> Self {
 		use crate::runtime::Panic as P;
 
-		match self {
+		match panic {
 			Panic::InvalidArgs { object, items, pos } => P::invalid_command_args(object, items, pos),
 			Panic::UnsupportedFileDescriptor { fd, pos } => P::unsupported_fd(fd, pos),
 		}

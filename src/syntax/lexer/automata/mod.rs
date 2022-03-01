@@ -224,7 +224,7 @@ impl<'a, 'b> Iterator for Automata<'a, 'b> {
 			// We must temporarily take the state so that we can consume it.
 			let state = std::mem::take(&mut self.state);
 
-			let transition = state.visit(&mut self.cursor, self.interner);
+			let transition = state.visit(&self.cursor, self.interner);
 
 			self.state = transition.state;
 

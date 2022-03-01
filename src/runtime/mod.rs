@@ -623,13 +623,11 @@ impl Runtime {
 
 				let flow = result?;
 
-				let value = match flow {
+				match flow {
 					Flow::Regular(value) => value,
 					Flow::Return(value) => value,
 					Flow::Break => panic!("break outside loop"),
-				};
-
-				value
+				}
 			}
 
 			Function::Rust(fun) => {
@@ -719,7 +717,7 @@ impl Runtime {
 			Plus | Minus | Times | Div | Mod => {
 				let (right, right_pos) = regular_expr!(right);
 
-				self.arithmetic_op(left, left_pos, op, &pos, right, right_pos)?
+				self.arithmetic_op(left, left_pos, op, pos, right, right_pos)?
 			}
 
 			Greater | GreaterEquals | Lower | LowerEquals => {

@@ -32,7 +32,7 @@ impl<'a> Cursor<'a> {
 
 
 	pub fn slice(&self) -> &'a [u8] {
-		&self.input
+		self.input
 	}
 
 

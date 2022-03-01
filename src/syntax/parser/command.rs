@@ -314,7 +314,7 @@ where
 			Some(Token { kind: TokenKind::Argument(parts), .. }) => {
 				match parts.as_ref() {
 					[ArgPart::Unquoted(ArgUnit::Literal(ref lit))] => {
-						let lit = std::str::from_utf8(&lit).ok()?;
+						let lit = std::str::from_utf8(lit).ok()?;
 						let number: u8 = lit.parse().ok()?;
 
 						self.step();

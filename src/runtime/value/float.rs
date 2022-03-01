@@ -97,9 +97,9 @@ impl From<&i64> for Float {
 }
 
 
-impl Into<i64> for &Float {
-	fn into(self) -> i64 {
-		self.0 as i64
+impl From<&Float> for i64 {
+	fn from(float: &Float) -> Self {
+		float.0 as i64
 	}
 }
 
