@@ -17,7 +17,7 @@ impl Display for Argument {
 		'"'.fmt(f)?;
 
 		match self {
-			Self::Regex(regex) => regex.fmt(f)?,
+			Self::Pattern(pattern) => String::from_utf8_lossy(pattern.as_bytes()).escape_debug().fmt(f)?,
 			Self::Literal(lit) => String::from_utf8_lossy(lit.as_bytes()).escape_debug().fmt(f)?,
 		};
 

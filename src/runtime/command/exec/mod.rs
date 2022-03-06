@@ -3,14 +3,12 @@ mod fmt;
 mod join;
 
 use std::{
-	ffi::OsStr,
+	ffi::{OsStr, OsString},
 	fs::{File, OpenOptions},
 	io::{self, Write},
 	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd},
 	process,
 };
-
-use regex::bytes::Regex;
 
 use crate::io::FileDescriptor;
 use super::{program, SourcePos};
@@ -76,8 +74,8 @@ impl ErrorStatus {
 /// An argument may expand to zero or more literals.
 #[derive(Debug)]
 pub enum Argument {
-	/// A regex to be matched to file names. May expand to zero or more literals.
-	Regex(Regex),
+	/// A pattern to be matched to file names. May expand to zero or more literals.
+	Pattern(Box<OsStr>),
 	/// A single literal.
 	Literal(Box<OsStr>),
 }
@@ -85,10 +83,35 @@ pub enum Argument {
 
 impl Argument {
 	/// Resolve the argument in the current directory.
-	pub fn resolve(self) -> io::Result<Box<[Box<OsStr>]>> {
+	pub fn resolve(self, pos: SourcePos) -> Result<Box<[Box<OsStr>]>, Panic> {
 		match self {
-			Self::Regex(_) => todo!(),
 			Self::Literal(lit) => Ok(Box::new([lit])),
+			Self::Pattern(pattern) => {
+				let pattern = pattern.into_os_string();
+
+				let pattern_str = pattern
+					.into_string()
+					.map_err(|pattern| Panic::invalid_pattern(pattern, pos.copy()))?;
+
+				let is_absolute = pattern_str.starts_with('/');
+
+				let entries = glob::glob(&pattern_str)
+					.map_err(|_| Panic::invalid_pattern(pattern_str.into(), pos))?
+					.filter_map(Result::ok)
+					.map(
+						|path| if is_absolute {
+							OsString::from(path).into_boxed_os_str()
+						} else {
+							let mut new_path = OsString::with_capacity(2 + path.as_os_str().len());
+							new_path.push("./");
+							new_path.push(path);
+							new_path.into_boxed_os_str()
+						}
+					)
+					.collect();
+
+				Ok(entries)
+			},
 		}
 	}
 }
@@ -154,8 +177,7 @@ impl Builtin {
 					);
 				}
 
-				let args = arg.resolve()
-					.map_err(|error| Error::io(error, pos.copy()))?;
+				let args = arg.resolve(pos.copy())?;
 
 				match args.as_ref() {
 					[ dir ] => std::env::set_current_dir(dir.as_ref())
@@ -210,8 +232,7 @@ impl BasicCommand {
 	pub fn exec(self, stdio: Stdio) -> Result<Child, Error> {
 		let pos = self.pos.copy();
 
-		let program_args = self.program.resolve()
-			.map_err(|error| Error::io(error, pos.copy()))?;
+		let program_args = self.program.resolve(pos.copy())?;
 
 		let mut command = match program_args.as_ref() {
 			[ program ] => process::Command::new(program),
@@ -221,8 +242,7 @@ impl BasicCommand {
 		};
 
 		for argument in self.arguments.into_vec() {
-			let args = argument.resolve()
-				.map_err(|error| Error::io(error, pos.copy()))?;
+			let args = argument.resolve(pos.copy())?;
 
 			for arg in args.iter() {
 				command.arg(arg);
@@ -254,8 +274,7 @@ impl BasicCommand {
 				}
 
 				Redirection::Input { literal, source } => {
-					let args = source.resolve()
-						.map_err(|error| Error::io(error, pos.copy()))?;
+					let args = source.resolve(pos.copy())?;
 
 					let source = match args.as_ref() {
 						[ source ] => source,
@@ -303,8 +322,7 @@ impl BasicCommand {
 
 	fn resolve_target(target: RedirectionTarget, stdio: &Stdio, pos: SourcePos) -> Result<os_pipe::PipeWriter, Error> {
 		let open = |arg: Argument, append| {
-			let args = arg.resolve()
-				.map_err(|error| Error::io(error, pos.copy()))?;
+			let args = arg.resolve(pos.copy())?;
 
 			let file = match args.as_ref() {
 				[ file ] => OpenOptions::new()

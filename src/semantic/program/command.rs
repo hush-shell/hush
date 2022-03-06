@@ -20,12 +20,12 @@ pub enum ArgUnit {
 pub enum ArgPart {
 	Unit(ArgUnit),
 
-	// Expansions:
+	// Literal expansions:
 	Home, // ~/
 	Range(i64, i64), // {x..y}
 	Collection(Box<[ArgUnit]>), // {a,b,c}
 
-	// Regex expansions:
+	// File expansions:
 	Star, // *
 	Percent, // %
 	CharClass(Box<[u8]>), // [...]

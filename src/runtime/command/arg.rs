@@ -6,14 +6,12 @@ use std::{
 
 use super::exec;
 
-use regex::bytes::Regex;
-
 
 pub type Arg = Vec<u8>;
 
 
 pub enum Args {
-	Regexes(Vec<Arg>),
+	Patterns(Vec<Arg>),
 	Literals(Vec<Arg>),
 }
 
@@ -21,16 +19,16 @@ pub enum Args {
 impl Args {
 	pub fn push_literal(&mut self, literal: &[u8]) {
 		match self {
-			Self::Regexes(regexes) => {
-				if regexes.is_empty() {
-					regexes.push(Arg::default());
+			Self::Patterns(patterns) => {
+				if patterns.is_empty() {
+					patterns.push(Arg::default());
 				}
 
-				let escaped = Self::regex_escape(literal);
+				let escaped = Self::pattern_escape(literal);
 				let escaped = escaped.as_ref();
 
-				for regex in regexes.iter_mut() {
-					regex.extend(escaped);
+				for pattern in patterns.iter_mut() {
+					pattern.extend(escaped);
 				}
 			}
 
@@ -47,15 +45,15 @@ impl Args {
 	}
 
 
-	pub fn push_regex(&mut self, regex: &[u8]) {
+	pub fn push_pattern(&mut self, pattern: &[u8]) {
 		match self {
-			Self::Regexes(regexes) => {
-				if regexes.is_empty() {
-					regexes.push(Arg::default());
+			Self::Patterns(patterns) => {
+				if patterns.is_empty() {
+					patterns.push(Arg::default());
 				}
 
-				for rx in regexes.iter_mut() {
-					rx.extend(regex);
+				for rx in patterns.iter_mut() {
+					rx.extend(pattern);
 				}
 			}
 
@@ -64,17 +62,17 @@ impl Args {
 					literals.push(Arg::default());
 				}
 
-				let mut regexes = std::mem::take(literals);
+				let mut patterns = std::mem::take(literals);
 
-				for literal in regexes.iter_mut() {
-					if let Cow::Owned(mut lit) = Self::regex_escape(literal) {
+				for literal in patterns.iter_mut() {
+					if let Cow::Owned(mut lit) = Self::pattern_escape(literal) {
 						std::mem::swap(&mut lit, literal);
 					};
 
-					literal.extend(regex);
+					literal.extend(pattern);
 				}
 
-				*self = Self::Regexes(regexes);
+				*self = Self::Patterns(patterns);
 			}
 		}
 	}
@@ -90,7 +88,7 @@ impl Args {
 			let first = first.as_ref();
 
 			let (args, escape) = match self {
-				Args::Regexes(regexes) => (regexes, true),
+				Args::Patterns(patterns) => (patterns, true),
 				Args::Literals(literals) => (literals, false),
 			};
 
@@ -108,7 +106,7 @@ impl Args {
 
 				let lit =
 					if escape {
-						Self::regex_escape(lit)
+						Self::pattern_escape(lit)
 					} else {
 						lit.into()
 					};
@@ -120,7 +118,7 @@ impl Args {
 
 			let first =
 				if escape {
-					Self::regex_escape(first)
+					Self::pattern_escape(first)
 				} else {
 					first.into()
 				};
@@ -132,21 +130,23 @@ impl Args {
 	}
 
 
-	fn regex_escape(literal: &[u8]) -> Cow<[u8]> {
+	fn pattern_escape(literal: &[u8]) -> Cow<[u8]> {
 		let has_meta = literal
 			.iter()
 			.copied()
-			.any(Self::is_regex_meta);
+			.any(Self::is_pattern_meta);
 
 		if has_meta {
 			let mut escaped = Vec::with_capacity(literal.len());
 
 			for character in literal.iter().copied() {
-				if Self::is_regex_meta(character) {
-					escaped.push(b'\\');
+				if Self::is_pattern_meta(character) {
+					escaped.push(b'[');
+					escaped.push(character);
+					escaped.push(b']');
+				} else {
+					escaped.push(character)
 				}
-
-				escaped.push(character)
 			}
 
 			Cow::Owned(escaped)
@@ -156,12 +156,8 @@ impl Args {
 	}
 
 
-	fn is_regex_meta(c: u8) -> bool {
-		matches!(
-			c,
-			b'\\' | b'.' | b'+' | b'*' | b'?' | b'(' | b')' | b'|' | b'[' | b']' | b'{'
-				| b'}' | b'^' | b'$' | b'#' | b'&' | b'-' | b'~'
-		)
+	fn is_pattern_meta(c: u8) -> bool {
+		matches!(c, b'?' | b'*' | b'[' | b']')
 	}
 }
 
@@ -176,16 +172,12 @@ impl Default for Args {
 impl From<Args> for Box<[exec::Argument]> {
 	fn from(args: Args) -> Box<[exec::Argument]> {
 		match args {
-			Args::Regexes(regexes) => {
-				regexes
+			Args::Patterns(patterns) => {
+				patterns
 					.into_iter()
 					.map(
-						|regex| exec::Argument::Regex(
-							Regex
-								::new(
-									&String::from_utf8(regex).expect("invalid utf8 regex argument")
-								)
-								.expect("invalid regex in argument")
+						|pattern| exec::Argument::Pattern(
+							OsString::from_vec(pattern).into_boxed_os_str()
 						)
 					)
 					.collect()

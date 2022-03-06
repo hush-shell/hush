@@ -1,6 +1,6 @@
 use std::{
 	io,
-	collections::HashMap,
+	collections::HashMap, ffi::OsString,
 };
 
 use crate::{
@@ -24,6 +24,11 @@ pub enum Panic {
 		fd: FileDescriptor,
 		pos: SourcePos,
 	},
+	/// Currently, Hush requires patterns to be valid UTF-8.
+	InvalidPattern {
+		pattern: OsString,
+		pos: SourcePos,
+	}
 }
 
 
@@ -36,6 +41,11 @@ impl Panic {
 	/// Redirection of the given file descriptor is currently unsupported.
 	pub fn unsupported_fd(fd: FileDescriptor, pos: SourcePos) -> Self {
 		Self::UnsupportedFileDescriptor { fd, pos }
+	}
+
+	/// Currently, Hush requires patterns to be valid UTF-8.
+	pub fn invalid_pattern(pattern: OsString, pos: SourcePos) -> Self {
+		Self::InvalidPattern { pattern, pos }
 	}
 }
 
@@ -62,6 +72,14 @@ impl std::fmt::Display for Panic {
 					panic,
 					color::Fg(color::Yellow, fd)
 				),
+
+			Self::InvalidPattern { pattern, .. } =>
+				write!(
+					f,
+					"{}: pattern ({:?}) has invalid UTF-8",
+					panic,
+					color::Fg(color::Yellow, pattern)
+				),
 		}
 	}
 }
@@ -77,6 +95,7 @@ impl From<Panic> for crate::runtime::Panic {
 		match panic {
 			Panic::InvalidArgs { object, items, pos } => P::invalid_command_args(object, items, pos),
 			Panic::UnsupportedFileDescriptor { fd, pos } => P::unsupported_fd(fd, pos),
+			Panic::InvalidPattern { pattern, pos } => P::invalid_pattern(pattern, pos),
 		}
 	}
 }

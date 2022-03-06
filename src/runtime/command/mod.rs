@@ -394,12 +394,12 @@ impl Runtime {
 					args.push_literals(literals.iter());
 				},
 
-				program::ArgPart::Star => args.push_regex(b".*"),
-				program::ArgPart::Percent => args.push_regex(b"?"),
+				program::ArgPart::Star => args.push_pattern(b"*"),
+				program::ArgPart::Percent => args.push_pattern(b"?"),
 				program::ArgPart::CharClass(class) => {
-					args.push_regex(b"[");
-					args.push_regex(class);
-					args.push_regex(b"]");
+					args.push_pattern(b"[");
+					args.push_pattern(class);
+					args.push_pattern(b"]");
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, io};
+use std::{borrow::Cow, io, ffi::OsString};
 
 use crate::{
 	fmt::{self, Display},
@@ -72,6 +72,11 @@ pub enum Panic {
 	/// Redirection of the given file descriptor is currently unsupported.
 	UnsupportedFileDescriptor {
 		fd: FileDescriptor,
+		pos: SourcePos,
+	},
+	/// Currently, Hush requires patterns to be valid UTF-8.
+	InvalidPattern {
+		pattern: OsString,
 		pos: SourcePos,
 	},
 	/// Assertion failed.
@@ -184,6 +189,11 @@ impl Panic {
 		Self::UnsupportedFileDescriptor { fd, pos }
 	}
 
+	/// Currently, Hush requires patterns to be valid UTF-8.
+	pub fn invalid_pattern(pattern: OsString, pos: SourcePos) -> Self {
+		Self::InvalidPattern { pattern, pos }
+	}
+
 
 	/// Attempt to assign a readonly field value.
 	pub fn assign_to_readonly_field(field: Value, pos: SourcePos) -> Self {
@@ -195,7 +205,7 @@ impl Panic {
 		Self::ImportFailed { path, pos }
 	}
 
-	/// Integer division by zero.
+	/// Attempt to call <command>.join more than once.
 	pub fn invalid_join(pos: SourcePos) -> Self {
 		Self::InvalidJoin { pos }
 	}
@@ -298,6 +308,15 @@ impl<'a> Display<'a> for Panic {
 					panic,
 					fmt::Show(pos, context),
 					color::Fg(color::Yellow, fd)
+				),
+
+			Self::InvalidPattern { pattern, pos } =>
+				write!(
+					f,
+					"{} in {}: pattern ({:?}) has invalid UTF-8",
+					panic,
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, pattern)
 				),
 
 			Self::AssignToReadonlyField { field, pos } => write!(
