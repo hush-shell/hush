@@ -93,7 +93,7 @@ fn run(args: Args) -> ExitStatus {
 	};
 
 	// ----------------------------------------------------------------------------------------
-	let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
+	let syntactic_analysis = syntax::Analysis::analyze(&source, &mut interner);
 	let has_syntax_errors = !syntactic_analysis.is_ok();
 
 	if has_syntax_errors {
@@ -104,6 +104,22 @@ fn run(args: Args) -> ExitStatus {
 				interner: &interner,
 			}
 		));
+	}
+
+	if args.print_lexemes {
+		println!("{}", color::Fg(color::Yellow, "--------------------------------------------------"));
+
+		let cursor = syntax::lexer::Cursor::from(&source);
+		let results: Vec<_> = syntax::lexer::Lexer::new(cursor, &mut interner).collect();
+
+		for result in results {
+			match result {
+				Ok(token) => println!("{}", fmt::Show(&token, &interner)),
+				Err(error) => println!("{}: {}", color::Fg(color::Red, "Error"), error)
+			}
+		}
+
+		println!("{}", color::Fg(color::Yellow, "--------------------------------------------------"));
 	}
 
 	if args.print_ast {

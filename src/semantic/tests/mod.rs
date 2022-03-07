@@ -20,7 +20,7 @@ where
 		move |path, file| {
 			let path_symbol = interner.get_or_intern(path.as_os_str().as_bytes());
 			let source = syntax::Source::from_reader(path_symbol, file)?;
-			let syntactic_analysis = syntax::Analysis::analyze(source, &mut interner);
+			let syntactic_analysis = syntax::Analysis::analyze(&source, &mut interner);
 
 			if !syntactic_analysis.errors.is_empty() {
 				panic!(

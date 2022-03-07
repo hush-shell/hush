@@ -16,6 +16,8 @@ pub struct Args {
 	pub script_path: Option<PathBuf>,
 	/// Check program with static analysis, but don't run.
 	pub check: bool,
+	/// Print the lexemes.
+	pub print_lexemes: bool,
 	/// Print the AST.
 	pub print_ast: bool,
 	/// Print the program.
@@ -37,6 +39,7 @@ where
 				(author: crate_authors!())
 				(about: crate_description!())
 				(@arg check: --check "Perform only static analysis instead of executing.")
+				(@arg lex: --lex "Print the lexemes")
 				(@arg ast: --ast "Print the AST")
 				(@arg program: --program "Print the PROGAM")
 				// The script path must not be a separate parameter because we must prevent clap
@@ -75,6 +78,7 @@ where
 					Args {
 						script_path,
 						check: matches.is_present("check"),
+						print_lexemes: matches.is_present("lex"),
 						print_ast: matches.is_present("ast"),
 						print_program: matches.is_present("program"),
 						script_args: script_args.into_boxed_slice(),

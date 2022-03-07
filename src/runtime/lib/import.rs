@@ -89,7 +89,7 @@ impl Import {
 
 		// Syntax.
 		let syntactic_analysis = syntax::Analysis::analyze(
-			source,
+			&source,
 			context.runtime.interner_mut()
 		);
 		let has_syntax_errors = !syntactic_analysis.is_ok();

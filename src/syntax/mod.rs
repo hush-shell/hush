@@ -30,8 +30,8 @@ pub struct Analysis {
 
 impl Analysis {
 	/// Perform syntax analysis in the given source.
-	pub fn analyze(source: Source, interner: &mut symbol::Interner) -> Self {
-		let cursor = lexer::Cursor::from(&source);
+	pub fn analyze(source: &Source, interner: &mut symbol::Interner) -> Self {
+		let cursor = lexer::Cursor::from(source);
 		let lexer = Lexer::new(cursor, interner);
 
 		// Errors will be produced by the lexer and the parser alternatively.

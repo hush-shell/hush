@@ -33,7 +33,7 @@ where
 				.get_or_intern(path.as_os_str().as_bytes());
 			let source = syntax::Source::from_reader(path_symbol, file)?;
 			let syntactic_analysis = syntax::Analysis::analyze(
-				source,
+				&source,
 				runtime.interner_mut()
 			);
 

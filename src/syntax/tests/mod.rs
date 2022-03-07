@@ -20,7 +20,7 @@ where
 		move |path, file| {
 			let path_symbol = interner.get_or_intern(path.as_os_str().as_bytes());
 			let source = Source::from_reader(path_symbol, file)?;
-			let analysis = Analysis::analyze(source, &mut interner);
+			let analysis = Analysis::analyze(&source, &mut interner);
 
 			if !check(&analysis) {
 				panic!("{}", fmt::Show(
