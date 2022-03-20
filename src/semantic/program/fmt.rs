@@ -546,6 +546,13 @@ impl std::fmt::Display for command::InvalidBuiltin {
 
 impl std::fmt::Display for BasicCommand {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		for (key, value) in self.env.iter() {
+			key.fmt(f)?;
+			color::Fg(color::Yellow, "=").fmt(f)?;
+			value.fmt(f)?;
+			" ".fmt(f)?;
+		}
+
 		self.program.fmt(f)?;
 
 		for arg in self.arguments.iter() {
@@ -558,7 +565,7 @@ impl std::fmt::Display for BasicCommand {
 			redirection.fmt(f)?;
 		}
 
-		if self.abort_on_error {
+		if !self.abort_on_error {
 			" ".fmt(f)?;
 			CommandOperator::Try.fmt(f)?;
 		}

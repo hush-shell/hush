@@ -4,9 +4,9 @@ mod exec;
 use std::{
 	borrow::Cow,
 	collections::HashMap,
-	os::unix::ffi::OsStrExt,
+	os::unix::{ffi::OsStrExt, prelude::OsStringExt},
 	path::PathBuf,
-	ops::DerefMut, io::Read
+	ops::DerefMut, io::Read, ffi::{OsStr, OsString}
 };
 
 use super::{
@@ -202,6 +202,8 @@ impl Runtime {
 			|items| Panic::invalid_command_args("program", items, program_pos)
 		)?;
 
+		let env = self.build_env_vars(&command.env)?;
+
 		let mut args = Vec::new();
 		for argument in command.arguments.iter() {
 			let arguments = self
@@ -220,12 +222,43 @@ impl Runtime {
 		Ok(
 			exec::BasicCommand {
 				program,
+				env,
 				arguments: args.into(),
 				redirections,
 				abort_on_error: command.abort_on_error,
 				pos: command.pos.into(),
 			}
 		)
+	}
+
+
+	fn build_env_vars(
+		&mut self,
+		input_env: &'static [(program::ArgUnit, program::Argument)],
+	) -> Result<Box<[(Box<OsStr>, exec::Argument)]>, Panic> {
+		let mut env = Vec::new();
+		for (key, value) in input_env.iter() {
+			let pos = value.pos;
+
+			let key = match key {
+				program::ArgUnit::Literal(lit) => lit.clone(),
+				program::ArgUnit::Dollar { slot_ix, pos } => {
+					let value = self.stack.fetch(slot_ix.into());
+					let lit = Self::build_basic_value(value, pos.into())?;
+					lit.clone()
+				}
+			};
+			let key = OsString::from_vec(key.into()).into_boxed_os_str();
+
+			let value = self.build_single_argument(
+				value,
+				|items| Panic::invalid_command_args("env", items, pos.into())
+			)?;
+
+			env.push((key, value))
+		}
+
+		Ok(env.into())
 	}
 
 

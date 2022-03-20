@@ -1,4 +1,4 @@
-use crate::io::{self, FileDescriptor};
+use crate::{io::{self, FileDescriptor}, semantic::program::SourcePos};
 use super::{
 	ast,
 	sync::{self, WithSync, ResultExt},
@@ -84,6 +84,8 @@ where
 
 	/// Parse a single basic command, including redirections and try operator.
 	fn parse_basic_command(&mut self) -> sync::Result<ast::BasicCommand, Error> {
+		let env = std::iter::from_fn(|| self.parse_env_assign()).collect();
+
 		let command = self.parse_argument()
 			.with_sync(sync::Strategy::basic_command_terminator())?;
 
@@ -122,6 +124,7 @@ where
 		Ok(
 			ast::BasicCommand {
 				program: command,
+				env,
 				arguments: arguments.into(),
 				redirections,
 				abort_on_error,
@@ -138,77 +141,37 @@ where
 			token => Err((Error::unexpected_msg(token.clone(), "argument"), token)),
 		})?;
 
-		let mut parts = Vec::<ast::ArgPart>::new();
-		let mut literal = Vec::<u8>::new();
-
-		let join_owned_literal = |literal: &mut Vec<u8>, lit: Box<[u8]>| {
-			if literal.is_empty() {
-				*literal = lit.into(); // Reuse allocation.
-			} else {
-				literal.extend(lit.iter())
-			}
-		};
-
-		let push_literal = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>| {
-			if !literal.is_empty() {
-				let literal = std::mem::take(literal).into();
-				parts.push(
-					ast::ArgPart::Unit(ast::ArgUnit::Literal(literal))
-				);
-			}
-		};
-
-		let push_part = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, part| {
-			push_literal(literal, parts);
-			parts.push(part);
-		};
-
-		let push_dollar = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, symbol, pos| {
-			push_part(
-				literal,
-				parts,
-				ast::ArgPart::Unit(ast::ArgUnit::Dollar { symbol, pos })
-			);
-		};
-
-		for part in arg_parts.into_vec() { // Use vec's owned iterator.
-			match part {
-				ArgPart::SingleQuoted(lit) => join_owned_literal(&mut literal, lit),
-
-				ArgPart::DoubleQuoted(units) => for unit in units.into_vec() {
-					match unit {
-						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
-						// Literals in double quotes don't expand to patterns.
-						ArgUnit::Literal(lit) => join_owned_literal(&mut literal, lit),
-					}
-				}
-
-				ArgPart::Unquoted(unit) => {
-					match unit {
-						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
-						ArgUnit::Literal(lit) => join_owned_literal(&mut literal, lit),
-					}
-				}
-
-				ArgPart::Expansion(expansion) => push_part(
-					&mut literal,
-					&mut parts,
-					ast::ArgPart::Expansion(expansion.into())
-				),
-			}
-		}
-
-		// Push the trailing literal, if any.
-		push_literal(&mut literal, &mut parts);
-
 		Ok(
-			ast::Argument {
-				parts: parts.into(),
+			Self::build_arg(
+				arg_parts.into_vec(), // Use vec's owned iterator.
 				pos
-			}
+			)
 		)
 	}
 
+	/// Parse an env-assign.
+	fn parse_env_assign(&mut self) -> Option<(ast::ArgUnit, ast::Argument)> {
+		self.eat(|token| match token {
+			Token { kind: TokenKind::Argument(parts), pos }
+			if matches!(&parts[..], [ ArgPart::Unquoted(_), ArgPart::EnvAssign, .. ]) => {
+				let mut parts = parts.into_vec(); // Use vec's owned iterator.
+
+				let value = Self::build_arg(
+					parts.drain(2..),
+					pos
+				);
+
+				let key = match parts.drain(..).next() {
+					Some(ArgPart::Unquoted(key)) => Self::build_arg_unit(key),
+					_ => unreachable!("pattern matched key is missing"),
+				};
+
+				Ok(Some((key, value)))
+			},
+			token => Err((Error::InvalidEnvAssign, token)),
+		})
+			.unwrap_or(None)
+	}
 
 	/// Parse command operators.
 	/// Returns a pair of (redirections, abort_on_error).
@@ -327,6 +290,89 @@ where
 			}
 
 			_ => None,
+		}
+	}
+
+	fn build_arg<J>(arg_parts: J, pos: SourcePos) -> ast::Argument
+	where
+		J: IntoIterator<Item = ArgPart>,
+	{
+		let mut parts = Vec::<ast::ArgPart>::new();
+		let mut literal = Vec::<u8>::new();
+
+		let join_owned_literal = |literal: &mut Vec<u8>, lit: Box<[u8]>| {
+			if literal.is_empty() {
+				*literal = lit.into(); // Reuse allocation.
+			} else {
+				literal.extend(lit.iter())
+			}
+		};
+
+		let push_literal = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>| {
+			if !literal.is_empty() {
+				let literal = std::mem::take(literal).into();
+				parts.push(
+					ast::ArgPart::Unit(ast::ArgUnit::Literal(literal))
+				);
+			}
+		};
+
+		let push_part = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, part| {
+			push_literal(literal, parts);
+			parts.push(part);
+		};
+
+		let push_dollar = |literal: &mut Vec<u8>, parts: &mut Vec<ast::ArgPart>, symbol, pos| {
+			push_part(
+				literal,
+				parts,
+				ast::ArgPart::Unit(ast::ArgUnit::Dollar { symbol, pos })
+			);
+		};
+
+		for part in arg_parts {
+			match part {
+				ArgPart::SingleQuoted(lit) => join_owned_literal(&mut literal, lit),
+
+				ArgPart::DoubleQuoted(units) => for unit in units.into_vec() {
+					match unit {
+						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
+						// Literals in double quotes don't expand to patterns.
+						ArgUnit::Literal(lit) => join_owned_literal(&mut literal, lit),
+					}
+				}
+
+				ArgPart::Unquoted(unit) => {
+					match unit {
+						ArgUnit::Dollar { symbol, pos } => push_dollar(&mut literal, &mut parts, symbol, pos),
+						ArgUnit::Literal(lit) => join_owned_literal(&mut literal, lit),
+					}
+				}
+
+				ArgPart::Expansion(expansion) => push_part(
+					&mut literal,
+					&mut parts,
+					ast::ArgPart::Expansion(expansion.into())
+				),
+
+				// Env assign past the first command should be treated as a literal.
+				ArgPart::EnvAssign => literal.extend(b"="),
+			}
+		}
+
+		// Push the trailing literal, if any.
+		push_literal(&mut literal, &mut parts);
+
+		ast::Argument {
+			parts: parts.into(),
+			pos
+		}
+	}
+
+	fn build_arg_unit(unit: ArgUnit) -> ast::ArgUnit {
+		match unit {
+			ArgUnit::Dollar { symbol, pos } => ast::ArgUnit::Dollar { symbol, pos },
+			ArgUnit::Literal(lit) => ast::ArgUnit::Literal(lit.into()),
 		}
 	}
 }

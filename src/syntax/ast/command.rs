@@ -132,6 +132,8 @@ impl IllFormed for Redirection {
 #[derive(Debug)]
 pub struct BasicCommand {
 	pub program: Argument,
+	/// Key-value pairs of environment variables.
+	pub env: Box<[(ArgUnit, Argument)]>,
 	pub arguments: Box<[Argument]>,
 	pub redirections: Box<[Redirection]>,
 	pub abort_on_error: bool,
@@ -143,6 +145,7 @@ impl IllFormed for BasicCommand {
 	fn ill_formed() -> Self {
 		Self {
 			program: Argument::ill_formed(),
+			env: Default::default(),
 			arguments: Default::default(),
 			redirections: Default::default(),
 			abort_on_error: Default::default(),

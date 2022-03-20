@@ -536,6 +536,12 @@ impl Argument {
 			// Double quotes.
 			Some(b'"') => Transition::step(DoubleQuoted::from(self)),
 
+			// Env assign.
+			Some(b'=') => {
+				self.parts.push(ArgPart::EnvAssign);
+				Transition::step(self)
+			}
+
 			// Expansion.
 			Some(c) if expansion::is_start(c) => Transition::resume(
 				Expansion::at(cursor, allow_home, self)
@@ -572,6 +578,7 @@ impl WordContext for Argument {
 			b'\'' | b'"' => false,                 // Quotes.
 			b'>' | b'<' | b'?' | b';' => false,    // Symbols.
 			b'$' => false,                         // Dollar.
+			b'=' => false,                         // Env assign.
 			b'}' => false,                         // Close command.
 			c if c.is_ascii_whitespace() => false, // Whitespace.
 			_ => true,
@@ -598,6 +605,7 @@ impl WordContext for Argument {
 			b'\'' | b'"' => Some(value),                 // Escaped quotes.
 			b'>' | b'<' | b'?' | b';' => Some(value),    // Escaped symbols.
 			b'$' => Some(value),                         // Escaped dollar.
+			b'=' => Some(value),                         // Escaped env assign.
 			c if c.is_ascii_whitespace() => Some(value), // Escaped whitespace.
 
 			// Additional escape sequences:

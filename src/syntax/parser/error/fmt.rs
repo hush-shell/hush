@@ -29,6 +29,8 @@ impl<'a> Display<'a> for Error {
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
 		match self {
+			Self::InvalidEnvAssign => "internal error: invalid env-assign".fmt(f),
+
 			Self::UnexpectedEof => "unexpected end of file".fmt(f),
 
 			Self::Unexpected { token: Token { kind, pos }, expected } => {

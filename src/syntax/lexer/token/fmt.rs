@@ -167,6 +167,7 @@ impl<'a> Display<'a> for ArgPart {
 				'"'.fmt(f)
 			},
 			Self::Expansion(expansion) => expansion.fmt(f, context),
+			Self::EnvAssign => color::Fg(color::Yellow, "=").fmt(f),
 		}
 	}
 }

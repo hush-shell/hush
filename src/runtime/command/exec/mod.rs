@@ -217,6 +217,8 @@ pub struct Stdio {
 pub struct BasicCommand {
 	/// The program to be executed. Panics if the argument does not expand to a single literal.
 	pub program: Argument,
+	/// Key-value pairs of environment variables.
+	pub env: Box<[(Box<OsStr>, Argument)]>,
 	/// Arguments to the program. The arguments may expand to an arbitrary number of literals.
 	pub arguments: Box<[Argument]>,
 	/// Redirections to be placed in order.
@@ -240,6 +242,17 @@ impl BasicCommand {
 				Panic::invalid_args("program", other.len() as u32, pos.copy()).into()
 			),
 		};
+
+		for (key, value) in self.env.into_vec() { // Use vec's owned iterator.
+			let value = value.resolve(pos.copy())?;
+
+			match value.as_ref() {
+				[ value ] => command.env(key, value),
+				other => return Err(
+					Panic::invalid_args("env variable", other.len() as u32, pos.copy()).into()
+				),
+			};
+		}
 
 		for argument in self.arguments.into_vec() {
 			let args = argument.resolve(pos.copy())?;

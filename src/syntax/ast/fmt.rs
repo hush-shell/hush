@@ -1,7 +1,7 @@
 use std::fmt::Display as _;
 
 use super::{
-	lexer::{CommandOperator, Keyword, Operator, TokenKind},
+	lexer::{self, CommandOperator, Keyword, Operator, TokenKind},
 	ArgPart,
 	ArgExpansion,
 	ArgUnit,
@@ -557,6 +557,13 @@ impl<'a> Display<'a> for BasicCommand {
 	type Context = &'a symbol::Interner;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter, context: Self::Context) -> std::fmt::Result {
+		for (key, value) in self.env.iter() {
+			key.fmt(f, context)?;
+			lexer::ArgPart::EnvAssign.fmt(f, context)?;
+			value.fmt(f, context)?;
+			" ".fmt(f)?;
+		}
+
 		self.program.fmt(f, context)?;
 
 		for arg in self.arguments.iter() {

@@ -612,6 +612,8 @@ impl<'a> Analyzer<'a> {
 
 		let program = self.analyze_argument(command.program);
 
+		let env = self.analyze_env(command.env);
+
 		let arguments = self.analyze_items(
 			Self::analyze_argument,
 			command.arguments.into_vec(), // Use vec's owned iterator.
@@ -622,11 +624,12 @@ impl<'a> Analyzer<'a> {
 			command.redirections.into_vec(), // Use vec's owned iterator.
 		);
 
-		let (program, (arguments, redirections)) = program.zip(arguments.zip(redirections))?;
+		let (program, (env, (arguments, redirections))) = program.zip(env.zip(arguments.zip(redirections)))?;
 
 		Some(
 			BasicCommand {
 				program,
+				env,
 				arguments,
 				redirections,
 				abort_on_error: command.abort_on_error,
@@ -635,6 +638,19 @@ impl<'a> Analyzer<'a> {
 		)
 	}
 
+	fn analyze_env(
+		&mut self,
+		env: Box<[(ast::ArgUnit, ast::Argument)]>
+	) -> Option<Box<[(ArgUnit, Argument)]>> {
+		self.analyze_items(
+			|analyzer, (key, value)| {
+				let key = analyzer.analyze_arg_unit(key)?;
+				let value = analyzer.analyze_argument(value)?;
+				Some((key, value))
+			},
+			env.into_vec() // Use vec's owned iterator.
+		)
+	}
 
 	/// Analyze a command argument.
 	/// None is returned if any error is detected.

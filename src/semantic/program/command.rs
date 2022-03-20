@@ -113,6 +113,8 @@ impl<'a> TryFrom<&'a ast::Argument> for Builtin {
 #[derive(Debug)]
 pub struct BasicCommand {
 	pub program: Argument,
+	/// Key-value pairs of environment variables.
+	pub env: Box<[(ArgUnit, Argument)]>,
 	pub arguments: Box<[Argument]>,
 	pub redirections: Box<[Redirection]>,
 	pub abort_on_error: bool,

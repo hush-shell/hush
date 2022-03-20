@@ -141,6 +141,7 @@ pub enum ArgPart {
 	SingleQuoted(Box<[u8]>),
 	DoubleQuoted(Box<[ArgUnit]>),
 	Expansion(ArgExpansion),
+	EnvAssign,
 }
 
 

@@ -20,6 +20,9 @@ pub enum Error {
 	Unexpected { token: Token, expected: Expected },
 	/// Command blocks must have at least one command.
 	EmptyCommandBlock { pos: SourcePos },
+	/// Invalid env-assign. This is a spurious error while parsing, and should be handled
+	/// internally.
+	InvalidEnvAssign,
 }
 
 
