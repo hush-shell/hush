@@ -1,0 +1,278 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Hush",
+	"scopeName": "source.hush",
+	"version": "0.1.0",
+	"patterns": [
+		{
+			"name": "meta.function.hush",
+			"begin": "\\b(function)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.hush"
+				}
+			},
+			"end": "(?<=[\\)\\-{}\\[\\]\"'])",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"begin": "(\\()",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.definition.parameters.begin.hush"
+						}
+					},
+					"end": "(\\))|(?=[\\-\\.{}\\[\\]\"'])",
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.definition.parameters.finish.hush"
+						}
+					},
+					"name": "meta.parameter.hush",
+					"patterns": [
+						{
+							"include": "#comment"
+						},
+						{
+							"match": "[a-zA-Z_][a-zA-Z0-9_]*",
+							"name": "variable.parameter.function.hush"
+						},
+						{
+							"match": ",",
+							"name": "punctuation.separator.arguments.hush"
+						}
+					]
+				},
+				{
+					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+					"name": "entity.name.function.hush"
+				}
+			]
+		},
+		{
+			"match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(\\.[0-9A-Fa-f]+)?([eE]-?\\d*)?([pP][-+]\\d+)?",
+			"name": "constant.numeric.float.hexadecimal.hush"
+		},
+		{
+			"match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(?![pPeE.0-9])",
+			"name": "constant.numeric.integer.hexadecimal.hush"
+		},
+		{
+			"match": "(?<![\\w\\d.])\\d+(\\.\\d+)?([eE]-?\\d*)?",
+			"name": "constant.numeric.float.hush"
+		},
+		{
+			"match": "(?<![\\w\\d.])\\d+(?![pPeE.0-9])",
+			"name": "constant.numeric.integer.hush"
+		},
+		{
+			"captures": {
+				"1": {
+					"name": "punctuation.definition.comment.hush"
+				}
+			},
+			"match": "\\A(#!).*$\\n?",
+			"name": "comment.line.shebang.hush"
+		},
+		{
+			"include": "#string"
+		},
+		{
+			"include": "#comment"
+		},
+		{
+			"match": "\\b(if|then|else|end|for|in|do|while|break|return)\\b",
+			"name": "keyword.control.hush"
+		},
+		{
+			"match": "\\b(let)\\b",
+			"name": "keyword.let.hush"
+		},
+		{
+			"match": "\\b(function)\\b",
+			"name": "keyword.control.hush"
+		},
+		{
+			"match": "\\b(true|false|nil)\\b",
+			"name": "constant.language.hush"
+		},
+		{
+			"match": "\\b(self)\\b",
+			"name": "variable.language.self.hush"
+		},
+		{
+			"match": "\\b(and|or|not)\\b",
+			"name": "keyword.operator.hush"
+		},
+		{
+			"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(?=\\s*(?:[({\"']|\\[\\[))",
+			"name": "support.function.call.hush"
+		},
+		{
+			"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+			"name": "variable.other.hush"
+		},
+		{
+			"match": "\\+\\+?|-|%|\\*|\\/|==?|!=|<=?|>=?",
+			"name": "keyword.operator.hush"
+		}
+	],
+	"repository": {
+		"escaped_char": {
+			"patterns": [
+				{
+					"match": "\\\\[abfnrtv\\\\\"'\\n]",
+					"name": "constant.character.escape.hush"
+				},
+				{
+					"match": "\\\\z[\\n\\t ]*",
+					"name": "constant.character.escape.hush"
+				},
+				{
+					"match": "\\\\\\d{1,3}",
+					"name": "constant.character.escape.byte.hush"
+				},
+				{
+					"match": "\\\\x[0-9A-Fa-f][0-9A-Fa-f]",
+					"name": "constant.character.escape.byte.hush"
+				},
+				{
+					"match": "\\\\.",
+					"name": "invalid.illegal.character.escape.hush"
+				}
+			]
+		},
+		"string": {
+			"patterns": [
+				{
+					"begin": "'",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.hush"
+						}
+					},
+					"end": "'[ \\t]*|(?=\\n)",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.hush"
+						}
+					},
+					"name": "string.quoted.single.hush",
+					"patterns": [
+						{
+							"include": "#escaped_char"
+						}
+					]
+				},
+				{
+					"begin": "\"",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.hush"
+						}
+					},
+					"end": "\"[ \\t]*|(?=\\n)",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.hush"
+						}
+					},
+					"name": "string.quoted.double.hush",
+					"patterns": [
+						{
+							"include": "#escaped_char"
+						}
+					]
+				},
+				{
+					"begin": "`",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.hush"
+						}
+					},
+					"end": "`[ \\t]*|(?=\\n)",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.hush"
+						}
+					},
+					"name": "string.quoted.double.hush"
+				},
+				{
+					"begin": "(?<=\\.cdef)\\s*(\\[(=*)\\[)",
+					"beginCaptures": {
+						"0": {
+							"name": "string.quoted.other.multiline.hush"
+						},
+						"1": {
+							"name": "punctuation.definition.string.begin.hush"
+						}
+					},
+					"contentName": "meta.embedded.hush",
+					"end": "(\\]\\2\\])[ \\t]*",
+					"endCaptures": {
+						"0": {
+							"name": "string.quoted.other.multiline.hush"
+						},
+						"1": {
+							"name": "punctuation.definition.string.end.hush"
+						}
+					},
+					"patterns": [
+						{
+							"include": "source.c"
+						}
+					]
+				},
+				{
+					"begin": "(?<!--)\\[(=*)\\[",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.hush"
+						}
+					},
+					"end": "\\]\\1\\][ \\t]*",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.hush"
+						}
+					},
+					"name": "string.quoted.other.multiline.hush"
+				}
+			]
+		},
+		"comment": {
+			"patterns": [
+				{
+					"begin": "(^[ \\t]+)?(?=#)",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.whitespace.comment.leading.hush"
+						}
+					},
+					"end": "(?!\\G)((?!^)[ \\t]+\\n)?",
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.whitespace.comment.trailing.hush"
+						}
+					},
+					"patterns": [
+						{
+							"begin": "#",
+							"beginCaptures": {
+								"0": {
+									"name": "punctuation.definition.comment.hush"
+								}
+							},
+							"end": "\\n",
+							"name": "comment.line.hush"
+						}
+					]
+				}
+			]
+		}
+	}
+}

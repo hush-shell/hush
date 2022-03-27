@@ -1,0 +1,27 @@
+{
+    "name": "hush",
+    "publisher": "hush-vscode",
+    "repository": "https://github.com/gahag/hush",
+    "displayName": "Hush",
+    "description": "Hush syntax highlighting",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.65.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "hush",
+            "aliases": ["Hush", "hush"],
+            "extensions": [".hsh"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "hush",
+            "scopeName": "source.hush",
+            "path": "./syntaxes/hush.tmLanguage.json"
+        }]
+    }
+}
