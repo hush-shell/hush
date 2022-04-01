@@ -1,0 +1,6 @@
+[book]
+authors = ["gahag"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Hush"
