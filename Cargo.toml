@@ -1,8 +1,12 @@
 [package]
 name = "hush"
+description = "Hush is a unix shell scripting language based on the Lua programming language"
 version = "0.1.0"
 authors = ["gahag <gabriel.s.b@live.com>"]
 edition = "2018"
+homepage = "https://github.com/gahag/hush"
+repository = "https://github.com/gahag/hush"
+license = "MIT"
 
 [dependencies]
 automod = "1.0"
