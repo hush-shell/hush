@@ -1,8 +1,9 @@
 use std::{
-	convert::TryInto,
-	ffi::{OsString, OsStr},
-	ops::Deref,
-	os::unix::ffi::{OsStringExt, OsStrExt},
+    convert::TryInto,
+    ffi::{OsString, OsStr},
+    ops::Deref,
+    os::unix::ffi::{OsStringExt, OsStrExt},
+    path::PathBuf,
 };
 
 use gc::{Gc, Finalize, Trace};
@@ -126,5 +127,11 @@ impl From<String> for Str {
 impl From<OsString> for Str {
 	fn from(string: OsString) -> Self {
 		string.into_vec().into_boxed_slice().into()
+	}
+}
+
+impl From<PathBuf> for Str {
+	fn from(path: PathBuf) -> Self {
+		path.into_os_string().into()
 	}
 }
