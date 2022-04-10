@@ -252,7 +252,7 @@ impl<'a> Display<'a> for Panic {
 			Self::InvalidArgs { supplied, expected, pos } =>
 				write!(
 					f,
-					"{} in {}: incorrect ammount of function parameters -- supplied {}, expected {}",
+					"{} in {}: incorrect amount of function parameters -- supplied {}, expected {}",
 					panic,
 					fmt::Show(pos, context),
 					supplied,
