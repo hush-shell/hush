@@ -7,6 +7,7 @@
   - [Hello World](./intro/hello-world.md)
   - [Type System](./intro/type-system.md)
   - [Basic Constructs](./intro/basic-constructs.md)
+  - [Control Flow and Functions](./intro/control-flow.md)
 - [Error Handling](./error-handling.md)
 - [Command Blocks](./cmd/readme.md)
   - [Basic](./cmd/basic.md)
