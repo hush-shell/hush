@@ -1,15 +1,15 @@
 # Type System
 
-*Hush* is strongly dynamically typed, which means all **values** have a **well formed type**, but **variables** are **untyped**. Therefore, you may assign values of distinct types to a given variable.
+*Hush* is strongly dynamically typed, which means all **values** have a **well formed type**, but **variables** are **untyped**. Therefore, you may assign values of distinct types to a given variable. *Python*, *Ruby*, and *Lua* are also dynamically typed languages, in case you're familiar with any of them.
 
-As in *Lua*, *Hush* proposes only a handful of built-in types, and no user-defined types. This makes the type system extremely simple, and yet still it remains impressively expressive. The following types are available:
+As in *Lua*, *Hush* proposes only a handful of built-in types, and no user-defined types. This makes the type system extremely simple, and yet still it remains quite expressive. The following types are available:
 
 - `nil`: the unit type, usually for representing missing values.
 - `bool`: the boolean type.
 - `int`: a 64 bit integer type.
 - `float`: a 64 bit floating point type.
 - `char`: a C-like unsigned char type, 0-255.
-- `string`: a char-array like string.
+- `string`: a char-array like immutable string.
 - `array`: a heterogeneous array, 0-indexed (unlike in *Lua*).
 - `dict`: a heterogeneous hash map.
 - `function`: a callable function.

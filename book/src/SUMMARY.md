@@ -17,7 +17,7 @@
 - [Paradigms](./paradigms/readme.md)
   - [Object Oriented](./paradigms/oop.md)
   - [Functional](./paradigms/fun.md)
-- [Recap](./recap.md)
+- [Wrapping up](./wrapping-up.md)
 - [Appendix](./appendix/readme.md)
   - [Keywords](./appendix/keywords.md)
   - [Operators](./appendix/operators.md)

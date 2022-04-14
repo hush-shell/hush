@@ -8,7 +8,7 @@ With *Hush* installed, we're able to execute scripts. Here's the traditional *He
 std.print("Hello world!")
 ```
 
-The first line is a [Shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)). It tells the operating system which interpreter to use for the script. The second line is a function call of the `print` function from the standard library. When executed, this script will output `Hello world!` to the terminal.
+The first line is a [Shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)). It tells the operating system which interpreter to use for the script. The second line is a function call of the `print` function from the standard library. When executed, this script will output `Hello world!` to the standard output.
 
 ## Making the script executable
 
@@ -21,7 +21,7 @@ Hello world!
 
 ## Calling Hush directly
 
-You can also execute a given script calling *Hush* with the script path as argument. When executing a script using this method, the *Shebang* is unnecessary, and will disregarded as an ordinary comment.
+You can also execute a given script calling *Hush* with the script path as argument. When executing a script using this method, the *Shebang* is unnecessary, and will be disregarded as an ordinary comment.
 ```shell
 $ hush hello-world.hsh
 Hello world!
@@ -38,7 +38,7 @@ value = "Hello world!"
 std.print(value)
 ```
 
-We can check verify that the script has a semantic error:
+We can check verify that the script has semantic errors:
 
 ```shell
 $ hush --check script.hsh
