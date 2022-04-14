@@ -16,9 +16,10 @@ inventory::submit! { RustFun::from(Substr) }
 struct Substr;
 
 impl Substr {
-    fn substr(string: &[u8], start: &i64, len: &i64) -> Result<Value, Error> {
-        let string = std::str::from_utf8(string).map_err(|_| Error::new("Invalid string".into(), Value::default()))?;
-        let substr: String = string.chars().skip(*start as usize).take(*len as usize).collect();
+    fn substr(string: &[u8], start: i64, len: i64) -> Result<Value, Error> {
+        let start = start as usize;
+        let end = start + (len as usize);
+        let substr = string.get(start..end);
         Ok(substr.into())
     }
 }
@@ -29,7 +30,8 @@ impl NativeFun for Substr {
     fn call(&self, context: CallContext) -> Result<Value, Panic> {
         match context.args() {
             [ Value::String(ref string), Value::Int(start), Value::Int(len) ] => {
-                let result = Self::substr(string.as_ref(), start, len);
+                // TODO Panic if indexes out of bounds
+                let result = Self::substr(string.as_ref(), *start, *len);
                 Ok(result.unwrap_or_else(Into::into))
             },
             [ other, Value::Int(_), Value::Int(_) ] => Err(Panic::type_error(other.copy(), "string", context.pos)),
