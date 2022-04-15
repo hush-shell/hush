@@ -2,6 +2,12 @@
 
 This is the official guide of *Hush*, a modern shell scripting language. A shell scripting language is a domain specific language which provides constructs for easily invoking and interconnecting external programs. These kind of languages are typically used for integrations in Unix systems and infrastructure programming. [GNU Bash](https://www.gnu.org/software/bash/), [Zsh](https://www.zsh.org/) and [Fish](https://fishshell.com/) are some of the most commonly used ones.
 
+<p align="center">
+	<img width="100px" src="images/logo.png" alt="Logo" />
+	<br>
+	Hush's logo
+</p>
+
 ## But why do we need a new shell scripting language?
 
 Traditional shell scripting languages are notoriously limited, error prone, and frequently result in programs that are hard to maintain. Even Google mentions it on their [Shell Style Guide](https://google.github.io/styleguide/shellguide.html#when-to-use-shell):

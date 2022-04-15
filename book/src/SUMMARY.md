@@ -4,7 +4,6 @@
 - [Overview](./overview.md)
 - [Installation](./installation.md)
 - [Introduction](./intro/readme.md)
-  - [Hello World](./intro/hello-world.md)
   - [Type System](./intro/type-system.md)
   - [Basic Constructs](./intro/basic-constructs.md)
   - [Control Flow and Functions](./intro/control-flow.md)
