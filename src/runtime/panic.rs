@@ -87,7 +87,12 @@ pub enum Panic {
 		path: Symbol,
 	},
 	/// Attempt to call <command>.join more than once.
-	InvalidJoin { pos: SourcePos }
+	InvalidJoin { pos: SourcePos },
+	/// std.panic.
+	User {
+		context: Value,
+		pos: SourcePos,
+	},
 }
 
 
@@ -208,6 +213,11 @@ impl Panic {
 	/// Attempt to call <command>.join more than once.
 	pub fn invalid_join(pos: SourcePos) -> Self {
 		Self::InvalidJoin { pos }
+	}
+
+	/// std.panic
+	pub fn user(context: Value, pos: SourcePos) -> Self {
+		Self::User { context, pos }
 	}
 }
 
@@ -341,6 +351,15 @@ impl<'a> Display<'a> for Panic {
 
 			Self::InvalidJoin { pos } =>
 				write!(f, "{} in {}: attempt to call join more than once", panic, fmt::Show(pos, context)),
+
+			Self::User { context: value, pos } =>
+				write!(
+					f,
+					"{} in {}: std.panic({})",
+					panic,
+					fmt::Show(pos, context),
+					color::Fg(color::Yellow, fmt::Show(value, context))
+				),
 		}
 	}
 }
