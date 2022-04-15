@@ -443,7 +443,7 @@ impl Runtime {
 
 	fn build_basic_value(value: Value, pos: SourcePos) -> Result<Box<[u8]>, Panic> {
 		let literal: Option<Vec<u8>> = match &value {
-			Value::Nil => Some(b"nil".to_owned().to_vec()),
+			Value::Nil => Some(Vec::default()),
 			Value::Bool(b) => Some(b.to_string().into()),
 			Value::Int(int) => Some(int.to_string().into()),
 			Value::Float(float) => Some(float.to_string().into()),
