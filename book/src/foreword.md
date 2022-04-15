@@ -5,7 +5,7 @@ This is the official guide of *Hush*, a modern shell scripting language. A shell
 <p align="center">
 	<img width="100px" src="images/logo.png" alt="Logo" />
 	<br>
-	Hush's logo
+	<small>Hush's logo</small>
 </p>
 
 ## But why do we need a new shell scripting language?
