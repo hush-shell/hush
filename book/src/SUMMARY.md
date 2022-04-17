@@ -18,6 +18,3 @@
   - [Object Oriented](./paradigms/oop.md)
   - [Functional](./paradigms/fun.md)
 - [Wrapping up](./wrapping-up.md)
-- [Appendix](./appendix/readme.md)
-  - [Keywords](./appendix/keywords.md)
-  - [Operators](./appendix/operators.md)
