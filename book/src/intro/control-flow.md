@@ -131,6 +131,32 @@ end
 std.assert(factorial(5) == 120)
 ```
 
+### Self
+
+*Hush* provides one further facility for functions: the `self` keyword. When calling a function inside a dictionary using the dot operator, `self` will be an alias to that dictionary. If the function is called through other means, `self` will be `nil`. This is frequently used in [object oriented](../paradigms/oop.md) code.
+
+```hush
+let dict = @[
+	value: 5,
+
+	method: function()
+		# `self` is a reference to the dictionary which contains the function, if any.
+		std.print(self)
+	end
+]
+
+dict.method() # @[ "value": 5, "method": function<...> ]
+
+# Isolate the method from the object, which will cause `self` to be `nil`:
+let method = dict.method
+method() # nil
+
+# But we can bind it back to the object using `std.bind(obj, method)`:
+method = std.bind(dict, dict.method)
+method() # @[ "value": 5, "method": function<...> ]
+```
+
+
 ## *While* loops
 
 *While* loops are statements, and therefore cannot be used as expressions.
