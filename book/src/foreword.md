@@ -1,6 +1,6 @@
 # Foreword
 
-This is the official guide of *Hush*, a modern shell scripting language. A shell scripting language is a domain specific language which provides constructs for easily invoking and interconnecting external programs. These kind of languages are typically used for integrations in Unix systems and infrastructure programming. [GNU Bash](https://www.gnu.org/software/bash/), [Zsh](https://www.zsh.org/) and [Fish](https://fishshell.com/) are some of the most commonly used ones.
+This is the official guide of [*Hush*](https://github.com/hush-shell/hush), a modern shell scripting language. A shell scripting language is a domain specific language which provides constructs for easily invoking and interconnecting external programs. These kind of languages are typically used for integrations in Unix systems and infrastructure programming. [GNU Bash](https://www.gnu.org/software/bash/), [Zsh](https://www.zsh.org/) and [Fish](https://fishshell.com/) are some of the most commonly used ones.
 
 <p align="center">
 	<img width="100px" src="images/logo.png" alt="Logo" />
