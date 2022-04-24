@@ -26,7 +26,7 @@ pub mod keys {
 
 
 /// A dict in the language.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 #[derive(Trace, Finalize)]
 pub struct Dict(Gc<GcCell<HashMap<Value, Value>>>);
 
