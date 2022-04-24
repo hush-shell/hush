@@ -130,4 +130,80 @@ will output:
 
 ## Expansions
 
+In order to provide ergonomic manipulation of the file system, most shells provide a mechanism named *expansions*. It allows the programmer to refer to multiple file names using a regex-like syntax.
+
+*Hush* provides automatic expansion **only for literal arguments**. That means you won't have to worry if your variables contains characters that may be expanded.
+
+```hush
+let var = "*"
+{
+	echo *; # Will print all files/directories in the current directory.
+	# The following will print just an asterisk.
+	echo "*";
+	echo $var;
+}
+```
+
+*Hush* currently provides the following expansions:
+
+- `%`: matches zero or one character, except for the path separator.
+- `*`: matches zero or more characters, except for the path separator.
+- `**`: matches zero or more directories.
+- `~/`: matches the `$HOME` directory, only when in the prefix of an argument.
+<!-- - `[abc]`: mathes either of the characters between brackets. -->
+<!-- - `{x..y}`: expands to multiple arguments, each one with a value in the range `x..y`. -->
+<!-- - `{a,b,c}`: expands to multiples arguments, each one with a value from the collection `a,b,c`. -->
+
+Opposed to traditional shells, *Hush* will *always* expand relative paths prefixed with `./`:
+
+```hush
+{
+	touch test.txt; # Create a file
+	echo *; # Will print "./test.txt"
+}
+```
+
+You won't have to worry about flag injection from file names ever again.
+
 ## Errors
+
+By default, whenever a command fails in a block, the whole block will be interrupted. This behavior can be disabled on a per-command basis with the `?` operator (not to be confused with the try operator outside of command blocks).
+
+```hush
+{
+	echo Hello world!;
+
+	# `false` is a command that always fails. As it's suffixed with `?`,
+	# it won't cause the whole block to abort.
+	false ?;
+
+	echo "This will be printed";
+
+	# If a command fails, and it makes no use of the `?` operator,
+	# no further commands will be executed.
+	false;
+
+	echo "This will not be printed";
+}
+```
+
+Command blocks will **always** result in an *error* whenever one or more of their commands fail. This is true even for commands that use the `?` operator.
+
+```hush
+let result = { false?; }
+std.assert(std.type(result) == "error")
+```
+
+An error will be produced for each command that fails. This error will contain a *dict* with two fields:
+- `pos`: a string describing the source position of the command.
+- `status`: the numeric exit status of the program. Always non-zero.
+
+There are scenarios where more than one command may fail, such as when using pipelines or the `?` operator. Whenever more than one command fails, the block will result in a generic error. This generic error will contain as context an array of the errors of each command that failed.
+
+```hush
+let result = { false?; false }
+std.print(result.context[0])
+# command returned non-zero (@[ "status": 1, "pos": "<stdin> (line 1, column 15)" ])
+std.print(result.context[1])
+# command returned non-zero (@[ "status": 1, "pos": "<stdin> (line 1, column 23)" ])
+```
