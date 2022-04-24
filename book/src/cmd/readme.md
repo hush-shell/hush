@@ -2,7 +2,7 @@
 
 Command blocks is the feature that distinguishes *Hush* from ordinary programming languages. They allow *Hush* scripts to seamlessly invoke and interconnect external programs.
 
-Great effort has been put to make command syntax in *Hush* as similar as we're used to in *Bash*, but some key aspects have been changed in order to favor robustness of scripts. You should never have to use something like the [unnoficial bash strict mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/) in *Hush*:
+Great effort has been put to make command syntax in *Hush* as similar as we're used to in *Bash*, but some key aspects have been changed in order to favor robustness of scripts. You should never have to use something like the [unofficial bash strict mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/) in *Hush*:
 
 ```bash
 #!/bin/bash
@@ -10,7 +10,7 @@ set -euo pipefail
 IFS=$'\n\t'
 ```
 <p align="center">
-	<small>The unnoficial bash strict mode</small>
+	<small>The unofficial bash strict mode</small>
 </p>
 
 Let's see why you won't need any of this in *Hush*:

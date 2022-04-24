@@ -20,7 +20,7 @@ else
 end
 ```
 
-As they are expressions, they will evaluate to whatever is the value resulting in the last statement of the executed block. If the `else` block is ommited and the condition evaluates to `false`, the expression will result in `nil`.
+As they are expressions, they will evaluate to whatever is the value resulting in the last statement of the executed block. If the `else` block is omitted and the condition evaluates to `false`, the expression will result in `nil`.
 
 ```hush
 let condition = false
@@ -101,7 +101,7 @@ end
 std.assert(adder(1)(2) == 4)
 ```
 
-Closures may even mutate the captured varibles:
+Closures may even mutate the captured variables:
 
 ```hush
 let x = 0
@@ -179,7 +179,7 @@ std.assert(i == 1)
 
 An iterator function is a function that may be called repeatedly without arguments, and always returns a dictionary with at least one field:
 - `finished`: a boolean indicating whether the loop should stop.
-- `value`: the value to be assigned to the loop variable. May be ommited if `finished` is `false`.
+- `value`: the value to be assigned to the loop variable. May be omitted if `finished` is `false`.
 
 ```hush
 # A function to generate an iterator to the given array.

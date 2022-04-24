@@ -1,6 +1,6 @@
 # Async
 
-*Hush* also provides a way to launch commands asynchronously, and then wait for their result at a later time. Traditional shells provide similar functionaly through the ampersand operator.
+*Hush* also provides a way to launch commands asynchronously, and then wait for their result at a later time. Traditional shells provide similar functionality through the ampersand operator.
 
 To run a command block asynchronously, prefix it with an ampersand:
 

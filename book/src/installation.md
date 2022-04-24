@@ -24,5 +24,5 @@ cargo install hush
 
 The following editors have plugins available:
 
-- Emacs: [hush-mode.el](https://github.com/hush-shell/hush/blob/master/syntax-highlight/emacs/hush-mode.el). I'll release it on melpa as soon as I find the time. 
+- Emacs: [hush-mode.el](https://github.com/hush-shell/hush/blob/master/syntax-highlight/emacs/hush-mode.el). I'll release it on Melpa as soon as I find the time.
 - VsCode: [marketplace](https://marketplace.visualstudio.com/items?itemName=hush-vscode.hush)

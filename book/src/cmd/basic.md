@@ -119,7 +119,7 @@ let args = [ "1 2", 3, nil, 4.0 ]
 { hush args.hsh $args }
 ```
 
-will ouptut:
+will output:
 
 ```
 1 2

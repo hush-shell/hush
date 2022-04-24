@@ -56,13 +56,13 @@ Checks if the given `collection` is empty. Accepts *string*s, *array*s and *dict
 Returns an iterator function for the given `collection`. Accepts *string*s, *array*s and *dict*s.
 
 #### `std.json.dump(value)`
-Convert the given value to a json *string*. Panics if `value` contains a value that cannot be serialized as json (*function* or *error*).
+Convert the given value to a JSON *string*. Panics if `value` contains a value that cannot be serialized as JSON (*function* or *error*).
 
 #### `std.json.parse(string)`
 Parse the given json `string`. Returns an *error* if parsing fails.
 
 #### `std.length(collection)`
-Returns the ammount of elements in the given collection. Accepts *string*s, *array*s and *dict*s.
+Returns the amount of elements in the given collection. Accepts *string*s, *array*s and *dict*s.
 
 #### `std.panic(value)`
 Panics with the given `value` as description.
@@ -83,7 +83,7 @@ Returns an iterator function that yields numbers in the given range.
 Read a line from *stdin*, using the given `prompt`, which must be a *string*.
 
 #### `std.replace(string, seach, replace)`
-Replace ocurrences of `search` with `replace` in `string`. All parameters must be *string*s.
+Replace occurrences of `search` with `replace` in `string`. All parameters must be *string*s.
 
 #### `std.sleep(ms)`
 Sleep for the given amount of milliseconds. Accepts positive integers only.
