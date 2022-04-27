@@ -63,6 +63,7 @@ impl NativeFun for Parse {
 					)
 			),
 
+			[ other ] => Err(Panic::type_error(other.copy(), "string", context.pos)),
 			args => Err(Panic::invalid_args(args.len() as u32, 1, context.pos))
 		}
 	}
