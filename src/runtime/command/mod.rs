@@ -6,7 +6,7 @@ use std::{
 	collections::HashMap,
 	os::unix::{ffi::OsStrExt, prelude::OsStringExt},
 	path::PathBuf,
-	ops::DerefMut, io::Read, ffi::{OsStr, OsString}
+	ops::DerefMut, io::Read, ffi::{OsStr, OsString}, thread
 };
 
 use super::{
@@ -53,30 +53,41 @@ impl Runtime {
 				let (mut stderr_read, stderr_write) = os_pipe::pipe()
 					.map_err(|error| Panic::io(error, pos.copy()))?;
 
+				let stdout_reader = thread::spawn(move || {
+					let mut data = Vec::with_capacity(512);
+					stdout_read.read_to_end(&mut data)?;
+					Ok(data)
+				});
+
+				let stderr_reader = thread::spawn(move || {
+					let mut data = Vec::with_capacity(512);
+					stderr_read.read_to_end(&mut data)?;
+					Ok(data)
+				});
+
 				let errors = command_block
 					.exec(
-						|| stdout_write.try_clone(),
-						|| stderr_write.try_clone(),
+						// We must drop all writers before attempting to read, otherwise we'll deadlock.
+						move || stdout_write.try_clone(),
+						move || stderr_write.try_clone(),
 					)
 					.map_err(Panic::from)?;
 
-				// We must drop all writers before attempting to read, otherwise we'll deadlock.
-				drop(stdout_write);
-				drop(stderr_write);
-
 				let mut result = errors.into_value(self.interner());
 				let mut captures = {
-					let mut out = Vec::with_capacity(512);
-					let mut err = Vec::with_capacity(512);
+					let out = match stdout_reader.join() {
+						Err(error) => std::panic::resume_unwind(error),
+						Ok(result) => result
+							.map_err(|error| Panic::io(error, pos.copy()))?
+							.into_boxed_slice(),
+					};
 
-					stdout_read.read_to_end(&mut out)
-						.map_err(|error| Panic::io(error, pos.copy()))?;
-
-					stderr_read.read_to_end(&mut err)
-						.map_err(|error| Panic::io(error, pos.copy()))?;
-
-					let out = out.into_boxed_slice();
-					let err = err.into_boxed_slice();
+					let err = match stderr_reader.join() {
+						Err(error) => std::panic::resume_unwind(error),
+						Ok(result) => result
+							.map_err(|error| Panic::io(error, pos.copy()))?
+							.into_boxed_slice(),
+					};
 
 					let mut dict = HashMap::new();
 

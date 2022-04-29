@@ -1,0 +1,8 @@
+let size = 1024 * 1024 # 1 MB
+
+let result = ${
+	head -c $size /dev/zero;
+	head -c $size /dev/zero
+}
+
+std.assert(std.len(result.stdout) == (size * 2))
