@@ -22,14 +22,14 @@ use super::{
 };
 
 
-inventory::submit! { RustFun::from(Dump) }
-inventory::submit! { RustFun::from(Parse) }
+inventory::submit! { RustFun::from(Encode) }
+inventory::submit! { RustFun::from(Decode) }
 
 #[derive(Trace, Finalize)]
-struct Dump;
+struct Encode;
 
-impl NativeFun for Dump {
-	fn name(&self) -> &'static str { "std.json.dump" }
+impl NativeFun for Encode {
+	fn name(&self) -> &'static str { "std.json.encode" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
@@ -49,10 +49,10 @@ impl NativeFun for Dump {
 }
 
 #[derive(Trace, Finalize)]
-struct Parse;
+struct Decode;
 
-impl NativeFun for Parse {
-	fn name(&self) -> &'static str { "std.json.parse" }
+impl NativeFun for Decode {
+	fn name(&self) -> &'static str { "std.json.decode" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		match context.args() {
