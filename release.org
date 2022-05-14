@@ -1,0 +1,21 @@
+* TODO Bump version
+  [[file:Cargo.toml][Cargo.toml]]
+* TODO Publish to crates.io
+  #+begin_src run
+    cargo publish
+  #+end_src
+* TODO Generate AUR artifacts
+  #+begin_src run
+    cargo aur
+  #+end_src
+* TODO Generate static binary
+  #+begin_src run
+    cd docker; make build
+  #+end_src
+* TODO Create github release with both Arch Linux and static binary
+  We must create both, because the AUR package will install the Arch Linux one.
+* TODO Move =PKGBUILD= to aur repository
+  Remember to discard the URL change, and keep only the sha hash change.
+* TODO Update srcinfo
+  : makepkg --printsrcinfo > .SRCINFO
+* TODO Commit and push AUR package
