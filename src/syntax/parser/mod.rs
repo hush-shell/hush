@@ -264,17 +264,17 @@ where
 					.parse_identifier()
 					.synchronize(self);
 
-				let init;
-				if matches!(self.token, Some(Token { kind: TokenKind::Operator(Operator::Assign), .. })) {
-					self.step();
-					// Don't synchronize here because this expression is the last part of the statement.
-					init = self.parse_expression()?;
-				} else {
-					init = ast::Expr::Literal {
-						literal: ast::Literal::default(),
-						pos,
+				let init =
+					if matches!(self.token, Some(Token { kind: TokenKind::Operator(Operator::Assign), .. })) {
+						self.step();
+						// Don't synchronize here because this expression is the last part of the statement.
+						self.parse_expression()?
+					} else {
+						ast::Expr::Literal {
+							literal: ast::Literal::default(),
+							pos,
+						}
 					};
-				}
 
 				Ok(ast::Statement::Let { identifier, init, pos })
 			}

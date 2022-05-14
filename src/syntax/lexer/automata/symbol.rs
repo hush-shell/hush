@@ -138,7 +138,7 @@ pub enum SymbolChar {
 
 impl SymbolChar {
 	pub fn from_first(first: u8) -> Self {
-		let token = |token| Self::Single(token);
+		let token = Self::Single;
 		let operator = |op| token(TokenKind::Operator(op));
 		let double = |c| Self::Double { first: c };
 
@@ -188,7 +188,7 @@ pub enum CommandSymbolChar {
 
 impl CommandSymbolChar {
 	pub fn from_first(first: u8) -> Self {
-		let token = |token| Self::Single(token);
+		let token = Self::Single;
 		let operator = |op| token(TokenKind::CmdOperator(op));
 		let double = |c| Self::Double { first: c };
 

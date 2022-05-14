@@ -372,7 +372,7 @@ where
 	fn build_arg_unit(unit: ArgUnit) -> ast::ArgUnit {
 		match unit {
 			ArgUnit::Dollar { symbol, pos } => ast::ArgUnit::Dollar { symbol, pos },
-			ArgUnit::Literal(lit) => ast::ArgUnit::Literal(lit.into()),
+			ArgUnit::Literal(lit) => ast::ArgUnit::Literal(lit),
 		}
 	}
 }

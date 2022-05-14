@@ -42,7 +42,7 @@ fn insert(path: &str, value: Value, dict: &mut Dict) {
 		None => dict.insert(path.into(), value),
 		Some((key, path)) => {
 			let mut dict = dict.borrow_mut();
-			let dict = dict.entry(key.into()).or_insert(Dict::default().into());
+			let dict = dict.entry(key.into()).or_insert_with(|| Dict::default().into());
 
 			match dict {
 				Value::Dict(dict) => insert(path, value, dict),

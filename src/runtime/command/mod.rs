@@ -243,6 +243,7 @@ impl Runtime {
 	}
 
 
+	#[allow(clippy::type_complexity)]
 	fn build_env_vars(
 		&mut self,
 		input_env: &'static [(program::ArgUnit, program::Argument)],
