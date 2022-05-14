@@ -342,6 +342,7 @@ impl BasicCommand {
 					.create(true)
 					.write(true)
 					.append(append)
+					.truncate(!append)
 					.open(file.as_ref())
 					.map_err(|error| Error::io(error, pos.copy()))?
 					.into_raw_fd(),
