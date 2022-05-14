@@ -1,4 +1,5 @@
 /target
+/docker/bin
 
 /syntax-highlight/pygments/build/
 /syntax-highlight/pygments/dist/

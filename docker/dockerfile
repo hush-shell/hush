@@ -1,0 +1,9 @@
+from rust:alpine
+
+run apk add musl-dev
+
+run mkdir /hush
+
+volume /hush
+
+cmd cargo install hush --root /hush
