@@ -9,8 +9,8 @@ end
 
 function handle()
 	let first = oops(false)?
-	std.print(first)
+	std.println(first)
 
 	let second = oops(true)?
-	std.print(second)
+	std.println(second)
 end

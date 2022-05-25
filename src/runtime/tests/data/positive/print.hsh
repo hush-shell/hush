@@ -2,7 +2,7 @@
 # directory of the git repo ($HOME/Code/hush or whatever)
 
 let HUSH_TEST_EXECUTABLE = "./target/debug/hush"
-let THIS_SCRIPT = "./src/runtime/tests/data/positive/printc.hsh"
+let THIS_SCRIPT = "./src/runtime/tests/data/positive/print.hsh"
 
 if std.env("FOO_HSH") == "1" then
 	let nerp = nil
@@ -36,40 +36,40 @@ if std.env("FOO_HSH") == "1" then
 
 	let efail = std.error("EFAIL", nil)
 
-	std.printc("Nulls:", nil, nerp)
-	std.print()
+	std.print("Nulls:", nil, nerp)
+	std.println()
 
-	std.printc("Bools:", true, false, t, f)
-	std.print()
+	std.print("Bools:", true, false, t, f)
+	std.println()
 
-	std.printc("Ints:", 0, 1, 2, i, j)
-	std.print()
+	std.print("Ints:", 0, 1, 2, i, j)
+	std.println()
 
-	std.printc("Reals:", 0.0, 1.0, 6.02E23, pi, e)
-	std.print()
+	std.print("Reals:", 0.0, 1.0, 6.02E23, pi, e)
+	std.println()
 
-	std.printc("Chars:", a, b, 'c', 'd', 'e')
-	std.print()
+	std.print("Chars:", a, b, 'c', 'd', 'e')
+	std.println()
 
-	std.printc("Strings:", "the quick brown fox", "jumped over", h, w)
-	std.print()
+	std.print("Strings:", "the quick brown fox", "jumped over", h, w)
+	std.println()
 
-	std.printc("Arrays:", [0, 0], a1, a2)
-	std.print()
+	std.print("Arrays:", [0, 0], a1, a2)
+	std.println()
 
-	std.printc("Dicts:", @[ d: "ict"], d1, d2)
-	std.print()
+	std.print("Dicts:", @[ d: "ict"], d1, d2)
+	std.println()
 
-	std.printc("Funcs:", f1, f2)
-	std.print()
+	std.print("Funcs:", f1, f2)
+	std.println()
 
-	std.printc("Error:", efail)
-	std.print()
+	std.print("Error:", efail)
+	std.println()
 
-	std.printc("All together now:", "all")
-	std.printc(" together")
-	std.printc(" now!")
-	std.printc('\n')
+	std.print("All together now:", "all")
+	std.print(" together")
+	std.print(" now!")
+	std.print('\n')
 
 	std.exit(0)
 else
@@ -100,13 +100,13 @@ else
 			# Match instead of compare
 			let rex = std.regex(want)
 			if not rex.match(lines[i]) then
-				std.print("Error: wanted /" ++ want 
+				std.println("Error: wanted /" ++ want 
 				++ "/, got >>" ++ lines[i] ++ "<<")
 				std.assert(false)
 			end
 		else
 			if lines[i] != want then
-				std.print("Error: wanted >>" ++ want 
+				std.println("Error: wanted >>" ++ want 
 				++ "<< got >>" ++ lines[i] ++ "<<")
 				std.assert(false)
 			end

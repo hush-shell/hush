@@ -1,9 +1,9 @@
 function ()
   if true then
     let x = 2
-    std.print(x)
+    std.println(x)
   else
     let x = 1
-    std.print(x)
+    std.println(x)
   end
 end

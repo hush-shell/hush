@@ -30,7 +30,7 @@ fun = function ()
 		end,
 
 		print: function ()
-			std.print(x)
+			std.println(x)
 		end,
 	]
 end

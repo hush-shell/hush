@@ -51,8 +51,8 @@ impl NativeFun for Print {
 				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 		}
 
-		writeln!(stdout)
-			.map_err(|error| Panic::io(error, context.pos))?;
+		//writeln!(stdout)
+			//.map_err(|error| Panic::io(error, context.pos))?;
 
 		Ok(Value::default())
 	}
