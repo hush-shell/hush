@@ -5,5 +5,5 @@
 ]
 
 function b()
-	std.print(hai)
+	std.println(hai)
 end

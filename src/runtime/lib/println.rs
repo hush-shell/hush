@@ -12,14 +12,14 @@ use super::{
 };
 
 
-inventory::submit! { RustFun::from(Print) }
+inventory::submit! { RustFun::from(Println) }
 
 #[derive(Trace, Finalize)]
-struct Print;
+struct Println;
 
 
-impl Print {
-	fn print<W: Write>(value: &Value, interner: &symbol::Interner, mut writer: W) -> io::Result<()> {
+impl Println {
+	fn println<W: Write>(value: &Value, interner: &symbol::Interner, mut writer: W) -> io::Result<()> {
 		match value {
 			Value::String(string) => writer.write_all(string.as_ref()),
 			Value::Byte(byte) => writer.write_all(&[*byte]),
@@ -29,8 +29,8 @@ impl Print {
 }
 
 
-impl NativeFun for Print {
-	fn name(&self) -> &'static str { "std.print" }
+impl NativeFun for Println {
+	fn name(&self) -> &'static str { "std.println" }
 
 	fn call(&self, context: CallContext) -> Result<Value, Panic> {
 		let stdout = io::stdout();
@@ -39,7 +39,7 @@ impl NativeFun for Print {
 		let mut iter = context.args().iter();
 
 		if let Some(value) = iter.next() {
-			Self::print(value, context.interner(), &mut stdout)
+			Self::println(value, context.interner(), &mut stdout)
 				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 		}
 
@@ -47,12 +47,12 @@ impl NativeFun for Print {
 			write!(stdout, "\t")
 				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 
-			Self::print(value, context.interner(), &mut stdout)
+			Self::println(value, context.interner(), &mut stdout)
 				.map_err(|error| Panic::io(error, context.pos.copy()))?;
 		}
 
-		//writeln!(stdout)
-			//.map_err(|error| Panic::io(error, context.pos))?;
+		writeln!(stdout)
+			.map_err(|error| Panic::io(error, context.pos))?;
 
 		Ok(Value::default())
 	}

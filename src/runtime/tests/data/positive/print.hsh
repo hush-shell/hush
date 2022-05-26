@@ -1,0 +1,116 @@
+# NB: These paths assume this script is run from the root
+# directory of the git repo ($HOME/Code/hush or whatever)
+
+let HUSH_TEST_EXECUTABLE = "./target/debug/hush"
+let THIS_SCRIPT = "./src/runtime/tests/data/positive/print.hsh"
+
+if std.env("FOO_HSH") == "1" then
+	let nerp = nil
+
+	let t = 1 == 1
+	let f = 1 == 2
+
+	let i = 10001
+	let j = 20202
+
+	let pi = 3.14159
+	let e = 2.71828
+
+	let a = 'a'
+	let b = 'b'
+
+	let h = "hello"
+	let w = "world"
+
+	let a1 = [1, 2]
+	let a2 = [[11, 12], [21, 22]]
+	
+	let d1 = @[ foo: "bar" ]
+	# TODO: Dictionary print order is not constant. Can't do simple test
+	# of print results.
+	#let d2 = @[ moo: "goo", gai: "pan"]
+	let d2 = @[ moo: "goo"]
+
+	let f1 = function () end
+	let f2 = std.env
+
+	let efail = std.error("EFAIL", nil)
+
+	std.print("Nulls:", nil, nerp)
+	std.println()
+
+	std.print("Bools:", true, false, t, f)
+	std.println()
+
+	std.print("Ints:", 0, 1, 2, i, j)
+	std.println()
+
+	std.print("Reals:", 0.0, 1.0, 6.02E23, pi, e)
+	std.println()
+
+	std.print("Chars:", a, b, 'c', 'd', 'e')
+	std.println()
+
+	std.print("Strings:", "the quick brown fox", "jumped over", h, w)
+	std.println()
+
+	std.print("Arrays:", [0, 0], a1, a2)
+	std.println()
+
+	std.print("Dicts:", @[ d: "ict"], d1, d2)
+	std.println()
+
+	std.print("Funcs:", f1, f2)
+	std.println()
+
+	std.print("Error:", efail)
+	std.println()
+
+	std.print("All together now:", "all")
+	std.print(" together")
+	std.print(" now!")
+	std.print('\n')
+
+	std.exit(0)
+else
+	std.export("FOO_HSH", "1")
+	let result = ${ $HUSH_TEST_EXECUTABLE $THIS_SCRIPT }.stdout
+	let lines = std.split(result, "\n")
+
+	let expected = [
+		"Nulls:\tnil\tnil",
+		"Bools:\ttrue\tfalse\ttrue\tfalse",
+		"Ints:\t0\t1\t2\t10001\t20202",
+		"Reals:\t0.0\t1.0\t6.02e23\t3.14159\t2.71828",
+		"Chars:\ta\tb\tc\td\te",
+		"Strings:\tthe quick brown fox\tjumped over\thello\tworld",
+		"Arrays:\t[ 0, 0 ]\t[ 1, 2 ]\t[ [ 11, 12 ], [ 21, 22 ] ]",
+		# TODO: Dictionary print order not constant.
+		# "Dicts:\t@[ \"d\": \"ict\" ]\t@[ \"foo\": \"bar\" ]\t@[ \"moo\": \"goo\", \"gai\": \"pan\" ]",
+		"Dicts:\t@[ \"d\": \"ict\" ]\t@[ \"foo\": \"bar\" ]\t@[ \"moo\": \"goo\" ]",
+		### NOTE: REGEX BELOW ("Funcs")
+		"Funcs:\tfunction<[^>]*>\tstd.env",
+		"Error:\terror: \"EFAIL\" (nil)",
+		"All together now:\tall together now!"
+	]
+	
+	let i = 0
+	for want in std.iter(expected) do
+		if std.substr(lines[i], 0, 5) == "Funcs" then
+			# Match instead of compare
+			let rex = std.regex(want)
+			if not rex.match(lines[i]) then
+				std.println("Error: wanted /" ++ want 
+				++ "/, got >>" ++ lines[i] ++ "<<")
+				std.assert(false)
+			end
+		else
+			if lines[i] != want then
+				std.println("Error: wanted >>" ++ want 
+				++ "<< got >>" ++ lines[i] ++ "<<")
+				std.assert(false)
+			end
+		end
+		i = i + 1
+	end
+end
