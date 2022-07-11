@@ -217,7 +217,7 @@ impl TokenKind {
 	pub fn is_block_terminator(&self) -> bool {
 		matches!(
 			self,
-			TokenKind::Keyword(Keyword::End) | TokenKind::Keyword(Keyword::Else)
+			TokenKind::Keyword(Keyword::End) | TokenKind::Keyword(Keyword::Else) | TokenKind::Keyword(Keyword::ElseIf)
 		)
 	}
 
