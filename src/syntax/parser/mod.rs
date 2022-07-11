@@ -666,6 +666,9 @@ where
 				self.step();
 
 				let (condition, then, otherwise) = self.parse_condblock()?;
+				
+				self.expect(TokenKind::Keyword(Keyword::End))
+					.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 				Ok(ast::Expr::If {
 					condition: condition.into(),
@@ -766,7 +769,7 @@ where
 		let otherwise = match self.token.take() {
 			Some(token) => match token {
 				Token { kind: TokenKind::Keyword(Keyword::End), .. } => {
-					self.step();
+					self.token = Some(token);
 					Ok(ast::Block::default())
 				},
 				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
@@ -789,9 +792,6 @@ where
 						x => {
 							self.token = x;
 							let block = self.parse_block();
-
-							self.expect(TokenKind::Keyword(Keyword::End))
-								.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 							Ok(block)
 						}
