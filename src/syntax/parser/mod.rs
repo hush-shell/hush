@@ -772,11 +772,11 @@ where
 					self.token = Some(token);
 					Ok(ast::Block::default())
 				},
-				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
+				Token { kind: TokenKind::Keyword(Keyword::Else), pos: elsepos, .. } => {
 					self.step();
 
 					match self.token.take() {
-						Some(Token { kind: TokenKind::Keyword(Keyword::If), pos, .. }) => {
+						Some(Token { kind: TokenKind::Keyword(Keyword::If), pos: ifpos, .. }) if elsepos.line == ifpos.line => {
 							self.step();
 							let (condition, then, otherwise) = self.parse_condblock()?;
 
@@ -784,7 +784,7 @@ where
 								condition: condition.into(),
 								then: then,
 								otherwise: otherwise,
-								pos,
+								pos: ifpos,
 							});
 		
 							Ok(ast::Block::Block(Box::new([stmt])))
