@@ -665,37 +665,7 @@ where
 			Some(Token { kind: TokenKind::Keyword(Keyword::If), pos }) => {
 				self.step();
 
-				let condition = self.parse_expression()
-					.synchronize(self);
-
-				self.expect(TokenKind::Keyword(Keyword::Then))
-					.with_sync(sync::Strategy::keep())
-					.synchronize(self);
-
-				let then = self.parse_block();
-
-				let otherwise = {
-					let has_else = self
-						.eat(
-							|token| match token {
-								Token { kind: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
-								Token { kind: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
-								token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
-							}
-						)
-						.with_sync(sync::Strategy::block_terminator())?;
-
-					if has_else {
-						let block = self.parse_block();
-
-						self.expect(TokenKind::Keyword(Keyword::End))
-							.with_sync(sync::Strategy::keyword(Keyword::End))?;
-
-						block
-					} else {
-						ast::Block::default()
-					}
-				};
+				let (condition, then, otherwise) = self.parse_condblock()?;
 
 				Ok(ast::Expr::If {
 					condition: condition.into(),
@@ -778,5 +748,44 @@ where
 			.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 		Ok((params, body))
+	}
+
+
+	/// Parse an if-else expression after the if keyword
+	/// Returns the if condition and the it+else blocks
+	fn parse_condblock(&mut self) -> sync::Result<(ast::Expr, ast::Block, ast::Block), Error> {
+		let condition = self.parse_expression()
+			.synchronize(self);
+
+		self.expect(TokenKind::Keyword(Keyword::Then))
+			.with_sync(sync::Strategy::keep())
+			.synchronize(self);
+
+		let then = self.parse_block();
+
+		let otherwise = {
+			let has_else = self
+				.eat(
+					|token| match token {
+						Token { kind: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
+						Token { kind: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
+						token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
+					}
+				)
+				.with_sync(sync::Strategy::block_terminator())?;
+
+			if has_else {
+				let block = self.parse_block();
+
+				self.expect(TokenKind::Keyword(Keyword::End))
+					.with_sync(sync::Strategy::keyword(Keyword::End))?;
+
+				block
+			} else {
+				ast::Block::default()
+			}
+		};
+
+		Ok((condition, then, otherwise))
 	}
 }
