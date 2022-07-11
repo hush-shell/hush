@@ -1,7 +1,6 @@
 # NB: These paths assume this script is run from the root
 # directory of the git repo ($HOME/Code/hush or whatever)
 
-let HUSH_TEST_EXECUTABLE = "./target/debug/hush"
 let THIS_SCRIPT = "./src/runtime/tests/data/positive/print.hsh"
 
 if std.env("FOO_HSH") == "1" then
@@ -24,7 +23,7 @@ if std.env("FOO_HSH") == "1" then
 
 	let a1 = [1, 2]
 	let a2 = [[11, 12], [21, 22]]
-	
+
 	let d1 = @[ foo: "bar" ]
 	# TODO: Dictionary print order is not constant. Can't do simple test
 	# of print results.
@@ -74,7 +73,7 @@ if std.env("FOO_HSH") == "1" then
 	std.exit(0)
 else
 	std.export("FOO_HSH", "1")
-	let result = ${ $HUSH_TEST_EXECUTABLE $THIS_SCRIPT }.stdout
+	let result = ${ cargo run $THIS_SCRIPT }.stdout
 	let lines = std.split(result, "\n")
 
 	let expected = [
@@ -93,20 +92,20 @@ else
 		"Error:\terror: \"EFAIL\" (nil)",
 		"All together now:\tall together now!"
 	]
-	
+
 	let i = 0
 	for want in std.iter(expected) do
 		if std.substr(lines[i], 0, 5) == "Funcs" then
 			# Match instead of compare
 			let rex = std.regex(want)
 			if not rex.match(lines[i]) then
-				std.println("Error: wanted /" ++ want 
+				std.println("Error: wanted /" ++ want
 				++ "/, got >>" ++ lines[i] ++ "<<")
 				std.assert(false)
 			end
 		else
 			if lines[i] != want then
-				std.println("Error: wanted >>" ++ want 
+				std.println("Error: wanted >>" ++ want
 				++ "<< got >>" ++ lines[i] ++ "<<")
 				std.assert(false)
 			end
