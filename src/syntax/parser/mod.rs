@@ -763,27 +763,25 @@ where
 
 		let then = self.parse_block();
 
-		let otherwise = {
-			let has_else = self
-				.eat(
-					|token| match token {
-						Token { kind: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
-						Token { kind: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
-						token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
-					}
-				)
-				.with_sync(sync::Strategy::block_terminator())?;
+		let otherwise = match self.token.take() {
+			Some(token) => match token {
+				Token { kind: TokenKind::Keyword(Keyword::End), .. } => {
+					self.step();
+					Ok(ast::Block::default())
+				},
+				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
+					self.step();
+					let block = self.parse_block();
 
-			if has_else {
-				let block = self.parse_block();
+					self.expect(TokenKind::Keyword(Keyword::End))
+						.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
-				self.expect(TokenKind::Keyword(Keyword::End))
-					.with_sync(sync::Strategy::keyword(Keyword::End))?;
-
-				block
-			} else {
-				ast::Block::default()
-			}
+					Ok(block)
+				},
+				token => Err(Error::unexpected_msg(token.clone(), "end or else"))
+			}.with_sync(sync::Strategy::block_terminator())?,
+			None => Err(Error::unexpected_eof())
+				.with_sync(sync::Strategy::eof())?
 		};
 
 		Ok((condition, then, otherwise))
