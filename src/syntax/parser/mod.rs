@@ -771,12 +771,31 @@ where
 				},
 				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
 					self.step();
-					let block = self.parse_block();
 
-					self.expect(TokenKind::Keyword(Keyword::End))
-						.with_sync(sync::Strategy::keyword(Keyword::End))?;
+					match self.token.take() {
+						Some(Token { kind: TokenKind::Keyword(Keyword::If), pos, .. }) => {
+							self.step();
+							let (condition, then, otherwise) = self.parse_condblock()?;
 
-					Ok(block)
+							let stmt = ast::Statement::Expr(ast::Expr::If {
+								condition: condition.into(),
+								then: then,
+								otherwise: otherwise,
+								pos,
+							});
+		
+							Ok(ast::Block::Block(Box::new([stmt])))
+						},
+						x => {
+							self.token = x;
+							let block = self.parse_block();
+
+							self.expect(TokenKind::Keyword(Keyword::End))
+								.with_sync(sync::Strategy::keyword(Keyword::End))?;
+
+							Ok(block)
+						}
+					}
 				},
 				token => Err(Error::unexpected_msg(token.clone(), "end or else"))
 			}.with_sync(sync::Strategy::block_terminator())?,
