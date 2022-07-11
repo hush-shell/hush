@@ -665,37 +665,10 @@ where
 			Some(Token { kind: TokenKind::Keyword(Keyword::If), pos }) => {
 				self.step();
 
-				let condition = self.parse_expression()
-					.synchronize(self);
+				let (condition, then, otherwise) = self.parse_condblock()?;
 
-				self.expect(TokenKind::Keyword(Keyword::Then))
-					.with_sync(sync::Strategy::keep())
-					.synchronize(self);
-
-				let then = self.parse_block();
-
-				let otherwise = {
-					let has_else = self
-						.eat(
-							|token| match token {
-								Token { kind: TokenKind::Keyword(Keyword::End), .. } => Ok(false),
-								Token { kind: TokenKind::Keyword(Keyword::Else), .. } => Ok(true),
-								token => Err((Error::unexpected_msg(token.clone(), "end or else"), token)),
-							}
-						)
-						.with_sync(sync::Strategy::block_terminator())?;
-
-					if has_else {
-						let block = self.parse_block();
-
-						self.expect(TokenKind::Keyword(Keyword::End))
-							.with_sync(sync::Strategy::keyword(Keyword::End))?;
-
-						block
-					} else {
-						ast::Block::default()
-					}
-				};
+				self.expect(TokenKind::Keyword(Keyword::End))
+					.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 				Ok(ast::Expr::If {
 					condition: condition.into(),
@@ -778,5 +751,53 @@ where
 			.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 		Ok((params, body))
+	}
+
+
+	/// Parse an if-else expression after the if keyword
+	/// Returns the if condition and the it+else blocks
+	fn parse_condblock(&mut self) -> sync::Result<(ast::Expr, ast::Block, ast::Block), Error> {
+		let condition = self.parse_expression()
+			.synchronize(self);
+
+		self.expect(TokenKind::Keyword(Keyword::Then))
+			.with_sync(sync::Strategy::keep())
+			.synchronize(self);
+
+		let then = self.parse_block();
+
+		let otherwise = match self.token.take() {
+			Some(token) => match token {
+				Token { kind: TokenKind::Keyword(Keyword::End), .. } => {
+					self.token = Some(token);
+					Ok(ast::Block::default())
+				},
+				Token { kind: TokenKind::Keyword(Keyword::ElseIf), pos, .. } => {
+					self.step();
+
+					let (condition, then, otherwise) = self.parse_condblock()?;
+
+					let stmt = ast::Statement::Expr(ast::Expr::If {
+						condition: condition.into(),
+						then: then,
+						otherwise: otherwise,
+						pos: pos,
+					});
+
+					Ok(ast::Block::Block(Box::new([stmt])))
+				},
+				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
+					self.step();
+					let block = self.parse_block();
+
+					Ok(block)
+				},
+				token => Err(Error::unexpected_msg(token.clone(), "end or else"))
+			}.with_sync(sync::Strategy::block_terminator())?,
+			None => Err(Error::unexpected_eof())
+				.with_sync(sync::Strategy::eof())?
+		};
+
+		Ok((condition, then, otherwise))
 	}
 }

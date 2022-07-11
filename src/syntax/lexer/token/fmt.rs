@@ -28,6 +28,7 @@ impl std::fmt::Display for Keyword {
 					Self::If => "if",
 					Self::Then => "then",
 					Self::Else => "else",
+					Self::ElseIf => "elseif",
 					Self::End => "end",
 					Self::For => "for",
 					Self::In => "in",

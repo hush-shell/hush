@@ -60,6 +60,7 @@ pub fn to_token(word: &[u8], interner: &mut SymbolInterner) -> TokenKind {
 		b"if" => TokenKind::Keyword(Keyword::If),
 		b"then" => TokenKind::Keyword(Keyword::Then),
 		b"else" => TokenKind::Keyword(Keyword::Else),
+		b"elseif" => TokenKind::Keyword(Keyword::ElseIf),
 		b"end" => TokenKind::Keyword(Keyword::End),
 		b"for" => TokenKind::Keyword(Keyword::For),
 		b"in" => TokenKind::Keyword(Keyword::In),
