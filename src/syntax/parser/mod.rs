@@ -772,6 +772,20 @@ where
 					self.token = Some(token);
 					Ok(ast::Block::default())
 				},
+				Token { kind: TokenKind::Keyword(Keyword::ElseIf), pos, .. } => {
+					self.step();
+
+					let (condition, then, otherwise) = self.parse_condblock()?;
+
+					let stmt = ast::Statement::Expr(ast::Expr::If {
+						condition: condition.into(),
+						then: then,
+						otherwise: otherwise,
+						pos: pos,
+					});
+
+					Ok(ast::Block::Block(Box::new([stmt])))
+				},
 				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
 					self.step();
 					let block = self.parse_block();
