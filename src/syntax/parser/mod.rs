@@ -756,7 +756,7 @@ where
 
 	/// Parse an if-else expression after the if keyword
 	/// Returns the if condition and the it+else blocks
-	fn parse_condblock(&mut self) -> sync::Result<(ast::Expr, ast::Block, ast::Block), Error> {
+	fn parse_condblock(&mut self) -> sync::Result<(Box<ast::Expr>, ast::Block, ast::Block), Error> {
 		let condition = self.parse_expression()
 			.synchronize(self);
 
@@ -767,37 +767,33 @@ where
 		let then = self.parse_block();
 
 		let otherwise = match self.token.take() {
-			Some(token) => match token {
-				Token { kind: TokenKind::Keyword(Keyword::End), .. } => {
-					self.token = Some(token);
-					Ok(ast::Block::default())
-				},
-				Token { kind: TokenKind::Keyword(Keyword::ElseIf), pos, .. } => {
-					self.step();
+			Some(token @ Token { kind: TokenKind::Keyword(Keyword::End), .. }) => {
+				self.token = Some(token);
+				ast::Block::default()
+			},
 
-					let (condition, then, otherwise) = self.parse_condblock()?;
+			Some(Token { kind: TokenKind::Keyword(Keyword::ElseIf), pos, .. }) => {
+				self.step();
 
-					let stmt = ast::Statement::Expr(ast::Expr::If {
-						condition: condition.into(),
-						then: then,
-						otherwise: otherwise,
-						pos: pos,
-					});
+				let (condition, then, otherwise) = self.parse_condblock()?;
 
-					Ok(ast::Block::Block(Box::new([stmt])))
-				},
-				Token { kind: TokenKind::Keyword(Keyword::Else), .. } => {
-					self.step();
-					let block = self.parse_block();
+				let stmt = ast::Statement::Expr(ast::Expr::If { condition, then, otherwise, pos, });
 
-					Ok(block)
-				},
-				token => Err(Error::unexpected_msg(token.clone(), "end or else"))
-			}.with_sync(sync::Strategy::block_terminator())?,
+				ast::Block::Block(Box::new([stmt]))
+			},
+
+			Some(Token { kind: TokenKind::Keyword(Keyword::Else), .. }) => {
+				self.step();
+				self.parse_block()
+			},
+
+			Some(token) => Err(Error::unexpected_msg(token, "end, else or elseif"))
+				.with_sync(sync::Strategy::block_terminator())?,
+
 			None => Err(Error::unexpected_eof())
 				.with_sync(sync::Strategy::eof())?
 		};
 
-		Ok((condition, then, otherwise))
+		Ok((Box::new(condition), then, otherwise))
 	}
 }
