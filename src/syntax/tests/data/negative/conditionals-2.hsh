@@ -1,0 +1,5 @@
+if true and true then
+	# empty
+elseif true and true
+	# empty
+end

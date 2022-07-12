@@ -1,0 +1,49 @@
+if true and true then
+	# empty
+end
+
+if true and true then
+	# empty
+else
+	# empty
+end
+
+if true and true then
+	# empty
+elseif true and true then
+	# empty
+end
+
+if true and true then
+	# empty
+elseif true and true then
+	# empty
+else
+	# empty
+end
+
+if true and true then
+	if true and true then
+		# empty
+	elseif true and true then
+		# empty
+	else
+		# empty
+	end
+elseif true and true then
+	if true and true then
+		# empty
+	elseif true and true then
+		# empty
+	else
+		# empty
+	end
+else
+	if true and true then
+		# empty
+	elseif true and true then
+		# empty
+	else
+		# empty
+	end
+end
