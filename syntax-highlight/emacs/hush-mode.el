@@ -6,7 +6,7 @@
 ;;                    hush-mode-map))
 
 (defvar hush-keywords
-  '("let" "if" "then" "else" "end" "for" "in" "do" "while" "function" "return"
+  '("let" "if" "then" "else" "elseif" "end" "for" "in" "do" "while" "function" "return"
     "not" "and" "or" "true" "false" "nil" "break" "self"))
 
 (defvar hush-mode-syntax-table

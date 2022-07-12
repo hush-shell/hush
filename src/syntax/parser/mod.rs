@@ -216,7 +216,7 @@ where
 	}
 
 
-	/// Parse a block of statements, stopping when ELSE, END of EOF are reached, or after a
+	/// Parse a block of statements, stopping when ELSE, ELSEIF, END of EOF are reached, or after a
 	/// return is parsed. The Lua-like grammar requires stopping after such conditions.
 	/// This method synchronizes on all errors, producing an empty block if no statements
 	/// can be parsed.

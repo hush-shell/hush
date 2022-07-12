@@ -213,7 +213,7 @@ pub enum TokenKind {
 
 impl TokenKind {
 	/// Check if the token terminates a statement block.
-	/// Currently, only the END and ELSE keywords do that.
+	/// Currently, only the END, ELSE and ELSEIF keywords do that.
 	pub fn is_block_terminator(&self) -> bool {
 		matches!(
 			self,

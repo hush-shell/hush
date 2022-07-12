@@ -45,7 +45,7 @@ class HushLexer(RegexLexer):
             (r'[\[\]().,:;]|@\[', Punctuation),
             (r'(and|or|not)\b', Operator.Word),
 
-            (r'(break|self|do|else|end|for|if|in|return|then|while)\b', Keyword.Reserved),
+            (r'(break|self|do|else|elseif|end|for|if|in|return|then|while)\b', Keyword.Reserved),
             (r'(let)\b', Keyword.Declaration),
             (r'(true|false|nil)\b', Keyword.Constant),
 

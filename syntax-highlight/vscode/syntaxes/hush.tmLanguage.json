@@ -83,7 +83,7 @@
 			"include": "#comment"
 		},
 		{
-			"match": "\\b(if|then|else|end|for|in|do|while|break|return)\\b",
+			"match": "\\b(if|then|else|elseif|end|for|in|do|while|break|return)\\b",
 			"name": "keyword.control.hush"
 		},
 		{
