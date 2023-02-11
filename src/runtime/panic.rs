@@ -93,6 +93,11 @@ pub enum Panic {
 		context: Value,
 		pos: SourcePos,
 	},
+	/// Display string as panic.
+	String {
+		string: &'static str,
+		pos: SourcePos,
+	}
 }
 
 
@@ -218,6 +223,11 @@ impl Panic {
 	/// std.panic
 	pub fn user(context: Value, pos: SourcePos) -> Self {
 		Self::User { context, pos }
+	}
+
+	/// Display string as panic.
+	pub fn string(string: &'static str, pos: SourcePos) -> Self {
+		Self::String { string, pos }
 	}
 }
 
@@ -360,6 +370,10 @@ impl<'a> Display<'a> for Panic {
 					fmt::Show(pos, context),
 					color::Fg(color::Yellow, fmt::Show(value, context))
 				),
+
+		    Self::String { string, pos } => {
+				write!(f, "{} in {}: {}", panic, fmt::Show(pos, context), string)
+			}
 		}
 	}
 }

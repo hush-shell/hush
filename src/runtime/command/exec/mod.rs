@@ -6,7 +6,7 @@ use std::{
 	ffi::{OsStr, OsString},
 	fs::{File, OpenOptions},
 	io::{self, Write},
-	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd},
+	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd, CommandExt},
 	process,
 };
 
@@ -230,47 +230,103 @@ pub struct BasicCommand {
 }
 
 
+enum CommandMode {
+	Ready(process::Command, bool),
+	ExecNeedProgram,
+	Exec0NeedProgram,
+	Exec0NeedArg0(process::Command),
+	SpawnNeedProgram,
+	Spawn0NeedProgram,
+	Spawn0NeedArg0(process::Command),
+}
+
+
 impl BasicCommand {
 	pub fn exec(self, stdio: Stdio) -> Result<Child, Error> {
-		let pos = self.pos.copy();
+		let pos = self.pos;
 
 		let program_args = self.program.resolve(pos.copy())?;
 
-		let mut command = match program_args.as_ref() {
-			[ program ] => process::Command::new(program),
+		let mut command_mode = match program_args.as_ref() {
+			[ program ] => match program.as_bytes() {
+				b"exec" => CommandMode::ExecNeedProgram,
+				b"exec0" => CommandMode::Exec0NeedProgram,
+				b"spawn" => CommandMode::SpawnNeedProgram,
+				b"spawn0" => CommandMode::Spawn0NeedProgram,
+				_ => CommandMode::Ready(process::Command::new(program), false),
+			},
 			other => return Err(
-				Panic::invalid_args("program", other.len() as u32, pos.copy()).into()
+				Panic::invalid_args("program", other.len() as u32, pos).into()
 			),
 		};
-
-		for (key, value) in self.env.into_vec() { // Use vec's owned iterator.
-			let value = value.resolve(pos.copy())?;
-
-			match value.as_ref() {
-				[ value ] => command.env(key, value),
-				other => return Err(
-					Panic::invalid_args("env variable", other.len() as u32, pos.copy()).into()
-				),
-			};
-		}
 
 		for argument in self.arguments.into_vec() {
 			let args = argument.resolve(pos.copy())?;
 
 			for arg in args.iter() {
-				command.arg(arg);
+				command_mode = match command_mode {
+					CommandMode::Ready(mut command, is_exec) => {
+						command.arg(arg);
+						CommandMode::Ready(command, is_exec)
+					},
+					CommandMode::ExecNeedProgram => CommandMode::Ready(process::Command::new(arg), true),
+					CommandMode::Exec0NeedProgram => CommandMode::Exec0NeedArg0(process::Command::new(arg)),
+					CommandMode::Exec0NeedArg0(mut command) => {
+						command.arg0(arg);
+						CommandMode::Ready(command, true)
+					},
+					CommandMode::SpawnNeedProgram => CommandMode::Ready(process::Command::new(arg), false),
+					CommandMode::Spawn0NeedProgram => CommandMode::Spawn0NeedArg0(process::Command::new(arg)),
+					CommandMode::Spawn0NeedArg0(mut command) => {
+						command.arg0(arg);
+						CommandMode::Ready(command, false)
+					}
+				}
 			}
 		}
 
-		Self::spawn(&mut command, stdio, self.redirections, self.pos)
+        match command_mode {
+			CommandMode::Ready(mut command, is_exec) => {
+		        for (key, value) in self.env.into_vec() { // Use vec's owned iterator.
+			        let value = value.resolve(pos.copy())?;
+
+			        match value.as_ref() {
+				        [ value ] => command.env(key, value),
+				        other => return Err(
+					        Panic::invalid_args("env variable", other.len() as u32, pos).into()
+				        ),
+			        };
+		        }
+		        Self::spawn(command, stdio, self.redirections, pos, is_exec)
+			},
+			CommandMode::ExecNeedProgram => Err(
+			    Panic::string("\x1B[1;33mexec\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m argument ()", pos).into()
+			),
+			CommandMode::Exec0NeedProgram => Err(
+			    Panic::string("\x1B[1;33mexec0\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m and \x1B[1;32marg0\x1B[22;39m arguments", pos).into()
+			),
+			CommandMode::Exec0NeedArg0(_) => Err(
+			    Panic::string("\x1B[1;33mexec0\x1B[22;39m: missing \x1B[1;32marg0\x1B[22;39m argument", pos).into()
+			),
+			CommandMode::SpawnNeedProgram => Err(
+			    Panic::string("\x1B[1;33mspawn\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m argument", pos).into()
+			),
+			CommandMode::Spawn0NeedProgram => Err(
+			    Panic::string("\x1B[1;33mspawn0\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m and \x1B[1;32marg0\x1B[22;39m arguments", pos).into()
+			),
+			CommandMode::Spawn0NeedArg0(_) => Err(
+			    Panic::string("\x1B[1;33mspawn0\x1B[22;39m: missing \x1B[1;32marg0\x1B[22;39m argument", pos).into()
+			)
+		}
 	}
 
 
 	fn spawn(
-		command: &mut process::Command,
+		mut command: process::Command,
 		mut stdio: Stdio,
 		redirections: Box<[Redirection]>,
 		pos: SourcePos,
+		is_exec: bool
 	) -> Result<Child, Error> {
 		for redirection in redirections.into_vec() { // Use vec's owned iterator.
 			match redirection {
@@ -281,7 +337,7 @@ impl BasicCommand {
 						1 => stdio.stdout = target,
 						2 => stdio.stderr = target,
 						other => return Err(
-							Panic::unsupported_fd(other, pos.copy()).into()
+							Panic::unsupported_fd(other, pos).into()
 						),
 					};
 				}
@@ -292,7 +348,7 @@ impl BasicCommand {
 					let source = match args.as_ref() {
 						[ source ] => source,
 						other => return Err(
-							Panic::invalid_args("redirection", other.len() as u32, pos.copy()).into()
+							Panic::invalid_args("redirection", other.len() as u32, pos).into()
 						),
 					};
 
@@ -326,8 +382,11 @@ impl BasicCommand {
 		command.stdout(stdio.stdout);
 		command.stderr(stdio.stderr);
 
-		let process = command.spawn()
-			.map_err(|error| Error::io(error, pos.copy()))?;
+		let process = (if is_exec {
+			Err(command.exec())
+		} else {
+			command.spawn()
+		}).map_err(|error| Error::io(error, pos.copy()))?;
 
 		Ok(Child { process, pos })
 	}

@@ -28,6 +28,11 @@ pub enum Panic {
 	InvalidPattern {
 		pattern: OsString,
 		pos: SourcePos,
+	},
+	/// Display string as panic.
+	String {
+		string: &'static str,
+		pos: SourcePos,
 	}
 }
 
@@ -46,6 +51,11 @@ impl Panic {
 	/// Currently, Hush requires patterns to be valid UTF-8.
 	pub fn invalid_pattern(pattern: OsString, pos: SourcePos) -> Self {
 		Self::InvalidPattern { pattern, pos }
+	}
+
+	/// Display string as panic.
+	pub fn string(string: &'static str, pos: SourcePos) -> Self {
+		Self::String { string, pos }
 	}
 }
 
@@ -80,6 +90,8 @@ impl std::fmt::Display for Panic {
 					panic,
 					color::Fg(color::Yellow, pattern)
 				),
+
+            Self::String { string, .. } => f.write_str(string)
 		}
 	}
 }
@@ -96,6 +108,7 @@ impl From<Panic> for crate::runtime::Panic {
 			Panic::InvalidArgs { object, items, pos } => P::invalid_command_args(object, items, pos),
 			Panic::UnsupportedFileDescriptor { fd, pos } => P::unsupported_fd(fd, pos),
 			Panic::InvalidPattern { pattern, pos } => P::invalid_pattern(pattern, pos),
+			Panic::String { string, pos } => P::string(string, pos)
 		}
 	}
 }
