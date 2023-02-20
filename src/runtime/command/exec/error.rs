@@ -91,7 +91,7 @@ impl std::fmt::Display for Panic {
 					color::Fg(color::Yellow, pattern)
 				),
 
-            Self::String { string, .. } => f.write_str(string)
+			Self::String { string, .. } => f.write_str(string)
 		}
 	}
 }

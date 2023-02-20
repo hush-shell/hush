@@ -285,37 +285,37 @@ impl BasicCommand {
 			}
 		}
 
-        match command_mode {
+		match command_mode {
 			CommandMode::Ready(mut command, is_exec) => {
-		        for (key, value) in self.env.into_vec() { // Use vec's owned iterator.
-			        let value = value.resolve(pos.copy())?;
+				for (key, value) in self.env.into_vec() { // Use vec's owned iterator.
+					let value = value.resolve(pos.copy())?;
 
-			        match value.as_ref() {
-				        [ value ] => command.env(key, value),
-				        other => return Err(
-					        Panic::invalid_args("env variable", other.len() as u32, pos).into()
-				        ),
-			        };
-		        }
-		        Self::spawn(command, stdio, self.redirections, pos, is_exec)
+					match value.as_ref() {
+						[ value ] => command.env(key, value),
+						other => return Err(
+							Panic::invalid_args("env variable", other.len() as u32, pos).into()
+						),
+					};
+				}
+				Self::spawn(command, stdio, self.redirections, pos, is_exec)
 			},
 			CommandMode::ExecNeedProgram => Err(
-			    Panic::string("\x1B[1;33mexec\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m argument ()", pos).into()
+				Panic::string("\x1B[1;33mexec\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m argument ()", pos).into()
 			),
 			CommandMode::Exec0NeedProgram => Err(
-			    Panic::string("\x1B[1;33mexec0\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m and \x1B[1;32marg0\x1B[22;39m arguments", pos).into()
+				Panic::string("\x1B[1;33mexec0\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m and \x1B[1;32marg0\x1B[22;39m arguments", pos).into()
 			),
 			CommandMode::Exec0NeedArg0(_) => Err(
-			    Panic::string("\x1B[1;33mexec0\x1B[22;39m: missing \x1B[1;32marg0\x1B[22;39m argument", pos).into()
+				Panic::string("\x1B[1;33mexec0\x1B[22;39m: missing \x1B[1;32marg0\x1B[22;39m argument", pos).into()
 			),
 			CommandMode::SpawnNeedProgram => Err(
-			    Panic::string("\x1B[1;33mspawn\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m argument", pos).into()
+				Panic::string("\x1B[1;33mspawn\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m argument", pos).into()
 			),
 			CommandMode::Spawn0NeedProgram => Err(
-			    Panic::string("\x1B[1;33mspawn0\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m and \x1B[1;32marg0\x1B[22;39m arguments", pos).into()
+				Panic::string("\x1B[1;33mspawn0\x1B[22;39m: missing \x1B[1;32mprogram\x1B[22;39m and \x1B[1;32marg0\x1B[22;39m arguments", pos).into()
 			),
 			CommandMode::Spawn0NeedArg0(_) => Err(
-			    Panic::string("\x1B[1;33mspawn0\x1B[22;39m: missing \x1B[1;32marg0\x1B[22;39m argument", pos).into()
+				Panic::string("\x1B[1;33mspawn0\x1B[22;39m: missing \x1B[1;32marg0\x1B[22;39m argument", pos).into()
 			)
 		}
 	}

@@ -371,9 +371,8 @@ impl<'a> Display<'a> for Panic {
 					color::Fg(color::Yellow, fmt::Show(value, context))
 				),
 
-		    Self::String { string, pos } => {
+			Self::String { string, pos } =>
 				write!(f, "{} in {}: {}", panic, fmt::Show(pos, context), string)
-			}
 		}
 	}
 }
