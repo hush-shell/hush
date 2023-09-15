@@ -173,6 +173,7 @@ dependencies = [
  "inventory",
  "os_pipe",
  "rand",
+ "rand_chacha",
  "regex",
  "serde",
  "serde_json",
