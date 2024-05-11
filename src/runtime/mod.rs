@@ -12,7 +12,7 @@ pub mod value;
 #[cfg(test)]
 mod tests;
 
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 use crate::symbol::{self, Symbol};
 use super::semantic::program;
@@ -454,7 +454,6 @@ impl Runtime {
 							),
 
 							(Value::Array(ref array), Value::Int(ix)) => array
-								.deref()
 								.set(ix, value)
 								.map_err(|_| Panic::index_out_of_bounds(Value::Int(ix), pos.into()))?,
 

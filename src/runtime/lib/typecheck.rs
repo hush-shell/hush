@@ -36,7 +36,7 @@ impl Typecheck {
 		match context.args() {
 			[ value, Value::String(expected) ] => {
 				let expected_type = Type
-					::parse(&expected)
+					::parse(expected)
 					.ok_or_else(
 						|| Panic::value_error(
 							Value::String(expected.copy()),

@@ -97,7 +97,7 @@ where
 				&self.token,
 				// The current token is a single unquoted number
 				Some(Token { kind: TokenKind::Argument(parts), .. })
-					if matches!(parts.as_ref(), &[ref part] if part.is_unquoted_number())
+					if matches!(parts.as_ref(), [part] if part.is_unquoted_number())
 					// And the next token is a redirection operator.
 					&& matches!(
 						self.cursor.peek(),

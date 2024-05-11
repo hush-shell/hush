@@ -671,7 +671,7 @@ where
 					.with_sync(sync::Strategy::keyword(Keyword::End))?;
 
 				Ok(ast::Expr::If {
-					condition: condition.into(),
+					condition,
 					then,
 					otherwise,
 					pos,

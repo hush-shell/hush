@@ -32,7 +32,7 @@ use program::{
 	RedirectionTarget,
 	Statement,
 };
-pub use error::{Error, ErrorKind, Errors, ErrorsDisplayContext};
+pub use error::{Error, Errors, ErrorsDisplayContext};
 
 
 /// Static semantic analyzer.
@@ -486,6 +486,7 @@ impl<'a> Analyzer<'a> {
 			ast::Literal::Function { params, body } => {
 				let mut analyzer = self.enter_frame();
 
+				#[allow(clippy::manual_try_fold)] // We don't want to short circuit here.
 				let params_result = params
 					.iter()
 					.fold(

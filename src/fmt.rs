@@ -30,7 +30,7 @@ where
 	type Context = T::Context;
 
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>, context: Self::Context) -> std::fmt::Result {
-		(&**self).fmt(f, context)
+		(**self).fmt(f, context)
 	}
 }
 

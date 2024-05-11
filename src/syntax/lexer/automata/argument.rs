@@ -274,7 +274,7 @@ where
 				if !c.is_word_start() {
 					self.error = true;
 				}
-				if self.braces == None {
+				if self.braces.is_none() {
 					self.braces = Some(false);
 				}
 

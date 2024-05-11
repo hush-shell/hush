@@ -3,7 +3,7 @@ use std::{
 	fmt::{self, Debug, Display},
 };
 
-pub use termion::color::{Black, Blue, Green, Red, Yellow};
+pub use termion::color::{Blue, Green, Red, Yellow};
 
 
 thread_local! {

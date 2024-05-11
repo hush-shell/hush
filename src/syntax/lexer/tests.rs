@@ -25,7 +25,7 @@ macro_rules! assert_symbol {
 /// Check that TokenKind is not too big, because it gets moved around a lot.
 #[test]
 fn test_token_kind_size() {
-	assert_eq!(std::mem::size_of::<TokenKind>(), 32);
+	assert!(std::mem::size_of::<TokenKind>() <= 32);
 }
 
 
