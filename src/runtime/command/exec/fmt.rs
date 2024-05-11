@@ -72,6 +72,9 @@ impl Display for Builtin {
 		let command = match self {
 			Self::Alias => "alias",
 			Self::Cd => "cd",
+			Self::Exec => "exec",
+			Self::Exec0 => "exec0",
+			Self::Spawn0 => "spawn0",
 		};
 
 		color::Fg(color::Green, command).fmt(f)

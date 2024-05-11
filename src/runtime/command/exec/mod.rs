@@ -6,7 +6,7 @@ use std::{
 	ffi::{OsStr, OsString},
 	fs::{File, OpenOptions},
 	io::{self, Write},
-	os::unix::prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd},
+	os::unix::{prelude::{FromRawFd, OsStrExt, ExitStatusExt, IntoRawFd}, process::CommandExt},
 	process,
 };
 
@@ -152,6 +152,9 @@ pub enum Redirection {
 pub enum Builtin {
 	Alias,
 	Cd,
+	Exec,
+	Exec0,
+	Spawn0,
 }
 
 
@@ -161,35 +164,75 @@ impl Builtin {
 		arguments: Box<[Argument]>,
 		pos: SourcePos,
 	) -> Result<Option<ErrorStatus>, Error> {
-		let mut arguments = arguments.into_vec();
+		let io_error = |error| Error::io(error, pos.copy());
+		let mut args = Self::resolve_args(arguments, pos.copy())?;
 
 		match self {
-			Builtin::Alias => todo!(),
+			Self::Alias => todo!(),
 
-			Builtin::Cd => {
-				let arg = arguments
-					.pop()
+			Self::Cd => {
+				let dir = args
+					.next()
 					.ok_or_else(|| Panic::invalid_args("argument", 0, pos.copy()))?;
 
-				if !arguments.is_empty() {
+				let remaining_args = args.count();
+				if remaining_args > 0 {
 					return Err(
-						Panic::invalid_args("argument", arguments.len() as u32 + 1, pos.copy()).into()
+						Panic::invalid_args("argument", remaining_args as u32 + 1, pos.copy()).into()
 					);
 				}
 
-				let args = arg.resolve(pos.copy())?;
-
-				match args.as_ref() {
-					[ dir ] => std::env::set_current_dir(dir.as_ref())
-						.map_err(|error| Error::io(error, pos.copy()))?,
-					other => return Err(
-						Panic::invalid_args("argument", other.len() as u32, pos).into()
-					),
-				};
+				std::env::set_current_dir(dir.as_ref()).map_err(io_error)?;
 
 				Ok(None)
 			}
+
+			Self::Exec | Self::Exec0 | Self::Spawn0 => {
+				let cmd = args
+					.next()
+					.ok_or_else(|| Panic::invalid_args("argument", 0, pos.copy()))?;
+
+				let mut command = process::Command::new(cmd);
+
+				if matches!(self, Self::Exec0 | Self::Spawn0) {
+					let arg0 = args
+						.next()
+						.ok_or_else(|| Panic::invalid_args("arg0", 0, pos.copy()))?;
+
+					command.arg0(arg0);
+				}
+
+				for arg in args {
+					command.arg(arg);
+				}
+
+				if matches!(self, Self::Spawn0) {
+					let process = command.spawn()
+						.map_err(io_error)?;
+
+					Ok(ErrorStatus::wait_child(Child { process, pos }))
+				} else {
+					let error = command.exec();
+					Err(io_error(error))
+				}
+			}
 		}
+	}
+
+	fn resolve_args(
+		arguments: Box<[Argument]>,
+		pos: SourcePos,
+	) -> Result<impl Iterator<Item = Box<OsStr>>, Error> {
+		let args = arguments
+			.into_vec()
+			.into_iter()
+			.map(|arg| arg.resolve(pos.copy()))
+			.collect::<Result<Vec<_>, _>>()?
+			.into_iter()
+			.map(<[_]>::into_vec)
+			.flatten();
+
+		Ok(args)
 	}
 }
 
@@ -199,6 +242,9 @@ impl<'a> From<&'a program::command::Builtin> for Builtin {
 		match builtin {
 			program::command::Builtin::Alias => Self::Alias,
 			program::command::Builtin::Cd => Self::Cd,
+			program::command::Builtin::Exec => Self::Exec,
+			program::command::Builtin::Exec0 => Self::Exec0,
+			program::command::Builtin::Spawn0 => Self::Spawn0,
 		}
 	}
 }

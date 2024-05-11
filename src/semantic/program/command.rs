@@ -74,6 +74,9 @@ pub enum Redirection {
 pub enum Builtin {
 	Alias,
 	Cd,
+	Exec,
+	Exec0,
+	Spawn0,
 }
 
 
@@ -91,6 +94,9 @@ impl<'a> TryFrom<&'a [u8]> for Builtin {
 		match value {
 			b"alias" => Ok(Self::Alias),
 			b"cd" => Ok(Self::Cd),
+			b"exec" => Ok(Self::Exec),
+			b"exec0" => Ok(Self::Exec0),
+			b"spawn0" => Ok(Self::Spawn0),
 			_ => Err(InvalidBuiltin)
 		}
 	}
