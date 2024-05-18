@@ -530,6 +530,9 @@ impl std::fmt::Display for command::Builtin {
 		let command = match self {
 			command::Builtin::Alias => "alias",
 			command::Builtin::Cd => "cd",
+			command::Builtin::Exec => "exec",
+			command::Builtin::Exec0 => "exec0",
+			command::Builtin::Spawn0 => "spawn0",
 		};
 
 		color::Fg(color::Green, command).fmt(f)
